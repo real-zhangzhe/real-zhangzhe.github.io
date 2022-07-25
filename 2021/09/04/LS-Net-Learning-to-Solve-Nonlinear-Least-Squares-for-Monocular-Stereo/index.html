@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"real-zhangzhe.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="URLhttps:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;1809.02966.pdf TL;DR 提出一种端到端的可训练的优化方法，通过近似 Hessian 优化方法，解决非线性最小二乘法问题  从训练数据中隐式的学习正则化与先验信息  第一个将可学习的优化器用于单目视觉光度误差估计任务中   Algorithm背景知识非线性最小二乘法求解 最小二乘法问题： $E &#x3D; \frac{1}{2}\sum_{">
+<meta property="og:type" content="article">
+<meta property="og:title" content="LS-Net: Learning to Solve Nonlinear Least Squares for Monocular Stereo">
+<meta property="og:url" content="https://real-zhangzhe.github.io/2021/09/04/LS-Net-Learning-to-Solve-Nonlinear-Least-Squares-for-Monocular-Stereo/index.html">
+<meta property="og:site_name" content="Zhangzhe&#39;s Blog">
+<meta property="og:description" content="URLhttps:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;1809.02966.pdf TL;DR 提出一种端到端的可训练的优化方法，通过近似 Hessian 优化方法，解决非线性最小二乘法问题  从训练数据中隐式的学习正则化与先验信息  第一个将可学习的优化器用于单目视觉光度误差估计任务中   Algorithm背景知识非线性最小二乘法求解 最小二乘法问题： $E &#x3D; \frac{1}{2}\sum_{">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://i.loli.net/2021/09/04/5e6iPRSXl8KJ3fN.png">
+<meta property="og:image" content="https://i.loli.net/2021/09/04/yQCSHnlvmGNgJpb.png">
+<meta property="og:image" content="https://i.loli.net/2021/09/04/vkr3fanDbpqHyhP.png">
+<meta property="article:published_time" content="2021-09-04T02:50:11.000Z">
+<meta property="article:modified_time" content="2022-07-14T09:10:21.732Z">
+<meta property="article:author" content="Zhangzhe">
+<meta property="article:tag" content="Paper Reading">
+<meta property="article:tag" content="Monocular Stereo">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://i.loli.net/2021/09/04/5e6iPRSXl8KJ3fN.png">
+
+<link rel="canonical" href="https://real-zhangzhe.github.io/2021/09/04/LS-Net-Learning-to-Solve-Nonlinear-Least-Squares-for-Monocular-Stereo/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>LS-Net: Learning to Solve Nonlinear Least Squares for Monocular Stereo | Zhangzhe's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Zhangzhe's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">The projection of my life.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/archives/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2021/09/04/LS-Net-Learning-to-Solve-Nonlinear-Least-Squares-for-Monocular-Stereo/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          LS-Net: Learning to Solve Nonlinear Least Squares for Monocular Stereo
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2021-09-04 10:50:11" itemprop="dateCreated datePublished" datetime="2021-09-04T10:50:11+08:00">2021-09-04</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2022-07-14 17:10:21" itemprop="dateModified" datetime="2022-07-14T17:10:21+08:00">2022-07-14</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Monocular-Stereo/" itemprop="url" rel="index"><span itemprop="name">Monocular Stereo</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2021/09/04/LS-Net-Learning-to-Solve-Nonlinear-Least-Squares-for-Monocular-Stereo/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2021/09/04/LS-Net-Learning-to-Solve-Nonlinear-Least-Squares-for-Monocular-Stereo/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="URL"><a href="#URL" class="headerlink" title="URL"></a>URL</h2><p><a target="_blank" rel="noopener" href="https://arxiv.org/pdf/1809.02966.pdf">https://arxiv.org/pdf/1809.02966.pdf</a></p>
+<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
+<li><p>提出一种端到端的可训练的优化方法，通过近似 Hessian 优化方法，解决非线性最小二乘法问题</p>
+</li>
+<li><p>从训练数据中隐式的学习正则化与先验信息</p>
+</li>
+<li><p>第一个将可学习的优化器用于单目视觉光度误差估计任务中</p>
+</li>
+</ul>
+<h2 id="Algorithm"><a href="#Algorithm" class="headerlink" title="Algorithm"></a>Algorithm</h2><h3 id="背景知识"><a href="#背景知识" class="headerlink" title="背景知识"></a>背景知识</h3><h4 id="非线性最小二乘法求解"><a href="#非线性最小二乘法求解" class="headerlink" title="非线性最小二乘法求解"></a>非线性最小二乘法求解</h4><ul>
+<li>最小二乘法问题： $E = \frac{1}{2}\sum_{j} r_j^2(x),\ \ \ \ \ r_j(x)$ 表示 x 第 j 项的 L1 误差</li>
+<li>常用方法： <code>Gauss-Newton (GN)</code>、<code>Levenberg-Marquadt (LM)</code></li>
+<li>求解过程：<ul>
+<li>对误差进行一阶估计： $r(x_i+\Delta x_i)=r(x_i)+J_i\Delta x_i,\ \ \ J_i = \frac{dr}{dx}|_{x=x_i}$ ，J 是雅各比矩阵</li>
+<li>最优变化量： $\Delta x_i=\arg_{\Delta x_i}\min \frac{1}{2}||r_i+J_i\Delta x_i||^2$</li>
+<li><code>GN</code> 法获得最优变化量： $J_i^TJ_i\Delta x_i = - J_i^Tr_i$ ，如果 $J_i^TJ_i$ 可逆，则最优变化量 $\Delta x_i=-(J_i^TJ_i)^{-1}J_i^Tr_i$</li>
+<li><code>LM</code> 法获得最优变化量（在 <code>GN</code> 的基础上加入超参数—— 阻尼系数 $\lambda$）： $\Delta x_i=-(J_i^TJ_i + \lambda \ diag(J_i^TJ_i))^{-1}J_i^Tr_i$</li>
+<li>本方法：基于 <code>GN</code> 加入了更多的可学习参数，使用梯度下降优化</li>
+</ul>
+</li>
+</ul>
+<h3 id="任务描述"><a href="#任务描述" class="headerlink" title="任务描述"></a>任务描述</h3><ul>
+<li>输入一段图像序列，输出深度估计（depth）与姿态估计（pose），为了估计较大范围的深度，所以网络实际估计深度的倒数： $z = \frac{1}{d}$</li>
+<li>所以本任务优化目标函数： $E(x) = \frac{1}{2}||r(x)||^2,\ \ \ x=(z, p)$</li>
+</ul>
+<h3 id="网络结构"><a href="#网络结构" class="headerlink" title="网络结构"></a>网络结构</h3><p>网络结构包含 <code>bootstrap network</code>、<code>iterative network</code>、<code>refinement network</code></p>
+<ul>
+<li><code>bootstrap network</code>： 生成低分辨率（ $\frac{H}{4},  \frac{W}{4}$ ）的粗糙估计（一个简单的包含下采样的CNN）</li>
+<li><code>iterative network</code>：重复迭代与细化，本文使用 <code>LSTM</code> （非线性最小二乘法优化也用于此处）</li>
+<li><code>refinement network</code>：上采样（双线性插值法）</li>
+</ul>
+<p><img src="https://i.loli.net/2021/09/04/5e6iPRSXl8KJ3fN.png" alt="lsnet_1.png"></p>
+<h3 id="iterative-network-优化过程"><a href="#iterative-network-优化过程" class="headerlink" title="iterative network 优化过程"></a>iterative network 优化过程</h3><p><img src="https://i.loli.net/2021/09/04/yQCSHnlvmGNgJpb.png" alt="lsnet_2.png"></p>
+<blockquote>
+<ul>
+<li>其中 $f_{\theta_0}$ 表示 <code>bootstrap network</code>， $f_{\theta}$ 表示 <code>Convolutional LSTM Cell</code></li>
+</ul>
+</blockquote>
+<ul>
+<li>由于 <code>J</code> 具体空间局部性，所以这里使用的 LSTM 是 <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/1506.04214.pdf">Convolutional LSTM</a></li>
+<li>$\begin{bmatrix} \Delta x_i\\ h_{i+1} \end{bmatrix} = LSTM_{cell}(\Phi(J_i,r_i),h_i,x_i;\theta),\ \ \ x_{i+1} = x_i + \Delta x_i$ ，这里的 $x_i$ 并不是真的输入到 LSTM 中，如 <code>Algorithm 1</code> 所示， $x_i$ 用来产生 $J_i$ 从而产生 $\Phi(J_i, r_i)$</li>
+<li>其中雅各比矩阵的变形 $\Phi(J_i,r_i) = [J^TJ,r]$ <ul>
+<li>理论上 $\Phi(J_i,r_i) = [(J^TJ)^{-1}J,r]$ ，但由于求逆会引入较大的计算量，并且不会产生额外的信息量，所以简化  $\Phi(J_i,r_i) = [J^TJ,r]$</li>
+<li>由于雅各比矩阵是稀疏的，所以使用了下图的方法对 $J^TJ$ 进行了压缩</li>
+</ul>
+</li>
+</ul>
+<p><img src="https://i.loli.net/2021/09/04/vkr3fanDbpqHyhP.png" alt="lsnet_3.png"></p>
+<h4 id="损失函数"><a href="#损失函数" class="headerlink" title="损失函数"></a>损失函数</h4><ul>
+<li>depth 与 pose 的 L1 误差的加权和</li>
+</ul>
+<h2 id="Thoughts"><a href="#Thoughts" class="headerlink" title="Thoughts"></a>Thoughts</h2><ul>
+<li><p>本文的创新点在于 <code>Convolutional LSTM</code> 中输入的不是 $x_i$ ，而是压缩后的二阶雅各比矩阵，用来拟合 $\Delta x_i$ ，可以通过近似 <code>GN</code> 法，产生超一阶优化的效果</p>
+</li>
+<li><p><code>GN</code> ： $\Delta x_i=-(J_i^TJ_i)^{-1}J_i^Tr_i$ ，本文： $\Delta x_i=LSTM(J_i^TJ_i,r_i)$ ，即把 $[(J_i^TJ_i)^{-1}J_i,r_i] —&gt; [J_i^TJ_i,r_i]$ 并加入了 <code>LSTM</code> 梯度下降优化</p>
+</li>
+<li><p>本文的网络没有官方开源，也找不到民间实现，所以对网络的细节不是特别明白</p>
+</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Paper-Reading/" rel="tag"># Paper Reading</a>
+              <a href="/tags/Monocular-Stereo/" rel="tag"># Monocular Stereo</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2021/09/04/Modeling-Task-Relationships-in-Multi-task-Learning-with-Multi-gate-Mixture-of-Experts/" rel="prev" title="Modeling Task Relationships in Multi-task Learning with Multi-gate Mixture-of-Experts">
+      <i class="fa fa-chevron-left"></i> Modeling Task Relationships in Multi-task Learning with Multi-gate Mixture-of-Experts
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2021/09/05/DeepSVG-A-Hierarchical-Generative-Network-for-Vector-Graphics-Animation/" rel="next" title="DeepSVG: A Hierarchical Generative Network for Vector Graphics Animation">
+      DeepSVG: A Hierarchical Generative Network for Vector Graphics Animation <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#URL"><span class="nav-number">1.</span> <span class="nav-text">URL</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#TL-DR"><span class="nav-number">2.</span> <span class="nav-text">TL;DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Algorithm"><span class="nav-number">3.</span> <span class="nav-text">Algorithm</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%83%8C%E6%99%AF%E7%9F%A5%E8%AF%86"><span class="nav-number">3.1.</span> <span class="nav-text">背景知识</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E9%9D%9E%E7%BA%BF%E6%80%A7%E6%9C%80%E5%B0%8F%E4%BA%8C%E4%B9%98%E6%B3%95%E6%B1%82%E8%A7%A3"><span class="nav-number">3.1.1.</span> <span class="nav-text">非线性最小二乘法求解</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BB%BB%E5%8A%A1%E6%8F%8F%E8%BF%B0"><span class="nav-number">3.2.</span> <span class="nav-text">任务描述</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%BD%91%E7%BB%9C%E7%BB%93%E6%9E%84"><span class="nav-number">3.3.</span> <span class="nav-text">网络结构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#iterative-network-%E4%BC%98%E5%8C%96%E8%BF%87%E7%A8%8B"><span class="nav-number">3.4.</span> <span class="nav-text">iterative network 优化过程</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%8D%9F%E5%A4%B1%E5%87%BD%E6%95%B0"><span class="nav-number">3.4.1.</span> <span class="nav-text">损失函数</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Thoughts"><span class="nav-number">4.</span> <span class="nav-text">Thoughts</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Zhangzhe</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives">
+          <span class="site-state-item-count">46</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">12</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhangzhe</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'eK3W25jybCO5jVUrYBBpAPqM-gzGzoHsz',
+      appKey     : 'F4KVyUj9wHI5c80Bhz7O2uhq',
+      placeholder: "说点什么再走吧...",
+      avatar     : 'hide',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

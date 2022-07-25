@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"real-zhangzhe.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="URLhttps:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;2007.06191.pdf TL;DR 本文提出了一种新颖的卷积方式——PSConv，参数量与计算量都不变的情况下可以提高网络特征提取能力 PSConv的本质是一种dilated系数周期性变化的空洞卷积，周期性变化发生在 $C_{in}$ 和 $C_{out}$ 两个“正交”坐标系中  Algorithm什么是PSConv 标准卷积：   $H_">
+<meta property="og:type" content="article">
+<meta property="og:title" content="PSConv: Squeezing Feature Pyramid into One Compact Poly-Scale Convolutional Layer">
+<meta property="og:url" content="https://real-zhangzhe.github.io/2021/08/22/PSConv-Squeezing-Feature-Pyramid-into-One-Compact-Poly-Scale-Convolutional-Layer/index.html">
+<meta property="og:site_name" content="Zhangzhe&#39;s Blog">
+<meta property="og:description" content="URLhttps:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;2007.06191.pdf TL;DR 本文提出了一种新颖的卷积方式——PSConv，参数量与计算量都不变的情况下可以提高网络特征提取能力 PSConv的本质是一种dilated系数周期性变化的空洞卷积，周期性变化发生在 $C_{in}$ 和 $C_{out}$ 两个“正交”坐标系中  Algorithm什么是PSConv 标准卷积：   $H_">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://i.loli.net/2021/08/22/eFhEgOj6IBLSq7l.png">
+<meta property="og:image" content="https://i.loli.net/2021/08/22/w4qvntoYMI3TsZX.png">
+<meta property="og:image" content="https://i.loli.net/2021/08/22/QwKXLlsSyZWfctV.png">
+<meta property="og:image" content="https://i.loli.net/2021/08/22/VnurNl1xi3KJPYd.png">
+<meta property="og:image" content="https://i.loli.net/2021/08/22/sbJpqxeLUhnrD2K.png">
+<meta property="og:image" content="https://i.loli.net/2021/08/22/UPvntfFCTzEMpXQ.png">
+<meta property="og:image" content="https://i.loli.net/2021/08/22/DValA5Jd3F6hLuC.png">
+<meta property="og:image" content="https://i.loli.net/2021/08/22/ThYbKnxagJjfDmi.png">
+<meta property="og:image" content="https://i.loli.net/2021/08/22/vsK4yqIVYd18FLZ.png">
+<meta property="article:published_time" content="2021-08-22T08:58:59.000Z">
+<meta property="article:modified_time" content="2022-07-14T09:10:21.732Z">
+<meta property="article:author" content="Zhangzhe">
+<meta property="article:tag" content="Paper Reading">
+<meta property="article:tag" content="CNN Architecture Design">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://i.loli.net/2021/08/22/eFhEgOj6IBLSq7l.png">
+
+<link rel="canonical" href="https://real-zhangzhe.github.io/2021/08/22/PSConv-Squeezing-Feature-Pyramid-into-One-Compact-Poly-Scale-Convolutional-Layer/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>PSConv: Squeezing Feature Pyramid into One Compact Poly-Scale Convolutional Layer | Zhangzhe's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Zhangzhe's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">The projection of my life.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/archives/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2021/08/22/PSConv-Squeezing-Feature-Pyramid-into-One-Compact-Poly-Scale-Convolutional-Layer/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          PSConv: Squeezing Feature Pyramid into One Compact Poly-Scale Convolutional Layer
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2021-08-22 16:58:59" itemprop="dateCreated datePublished" datetime="2021-08-22T16:58:59+08:00">2021-08-22</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2022-07-14 17:10:21" itemprop="dateModified" datetime="2022-07-14T17:10:21+08:00">2022-07-14</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/CNN-Architecture-Design/" itemprop="url" rel="index"><span itemprop="name">CNN Architecture Design</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2021/08/22/PSConv-Squeezing-Feature-Pyramid-into-One-Compact-Poly-Scale-Convolutional-Layer/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2021/08/22/PSConv-Squeezing-Feature-Pyramid-into-One-Compact-Poly-Scale-Convolutional-Layer/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="URL"><a href="#URL" class="headerlink" title="URL"></a>URL</h2><p><a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2007.06191.pdf">https://arxiv.org/pdf/2007.06191.pdf</a></p>
+<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
+<li>本文提出了一种新颖的卷积方式——PSConv，参数量与计算量都不变的情况下可以提高网络特征提取能力</li>
+<li>PSConv的本质是一种dilated系数周期性变化的空洞卷积，周期性变化发生在 $C_{in}$ 和 $C_{out}$ 两个“正交”坐标系中</li>
+</ul>
+<h2 id="Algorithm"><a href="#Algorithm" class="headerlink" title="Algorithm"></a>Algorithm</h2><h3 id="什么是PSConv"><a href="#什么是PSConv" class="headerlink" title="什么是PSConv"></a>什么是PSConv</h3><ul>
+<li><p>标准卷积：</p>
+<p>  $H_{c,x,y} = \sum_{k=1}^{C_{in}}\sum_{i=-\frac{K-1}{2}}^{\frac{K-1}{2}}\sum_{j=-\frac{K-1}{2}}^{\frac{K-1}{2}} G_{c,k,i,j}F_{k,x+i,y+j}$</p>
+<p>  其中，F表示输入feature， $F\in\mathbb{R}^{C_{in}\times H\times W}$ ，G表示kernel， $G\in\mathbb{R}^{C_{out}\times C_{in}\times K\times K}$ ，H表示一个kernel卷积输出 $H\in\mathbb R^{1\times H\times W}$ ，i，j分表表示kernel中的点距离kernel中心在H于W方向上的偏移</p>
+</li>
+<li><p>空洞卷积：</p>
+<p>  $H_{c,x,y} = \sum_{k=1}^{C_{in}}\sum_{i=-\frac{K-1}{2}}^{\frac{K-1}{2}}\sum_{j=-\frac{K-1}{2}}^{\frac{K-1}{2}} G_{c,k,i,j}F_{k,x+id,y+jd}$</p>
+<p>  其中：id表示 <strong>偏移 i * 空洞系数 d</strong></p>
+</li>
+<li><p>PSConv：</p>
+<p>  $H_{c,x,y} = \sum_{k=1}^{C_{in}}\sum_{i=-\frac{K-1}{2}}^{\frac{K-1}{2}}\sum_{j=-\frac{K-1}{2}}^{\frac{K-1}{2}} G_{c,k,i,j}F_{k,x+iD(c,k),y+jD(c,k)}$</p>
+<p>  其中：i * D(c, k)表示 <strong>偏移 i * 空洞系数 D(c, k)，D是空洞系数矩阵</strong>，$D\in\mathbb R^{C_{out}\times C_{in}}$ ，<strong>D(i, j) 表示 第 i 个 kernel 第 j channel 的空洞系数 d</strong></p>
+</li>
+</ul>
+<h3 id="空洞系数矩阵D设计的基本法"><a href="#空洞系数矩阵D设计的基本法" class="headerlink" title="空洞系数矩阵D设计的基本法"></a>空洞系数矩阵D设计的基本法</h3><ul>
+<li><p>D矩阵的一行表示一个kernel，kernel 的通道数为 $C_{in}$</p>
+</li>
+<li><p>PSConv 是将这 $C_{in}$ 通道分为 P 个周期，每个周期的长度为 $t = \lceil \frac{C_{in}}{P}\rceil$ </p>
+</li>
+<li><p>每个周期 t 个空洞系数 $d = \{d_1, d_2,…,d_t\}$ ，实验证明当 $t=4，d=\{1,2,1,4\}$ 效果最好</p>
+</li>
+<li><p>另外D矩阵的列上也要具有周期性，方法是让每一行相对与上一行偏移 1个相位（一个周期 t 个相位）</p>
+</li>
+</ul>
+<h3 id="效果"><a href="#效果" class="headerlink" title="效果"></a>效果</h3><ul>
+<li><p>涨点，替换什么什么就涨点，原因是使用一种类似周期性金字塔kernel的方法，得到了非常有想象力的感受野</p>
+</li>
+<li><p>虽然不增加参数量与计算量，但是train与inference都会变慢，所以作者附录中给出了一种优化实现方式，是将每个周期的相同相位合并到一起使用group Conv，然后再shuffle index，与ShuffleNet一个意思</p>
+</li>
+<li><p>优化后确实会变快，可以将PS-ResNet-50/101在inference速度提升到与标准ResNet-50/101基本一致</p>
+</li>
+<li><p>消融实验对比了只在 $C_{in}$ 或者 只在$C_{out}$ 上周期性变化，发现哪个轴上周期变化都是必要的</p>
+</li>
+<li><p>当 t = 1时，D中只会包含一种元素，此时PSconv退化为标准空洞卷积</p>
+</li>
+<li><p>PSConv 可以加入 group 参数，每个 group 内单独周期变化</p>
+</li>
+</ul>
+<h2 id="Thoughts"><a href="#Thoughts" class="headerlink" title="Thoughts"></a>Thoughts</h2><ul>
+<li><p>不增加计算量和参数量，且文章附录中提出经过优化实现可以将PS-ResNet-50/101在inference速度提升到与标准ResNet-50/101基本一致。</p>
+</li>
+<li><p>如果在硬件设计中，预留了dilated Conv接口，并借鉴文中的优化实现方式，使用分组卷积+index shuffle减小filter通道间dilated不同的问题，这种白送的点也挺香的</p>
+</li>
+</ul>
+<h3 id="图表"><a href="#图表" class="headerlink" title="图表"></a>图表</h3><ul>
+<li>标准卷积与PSConv （可以带group参数）</li>
+</ul>
+<p><img src="https://i.loli.net/2021/08/22/eFhEgOj6IBLSq7l.png" alt="ps1.png"></p>
+<ul>
+<li>PS group Conv</li>
+</ul>
+<p><img src="https://i.loli.net/2021/08/22/w4qvntoYMI3TsZX.png" alt="ps2.png"></p>
+<ul>
+<li>优化实现</li>
+</ul>
+<p><img src="https://i.loli.net/2021/08/22/QwKXLlsSyZWfctV.png" alt="ps3.png"></p>
+<ul>
+<li>搜索 t 与 d</li>
+</ul>
+<p><img src="https://i.loli.net/2021/08/22/VnurNl1xi3KJPYd.png" alt="ps4.png"></p>
+<ul>
+<li>横纵坐标周期消融实验</li>
+</ul>
+<p><img src="https://i.loli.net/2021/08/22/sbJpqxeLUhnrD2K.png" alt="ps5.png"></p>
+<ul>
+<li>涨点涨点涨点….</li>
+</ul>
+<p><img src="https://i.loli.net/2021/08/22/UPvntfFCTzEMpXQ.png" alt="ps8.png"><br><img src="https://i.loli.net/2021/08/22/DValA5Jd3F6hLuC.png" alt="ps9.png"><br><img src="https://i.loli.net/2021/08/22/ThYbKnxagJjfDmi.png" alt="ps7.png"><br><img src="https://i.loli.net/2021/08/22/vsK4yqIVYd18FLZ.png" alt="ps6.png"></p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Paper-Reading/" rel="tag"># Paper Reading</a>
+              <a href="/tags/CNN-Architecture-Design/" rel="tag"># CNN Architecture Design</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2021/08/17/Diverse-Branch-Block-Building-a-Convolution-as-an-Inception-like-Unit/" rel="prev" title="Diverse Branch Block: Building a Convolution as an Inception-like Unit">
+      <i class="fa fa-chevron-left"></i> Diverse Branch Block: Building a Convolution as an Inception-like Unit
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2021/08/22/DO-Conv-Depthwise-Over-parameterized-Convolutional-Layer/" rel="next" title="DO-Conv: Depthwise Over-parameterized Convolutional Layer">
+      DO-Conv: Depthwise Over-parameterized Convolutional Layer <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#URL"><span class="nav-number">1.</span> <span class="nav-text">URL</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#TL-DR"><span class="nav-number">2.</span> <span class="nav-text">TL;DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Algorithm"><span class="nav-number">3.</span> <span class="nav-text">Algorithm</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BB%80%E4%B9%88%E6%98%AFPSConv"><span class="nav-number">3.1.</span> <span class="nav-text">什么是PSConv</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%A9%BA%E6%B4%9E%E7%B3%BB%E6%95%B0%E7%9F%A9%E9%98%B5D%E8%AE%BE%E8%AE%A1%E7%9A%84%E5%9F%BA%E6%9C%AC%E6%B3%95"><span class="nav-number">3.2.</span> <span class="nav-text">空洞系数矩阵D设计的基本法</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%95%88%E6%9E%9C"><span class="nav-number">3.3.</span> <span class="nav-text">效果</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Thoughts"><span class="nav-number">4.</span> <span class="nav-text">Thoughts</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%9B%BE%E8%A1%A8"><span class="nav-number">4.1.</span> <span class="nav-text">图表</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Zhangzhe</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives">
+          <span class="site-state-item-count">46</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">12</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhangzhe</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'eK3W25jybCO5jVUrYBBpAPqM-gzGzoHsz',
+      appKey     : 'F4KVyUj9wHI5c80Bhz7O2uhq',
+      placeholder: "说点什么再走吧...",
+      avatar     : 'hide',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

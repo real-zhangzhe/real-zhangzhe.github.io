@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"real-zhangzhe.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="URLhttps:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;2109.09310.pdf TL；DR 本文提出一种多功能的卷积核，可以有效提高算法效果，降低计算量与存储空间 具体做法是：将 一个 主卷积核与 多个 二值 mask 点积生成 多个次级卷积核，用次级卷积核进行计算 二值 mask 包括 H、W、C 方向，即每个次级卷积核的 H、W、C 都可能不同  Algorithm思路 神经网络轻量化（参数量">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Learning Versatile Convolution Filters for Efficient Visual Recognition">
+<meta property="og:url" content="https://real-zhangzhe.github.io/2021/11/08/Learning-Versatile-Convolution-Filters-for-Efficient-Visual-Recognition/index.html">
+<meta property="og:site_name" content="Zhangzhe&#39;s Blog">
+<meta property="og:description" content="URLhttps:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;2109.09310.pdf TL；DR 本文提出一种多功能的卷积核，可以有效提高算法效果，降低计算量与存储空间 具体做法是：将 一个 主卷积核与 多个 二值 mask 点积生成 多个次级卷积核，用次级卷积核进行计算 二值 mask 包括 H、W、C 方向，即每个次级卷积核的 H、W、C 都可能不同  Algorithm思路 神经网络轻量化（参数量">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://i.loli.net/2021/11/09/5u3y9KAVliNYvah.png">
+<meta property="og:image" content="https://i.loli.net/2021/11/10/TsUO8hxaYPHgf72.png">
+<meta property="og:image" content="https://i.loli.net/2021/11/10/nFeKLQ2RjWBlaZz.png">
+<meta property="og:image" content="https://i.loli.net/2021/11/10/bDxzReyKVm8Plti.png">
+<meta property="article:published_time" content="2021-11-08T14:26:47.000Z">
+<meta property="article:modified_time" content="2022-07-14T09:10:21.732Z">
+<meta property="article:author" content="Zhangzhe">
+<meta property="article:tag" content="Paper Reading">
+<meta property="article:tag" content="CNN Architecture Design">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://i.loli.net/2021/11/09/5u3y9KAVliNYvah.png">
+
+<link rel="canonical" href="https://real-zhangzhe.github.io/2021/11/08/Learning-Versatile-Convolution-Filters-for-Efficient-Visual-Recognition/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>Learning Versatile Convolution Filters for Efficient Visual Recognition | Zhangzhe's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Zhangzhe's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">The projection of my life.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/archives/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2021/11/08/Learning-Versatile-Convolution-Filters-for-Efficient-Visual-Recognition/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Learning Versatile Convolution Filters for Efficient Visual Recognition
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2021-11-08 22:26:47" itemprop="dateCreated datePublished" datetime="2021-11-08T22:26:47+08:00">2021-11-08</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2022-07-14 17:10:21" itemprop="dateModified" datetime="2022-07-14T17:10:21+08:00">2022-07-14</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/CNN-Architecture-Design/" itemprop="url" rel="index"><span itemprop="name">CNN Architecture Design</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2021/11/08/Learning-Versatile-Convolution-Filters-for-Efficient-Visual-Recognition/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2021/11/08/Learning-Versatile-Convolution-Filters-for-Efficient-Visual-Recognition/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="URL"><a href="#URL" class="headerlink" title="URL"></a>URL</h2><p><a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2109.09310.pdf">https://arxiv.org/pdf/2109.09310.pdf</a></p>
+<h2 id="TL；DR"><a href="#TL；DR" class="headerlink" title="TL；DR"></a>TL；DR</h2><ul>
+<li>本文提出一种多功能的卷积核，可以有效提高算法效果，降低计算量与存储空间</li>
+<li>具体做法是：将 <strong>一个</strong> 主卷积核与 <strong>多个</strong> 二值 mask 点积生成 <strong>多个次级卷积核</strong>，用次级卷积核进行计算</li>
+<li>二值 mask 包括 H、W、C 方向，即每个次级卷积核的 H、W、C 都可能不同</li>
+</ul>
+<h2 id="Algorithm"><a href="#Algorithm" class="headerlink" title="Algorithm"></a>Algorithm</h2><h3 id="思路"><a href="#思路" class="headerlink" title="思路"></a>思路</h3><ul>
+<li>神经网络轻量化（参数量与计算量）常用方法：<ul>
+<li><strong>模型压缩</strong>，主要包括：<ul>
+<li>权重分解</li>
+<li>网络剪枝</li>
+<li>权重量化</li>
+<li>知识蒸馏</li>
+</ul>
+</li>
+<li><strong>网络结构轻量化</strong>，主要包括：<ul>
+<li>Xception</li>
+<li>MobileNet series</li>
+<li>ShuffleNet series</li>
+<li>OctConv</li>
+<li>MixConv</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>本论文思路：<ul>
+<li>将 <strong>一个</strong> 主卷积核与 <strong>多个</strong> 二值 mask 点积生成 <strong>多个次级卷积核</strong></li>
+<li>二值 mask 作用在 H、W、C 上，所以每 <strong>个次级卷积核的感受野可能不同，关注的 channel 可能不同</strong></li>
+</ul>
+</li>
+</ul>
+<h3 id="网络设计"><a href="#网络设计" class="headerlink" title="网络设计"></a>网络设计</h3><h4 id="在空间方向设计多功能卷积"><a href="#在空间方向设计多功能卷积" class="headerlink" title="在空间方向设计多功能卷积"></a>在空间方向设计多功能卷积</h4><p><img src="https://i.loli.net/2021/11/09/5u3y9KAVliNYvah.png" alt="lv1.png"></p>
+<ul>
+<li>空间方向就是指 H、W 方向</li>
+<li><p>图中用一个极端例子演示，实际上二值 mask 不是由人手工设计的，而是神经网络自动学习得到</p>
+</li>
+<li><p>普通卷积计算过程：</p>
+<ul>
+<li>$input:\ x\in\mathbb{R}^{H\times W\times c}$</li>
+<li>$filter:\ f \in\mathbb{R}^{d\times d\times c}$</li>
+<li>$output:\ y = f @ x\ \ ,\ \ \ y\in\mathbb{R}^{H’\times W’}$ （”@” means convolution operation）</li>
+</ul>
+</li>
+<li><p>多功能卷积计算过程（在空间方向上）：</p>
+<ul>
+<li>$filter:\ f \in\mathbb{R}^{d\times d}$</li>
+<li>$binery\ mask:\ M_i(p,q,c) = \begin{cases} 1,\ if\ p,q \ge i \mid p,q \le d+1-i\\ 0,\ otherwise \end{cases}$</li>
+<li>$secondary\ filter:\ \{\hat{f}_1,\ \hat{f}_2,\ …\ ,\hat{f}_s\}\ \ ,\ \ \ \ s=\lceil \frac{d}{2} \rceil\ ,\ \ \ \hat{f}_i = M_i \circ f$</li>
+<li><p>$output: \ y = [(M_i\circ f)\ @\  x + b_1, …\ , (M_s\circ f)\ @\ x + b_s],$</p>
+<p>$s.t.\ s = \lceil \frac{d}{2} \lceil,\ \{ M_i \}^s_{i=1}\in\{0,\ 1\}^{d\times d\times c}\\ $</p>
+<p>“[]” means concat，$b_i$ means bias</p>
+</li>
+<li><p>naive version：$output:\ y = \sum_{i=1}^s(M_i\circ f)\ @\ x + b = [\sum_{i=1}^s(M_i)\circ f]\ @\ x + b,$</p>
+<p>$ s.t.\ s = \lceil \frac{d}{2} \lceil,\ \{ M_i \}^s_{i=1}\in\{0,\ 1\}^{d\times d\times c}\\ $</p>
+</li>
+</ul>
+</li>
+</ul>
+<h4 id="在-Channel-方向设计多功能卷积"><a href="#在-Channel-方向设计多功能卷积" class="headerlink" title="在 Channel 方向设计多功能卷积"></a>在 Channel 方向设计多功能卷积</h4><p><img src="https://i.loli.net/2021/11/10/TsUO8hxaYPHgf72.png" alt="lv2.png"></p>
+<ul>
+<li>在卷积神经网络中 C &gt;&gt; H、W，所以在 Channel 方向设计多功能卷积非常必要</li>
+<li><p>数学表示：</p>
+<ul>
+<li><p>$y = [\hat{f}_1\ @\ x_1,\ …\ ,\hat{f}_n\ @\ x_n]$</p>
+<p>$ s.t.\ \ \forall i, \hat{f}_i \in \mathbb{R}^{d\times d\times c},\ \ n = (c - \hat{c})/g+1$</p>
+</li>
+<li>其中：<ul>
+<li>省略 bias</li>
+<li>g means channel-wise stride</li>
+<li>$\hat{c}$ means non-zeros channels</li>
+<li>n means 一个 filter 用几次</li>
+<li>[] means concat</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h3 id="学习策略"><a href="#学习策略" class="headerlink" title="学习策略"></a>学习策略</h3><h4 id="mask-具体如何设计"><a href="#mask-具体如何设计" class="headerlink" title="mask 具体如何设计"></a>mask 具体如何设计</h4><p><img src="https://i.loli.net/2021/11/10/nFeKLQ2RjWBlaZz.png" alt="lv3.png"></p>
+<ul>
+<li>mask 两种设计策略：<ul>
+<li>方案 a：每个主卷积核共享一套二值 mask</li>
+<li>方案 b：每个二值 mask 只用一次</li>
+</ul>
+</li>
+<li>实验证明，方案 b 效果更好，原因是：<strong>方案 b 中二值 mask 的假设空间更大</strong></li>
+</ul>
+<h4 id="如何让主卷积核对应的多个二值-mask-相似性"><a href="#如何让主卷积核对应的多个二值-mask-相似性" class="headerlink" title="如何让主卷积核对应的多个二值 mask 相似性"></a>如何让主卷积核对应的多个二值 mask 相似性</h4><ul>
+<li>极端情况：如果一个主卷积核对应的所有二值 mask 都相同，那理论上模型效果与只是用主卷积核运算表现基本相同</li>
+<li>所以需要加入一种使得 <strong>同一个主卷积核对应的多个每个二值 mask 更倾向不同</strong> 的损失函数</li>
+<li><p>损失函数数学表示：</p>
+<ul>
+<li>$\min_{F,M}\mathcal L = \mathcal L_0(F,M) + \lambda\mathcal L_{ortho}(M)$</li>
+<li><p>$M = [vec(M_1),\ …\ ,vec(M_s)]$</p>
+<p>$ \mathcal{L}_{ortho} = \frac{1}{2} \lVert \frac{1}{d^2c}M^TM-I\rVert_F^2$</p>
+</li>
+<li>其中：<ul>
+<li>$\mathcal{L}_{ortho}$ means loss of Orthogonal（正交损失）</li>
+<li>$\mathcal{L}_0$ means 任务相关 loss</li>
+<li>$M_i$ 表示一个主卷积核的一个二值 mask</li>
+<li>正交矩阵的性质：<ul>
+<li>假设 M 是一个正交矩阵，则 $M^TM=I$</li>
+<li>正交矩阵的列向量线性无关</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h4 id="对主卷积核的优化方法"><a href="#对主卷积核的优化方法" class="headerlink" title="对主卷积核的优化方法"></a>对主卷积核的优化方法</h4><ul>
+<li>总 loss 包括 <strong>任务相关 loss</strong> 和 <strong>mask 正交 loss</strong></li>
+<li>只有 <strong>任务相关 loss</strong> 与主卷积核相关</li>
+<li>$\frac{\partial\mathcal L}{\partial f_i} = \frac{\partial\mathcal L_0}{\partial f_i} = \sum_{j=1}^{s}\frac{\partial\mathcal L_0}{\partial \hat f_{ij}}\circ M_j$</li>
+<li>$\frac{\partial\mathcal L}{\partial F} = [\frac{\partial\mathcal L_0}{\partial f_1},\ ….\ ,\frac{\partial\mathcal L_0}{\partial f_k}]$<ul>
+<li>其中 k 表示主卷积核的个数</li>
+</ul>
+</li>
+<li>$F \leftarrow F - \eta \frac{\mathcal L}{F}$</li>
+</ul>
+<h4 id="对二值-mask-的优化方法"><a href="#对二值-mask-的优化方法" class="headerlink" title="对二值 mask 的优化方法"></a>对二值 mask 的优化方法</h4><ul>
+<li>先将 $\mathcal L_{ortho}$ 展开：<ul>
+<li>$\mathcal L_{ortho} = \frac{1}{2}Tr[(\frac{1}{d^2c}M^TM-I)(\frac{1}{d^2c}M^TM-I)^T] = \frac{1}{2}Tr[\frac{1}{d^4c^2}M^TMM^TM - 2\frac{1}{d^2c}M^TM+I]$</li>
+</ul>
+</li>
+<li>所以：<ul>
+<li>$\frac{\partial\mathcal L_{ortho}}{\partial M} = \frac{1}{2}(\frac{4}{d^4c^2}MM^TM - \frac{4}{d^2c}M) = \frac{2}{d^4c^2}MM^TM - \frac{2}{d^2c}M$</li>
+</ul>
+</li>
+<li>$\because 交换门，\therefore \frac{\partial\mathcal L_{0}}{\partial M_j} = \sum_{i=1}^k\frac{\partial\mathcal L_{0}}{\partial\hat f_{ij}}\circ f_i$</li>
+<li>$\frac{\partial\mathcal L}{\partial M} = [\frac{\partial\mathcal L_0}{\partial M_1},\ …\ , \frac{\partial\mathcal L_0}{\partial M_s}] + \lambda \frac{\partial\mathcal L_{ortho}}{\partial M}$</li>
+<li>因为 M 是 binary 的离散值，所以需要一个代理的连续变量 H，实现 <strong>直通估计器 STE</strong> 的作用</li>
+<li>$M = sign(H),\ \ \ H = clip(H,0,1)$</li>
+<li>$\frac{\partial\mathcal L}{\partial M}=\frac{\partial\mathcal L}{\partial H}$</li>
+<li>$\begin{cases} H\leftarrow M\\ H\leftarrow clip(H-\eta \frac{\partial\mathcal L}{\partial H},0,1) \end{cases}$</li>
+</ul>
+<p><img src="https://i.loli.net/2021/11/10/bDxzReyKVm8Plti.png" alt="lv4.png"></p>
+<h2 id="Thought"><a href="#Thought" class="headerlink" title="Thought"></a>Thought</h2><ul>
+<li>这篇文章在 2018 年就已经发表在 <a target="_blank" rel="noopener" href="https://proceedings.neurips.cc/paper/2018/file/f0adc8838f4bdedde4ec2cfad0515589-Paper.pdf">nips</a> 上了，最近做了一些详细实验后重新挂在了 arxiv 上了</li>
+<li>本文实验非常详细，虽然没有开源，前向计算和反向计算的数学推导很精彩<del>（敲 latex 敲的想哭）</del>，像一篇 survey</li>
+<li>这篇文章 inference 阶段有点重参数化的感觉，RepMLP 思想和本文有点相似</li>
+<li>STE 部分让我想起了 <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/1606.06160.pdf">DoReFa-Net</a> 😂</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Paper-Reading/" rel="tag"># Paper Reading</a>
+              <a href="/tags/CNN-Architecture-Design/" rel="tag"># CNN Architecture Design</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2021/10/25/Non-Deep-Networks/" rel="prev" title="Non-Deep Networks">
+      <i class="fa fa-chevron-left"></i> Non-Deep Networks
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2021/11/10/Normalizations/" rel="next" title="Normalizations">
+      Normalizations <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#URL"><span class="nav-number">1.</span> <span class="nav-text">URL</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#TL%EF%BC%9BDR"><span class="nav-number">2.</span> <span class="nav-text">TL；DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Algorithm"><span class="nav-number">3.</span> <span class="nav-text">Algorithm</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%80%9D%E8%B7%AF"><span class="nav-number">3.1.</span> <span class="nav-text">思路</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%BD%91%E7%BB%9C%E8%AE%BE%E8%AE%A1"><span class="nav-number">3.2.</span> <span class="nav-text">网络设计</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%9C%A8%E7%A9%BA%E9%97%B4%E6%96%B9%E5%90%91%E8%AE%BE%E8%AE%A1%E5%A4%9A%E5%8A%9F%E8%83%BD%E5%8D%B7%E7%A7%AF"><span class="nav-number">3.2.1.</span> <span class="nav-text">在空间方向设计多功能卷积</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%9C%A8-Channel-%E6%96%B9%E5%90%91%E8%AE%BE%E8%AE%A1%E5%A4%9A%E5%8A%9F%E8%83%BD%E5%8D%B7%E7%A7%AF"><span class="nav-number">3.2.2.</span> <span class="nav-text">在 Channel 方向设计多功能卷积</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AD%A6%E4%B9%A0%E7%AD%96%E7%95%A5"><span class="nav-number">3.3.</span> <span class="nav-text">学习策略</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#mask-%E5%85%B7%E4%BD%93%E5%A6%82%E4%BD%95%E8%AE%BE%E8%AE%A1"><span class="nav-number">3.3.1.</span> <span class="nav-text">mask 具体如何设计</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%A6%82%E4%BD%95%E8%AE%A9%E4%B8%BB%E5%8D%B7%E7%A7%AF%E6%A0%B8%E5%AF%B9%E5%BA%94%E7%9A%84%E5%A4%9A%E4%B8%AA%E4%BA%8C%E5%80%BC-mask-%E7%9B%B8%E4%BC%BC%E6%80%A7"><span class="nav-number">3.3.2.</span> <span class="nav-text">如何让主卷积核对应的多个二值 mask 相似性</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%AF%B9%E4%B8%BB%E5%8D%B7%E7%A7%AF%E6%A0%B8%E7%9A%84%E4%BC%98%E5%8C%96%E6%96%B9%E6%B3%95"><span class="nav-number">3.3.3.</span> <span class="nav-text">对主卷积核的优化方法</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%AF%B9%E4%BA%8C%E5%80%BC-mask-%E7%9A%84%E4%BC%98%E5%8C%96%E6%96%B9%E6%B3%95"><span class="nav-number">3.3.4.</span> <span class="nav-text">对二值 mask 的优化方法</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Thought"><span class="nav-number">4.</span> <span class="nav-text">Thought</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Zhangzhe</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives">
+          <span class="site-state-item-count">46</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">12</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhangzhe</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'eK3W25jybCO5jVUrYBBpAPqM-gzGzoHsz',
+      appKey     : 'F4KVyUj9wHI5c80Bhz7O2uhq',
+      placeholder: "说点什么再走吧...",
+      avatar     : 'hide',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>
