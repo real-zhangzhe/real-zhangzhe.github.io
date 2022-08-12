@@ -183,7 +183,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2022-08-12 08:47:55" itemprop="dateModified" datetime="2022-08-12T08:47:55+08:00">2022-08-12</time>
+                <time title="Modified: 2022-08-12 15:21:11" itemprop="dateModified" datetime="2022-08-12T15:21:11+08:00">2022-08-12</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -225,9 +225,9 @@
 </ul>
 <h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
 <li>典型量化算法（DoReFa、PACT、LSQ）对 feature 的量化通常使用无符号量化（负半轴量化到零点），这种量化算法适用于使用 Relu 激活函数的网络，但对使用新式激活函数（例如：swish, H-swish, Mish, Leaky-ReLU）的网络（例如：EfficientNet、MixNet）会造成较大的量化误差；LSQ+ 作为一种非对称量化算法可以学习 scale 和 offset，去适应需要负数激活函数的网络。</li>
-<li>量化网络训练收敛较难，所以 LSQ+ 提出了一种比较高效的量化网络初始化方法：MSE 最小误差初始化方法优于最大最小值。</li>
+<li>量化网络训练收敛较难，所以 LSQ+ 提出了一种比较高效的 scale 和 $\beta$ 初始化方法：MSE 最小误差初始化方法优于最大最小值。</li>
 </ul>
-<h2 id="Algorithm"><a href="#Algorithm" class="headerlink" title="Algorithm"></a>Algorithm</h2><h3 id="LSQ-算法存在的问题"><a href="#LSQ-算法存在的问题" class="headerlink" title="LSQ 算法存在的问题"></a>LSQ 算法存在的问题</h3><p>$\bar{x} = \lfloor clamp (\frac{x}{s}, n, p)\rceil$</p>
+<h2 id="Algorithm"><a href="#Algorithm" class="headerlink" title="Algorithm"></a>Algorithm</h2><h3 id="1-LSQ-算法存在的问题"><a href="#1-LSQ-算法存在的问题" class="headerlink" title="1. LSQ 算法存在的问题"></a>1. LSQ 算法存在的问题</h3><p>$\bar{x} = \lfloor clamp (\frac{x}{s}, n, p)\rceil$</p>
 <p>$\hat{x} = \bar{x} \times s$</p>
 <blockquote>
 <p>LSQ 公式</p>
@@ -239,18 +239,54 @@
 </ul>
 </li>
 </ul>
-<h3 id="LSQ-的解决方案"><a href="#LSQ-的解决方案" class="headerlink" title="LSQ+ 的解决方案"></a>LSQ+ 的解决方案</h3><ul>
+<h3 id="2-LSQ-的解决方案"><a href="#2-LSQ-的解决方案" class="headerlink" title="2. LSQ+ 的解决方案"></a>2. LSQ+ 的解决方案</h3><ul>
 <li>LSQ+ 的改进主要包含两个方面：<ul>
-<li>在 LSQ 设置了可学习的参数 scale 的基础上，增加了另外一个可学习参数 offset</li>
+<li>在 LSQ 设置了可学习的参数 scale 的基础上，<strong>在 activation 量化上</strong> （weight 量化没有 offset）增加了另外一个可学习参数 offset</li>
 <li>对网络初始化的方法进行了改进</li>
 </ul>
 </li>
 </ul>
-<h4 id="1-增加可学习-offset-参数"><a href="#1-增加可学习-offset-参数" class="headerlink" title="1. 增加可学习 offset 参数"></a>1. 增加可学习 offset 参数</h4><p>$\bar{x} = \lfloor clamp (\frac{x-\beta}{s}, n, p)\rceil$</p>
+<h4 id="2-1-增加可学习-offset-参数"><a href="#2-1-增加可学习-offset-参数" class="headerlink" title="2.1 增加可学习 offset 参数"></a>2.1 增加可学习 offset 参数</h4><p>$\bar{x} = \lfloor clamp (\frac{x-\beta}{s}, n, p)\rceil$</p>
 <p>$\hat{x} = \bar{x} \times s + \beta$</p>
 <blockquote>
 <p>LSQ+ 公式</p>
 </blockquote>
+<ul>
+<li>对 <code>s</code> 的梯度计算:</li>
+</ul>
+<p>$\frac{\partial\hat{x}}{\partial{s}}$ = $\frac{\partial\bar{x}}{\partial{s}}s + \bar{x} \simeq \begin{cases} -\frac{x-\beta}{s}+\lfloor\frac{x-\beta}{s}\rceil &amp;,if\ n &lt; \frac{x-\beta}{s} &lt; p\\ n&amp;, if\ \frac{x-\beta}{s} &lt; n\\ p&amp;,if\ p&lt;\frac{x-\beta}{s}\end{cases}$</p>
+<ul>
+<li>对 $\beta$ 的梯度计算</li>
+</ul>
+<p>$\frac{\partial\hat{x}}{\partial{\beta}}=\frac{\partial\bar{x}}{\partial{\beta}}+1\simeq \begin{cases} 0&amp;,if\ n&lt;\frac{x-\beta}{s} &lt;p\\ 1&amp;,otherwise\end{cases}$</p>
+<ul>
+<li>加入了 $\beta$ 参数后，对存在负半轴的激活函数进行非对称量化将几乎没有额外开销</li>
+</ul>
+<p>$\hat{w}\hat{x}=(\bar{w}\times s_w)(\bar{x}\times s_x + \beta)=\bar{w}\bar{x}s_ws_x+\begin{matrix}\underbrace{\beta s_w\bar{w}}\\ bias\end{matrix}$</p>
+<h4 id="2-2-更合理的-scale-和-beta-参数初始化方法"><a href="#2-2-更合理的-scale-和-beta-参数初始化方法" class="headerlink" title="2.2 更合理的 scale 和 $\beta$ 参数初始化方法"></a>2.2 更合理的 scale 和 $\beta$ 参数初始化方法</h4><ul>
+<li>低比特量化神经网络训练的最终性能与参数初始化方法关联性较大，这在深度可分离卷积网络中更为明显（例如： MobileNet系列）</li>
+</ul>
+<h5 id="2-2-1-weight-量化的-scale-参数初始化方法"><a href="#2-2-1-weight-量化的-scale-参数初始化方法" class="headerlink" title="2.2.1 weight 量化的 scale 参数初始化方法"></a>2.2.1 weight 量化的 scale 参数初始化方法</h5><ul>
+<li>LSQ 对于对称量化的 weight 的 scale 初始化公式是：$s_{init} = \frac{2&lt;|w|&gt;}{\sqrt{p}}$</li>
+<li><p>作者认为这样的 scale 初始化方法会导致初始 scale 太大，所以 LSQ+ 对 weight 对称量化的 scale 初始化方法是：$s_{init}=\frac{max(|\mu-3\times\sigma|, |\mu+3\times\sigma|)}{2^{b-1}}$</p>
+<ul>
+<li>其中，$\mu,\ \sigma$ 分别表示本层权重的均值和标准差<blockquote>
+<p>由于 weight 是对称量化，所以不需要 $\beta$ 参数</p>
+<h5 id="2-2-2-feature-量化的-scale-和-beta-参数初始化方法"><a href="#2-2-2-feature-量化的-scale-和-beta-参数初始化方法" class="headerlink" title="2.2.2 feature 量化的 scale 和 $\beta$ 参数初始化方法"></a>2.2.2 feature 量化的 scale 和 $\beta$ 参数初始化方法</h5></blockquote>
+</li>
+</ul>
+</li>
+<li><p>一个最理想的量化方式是 x 只被量化，没有被 clamp，因此根据 LSQ+ 的量化公式可知：</p>
+<ul>
+<li>$\frac{x_{min}-\beta_{init}}{s_{init}}\rarr n,\ \frac{x_{max}-\beta_{init}}{s_{init}}\rarr p$</li>
+<li>化简后：$s_{init}=\frac{x_{max}-x_{min}}{p-n},\ \beta_{init} = x_{min} - n \times s_{init}$</li>
+<li>但是，这种完全不 clamp 的操作容易被离群点干扰，所以 $s_{init},\ \beta_{init}$ 还是使用量化前和反量化后的数据最小 MSE loss 来确定，即：$s_{init},\ \beta_{init}=\argmin_{s,\beta} ||\hat{x}-x||^2_F$</li>
+</ul>
+</li>
+</ul>
+<h2 id="Thought"><a href="#Thought" class="headerlink" title="Thought"></a>Thought</h2><ul>
+<li>量化算法中多一个可以被硬件无痛吸收的自由度自然是好事</li>
+</ul>
 
       
     </div>
