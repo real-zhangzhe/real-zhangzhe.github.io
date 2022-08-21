@@ -152,6 +152,235 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2021/11/08/Learning-Versatile-Convolution-Filters-for-Efficient-Visual-Recognition/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2021/11/08/Learning-Versatile-Convolution-Filters-for-Efficient-Visual-Recognition/" class="post-title-link" itemprop="url">Learning Versatile Convolution Filters for Efficient Visual Recognition</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2021-11-08 22:26:47" itemprop="dateCreated datePublished" datetime="2021-11-08T22:26:47+08:00">2021-11-08</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2022-07-14 17:10:21" itemprop="dateModified" datetime="2022-07-14T17:10:21+08:00">2022-07-14</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/CNN-Architecture-Design/" itemprop="url" rel="index"><span itemprop="name">CNN Architecture Design</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2021/11/08/Learning-Versatile-Convolution-Filters-for-Efficient-Visual-Recognition/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2021/11/08/Learning-Versatile-Convolution-Filters-for-Efficient-Visual-Recognition/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="URL"><a href="#URL" class="headerlink" title="URL"></a>URL</h2><p><a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2109.09310.pdf">https://arxiv.org/pdf/2109.09310.pdf</a></p>
+<h2 id="TL；DR"><a href="#TL；DR" class="headerlink" title="TL；DR"></a>TL；DR</h2><ul>
+<li>本文提出一种多功能的卷积核，可以有效提高算法效果，降低计算量与存储空间</li>
+<li>具体做法是：将 <strong>一个</strong> 主卷积核与 <strong>多个</strong> 二值 mask 点积生成 <strong>多个次级卷积核</strong>，用次级卷积核进行计算</li>
+<li>二值 mask 包括 H、W、C 方向，即每个次级卷积核的 H、W、C 都可能不同</li>
+</ul>
+<h2 id="Algorithm"><a href="#Algorithm" class="headerlink" title="Algorithm"></a>Algorithm</h2><h3 id="思路"><a href="#思路" class="headerlink" title="思路"></a>思路</h3><ul>
+<li>神经网络轻量化（参数量与计算量）常用方法：<ul>
+<li><strong>模型压缩</strong>，主要包括：<ul>
+<li>权重分解</li>
+<li>网络剪枝</li>
+<li>权重量化</li>
+<li>知识蒸馏</li>
+</ul>
+</li>
+<li><strong>网络结构轻量化</strong>，主要包括：<ul>
+<li>Xception</li>
+<li>MobileNet series</li>
+<li>ShuffleNet series</li>
+<li>OctConv</li>
+<li>MixConv</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>本论文思路：<ul>
+<li>将 <strong>一个</strong> 主卷积核与 <strong>多个</strong> 二值 mask 点积生成 <strong>多个次级卷积核</strong></li>
+<li>二值 mask 作用在 H、W、C 上，所以每 <strong>个次级卷积核的感受野可能不同，关注的 channel 可能不同</strong></li>
+</ul>
+</li>
+</ul>
+<h3 id="网络设计"><a href="#网络设计" class="headerlink" title="网络设计"></a>网络设计</h3><h4 id="在空间方向设计多功能卷积"><a href="#在空间方向设计多功能卷积" class="headerlink" title="在空间方向设计多功能卷积"></a>在空间方向设计多功能卷积</h4><p><img src="https://i.loli.net/2021/11/09/5u3y9KAVliNYvah.png" alt="lv1.png"></p>
+<ul>
+<li>空间方向就是指 H、W 方向</li>
+<li><p>图中用一个极端例子演示，实际上二值 mask 不是由人手工设计的，而是神经网络自动学习得到</p>
+</li>
+<li><p>普通卷积计算过程：</p>
+<ul>
+<li>$input:\ x\in\mathbb{R}^{H\times W\times c}$</li>
+<li>$filter:\ f \in\mathbb{R}^{d\times d\times c}$</li>
+<li>$output:\ y = f @ x\ \ ,\ \ \ y\in\mathbb{R}^{H’\times W’}$ （”@” means convolution operation）</li>
+</ul>
+</li>
+<li><p>多功能卷积计算过程（在空间方向上）：</p>
+<ul>
+<li>$filter:\ f \in\mathbb{R}^{d\times d}$</li>
+<li>$binery\ mask:\ M_i(p,q,c) = \begin{cases} 1,\ if\ p,q \ge i \mid p,q \le d+1-i\\ 0,\ otherwise \end{cases}$</li>
+<li>$secondary\ filter:\ \{\hat{f}_1,\ \hat{f}_2,\ …\ ,\hat{f}_s\}\ \ ,\ \ \ \ s=\lceil \frac{d}{2} \rceil\ ,\ \ \ \hat{f}_i = M_i \circ f$</li>
+<li><p>$output: \ y = [(M_i\circ f)\ @\  x + b_1, …\ , (M_s\circ f)\ @\ x + b_s],$</p>
+<p>$s.t.\ s = \lceil \frac{d}{2} \lceil,\ \{ M_i \}^s_{i=1}\in\{0,\ 1\}^{d\times d\times c}\\ $</p>
+<p>“[]” means concat，$b_i$ means bias</p>
+</li>
+<li><p>naive version：$output:\ y = \sum_{i=1}^s(M_i\circ f)\ @\ x + b = [\sum_{i=1}^s(M_i)\circ f]\ @\ x + b,$</p>
+<p>$ s.t.\ s = \lceil \frac{d}{2} \lceil,\ \{ M_i \}^s_{i=1}\in\{0,\ 1\}^{d\times d\times c}\\ $</p>
+</li>
+</ul>
+</li>
+</ul>
+<h4 id="在-Channel-方向设计多功能卷积"><a href="#在-Channel-方向设计多功能卷积" class="headerlink" title="在 Channel 方向设计多功能卷积"></a>在 Channel 方向设计多功能卷积</h4><p><img src="https://i.loli.net/2021/11/10/TsUO8hxaYPHgf72.png" alt="lv2.png"></p>
+<ul>
+<li>在卷积神经网络中 C &gt;&gt; H、W，所以在 Channel 方向设计多功能卷积非常必要</li>
+<li><p>数学表示：</p>
+<ul>
+<li><p>$y = [\hat{f}_1\ @\ x_1,\ …\ ,\hat{f}_n\ @\ x_n]$</p>
+<p>$ s.t.\ \ \forall i, \hat{f}_i \in \mathbb{R}^{d\times d\times c},\ \ n = (c - \hat{c})/g+1$</p>
+</li>
+<li>其中：<ul>
+<li>省略 bias</li>
+<li>g means channel-wise stride</li>
+<li>$\hat{c}$ means non-zeros channels</li>
+<li>n means 一个 filter 用几次</li>
+<li>[] means concat</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h3 id="学习策略"><a href="#学习策略" class="headerlink" title="学习策略"></a>学习策略</h3><h4 id="mask-具体如何设计"><a href="#mask-具体如何设计" class="headerlink" title="mask 具体如何设计"></a>mask 具体如何设计</h4><p><img src="https://i.loli.net/2021/11/10/nFeKLQ2RjWBlaZz.png" alt="lv3.png"></p>
+<ul>
+<li>mask 两种设计策略：<ul>
+<li>方案 a：每个主卷积核共享一套二值 mask</li>
+<li>方案 b：每个二值 mask 只用一次</li>
+</ul>
+</li>
+<li>实验证明，方案 b 效果更好，原因是：<strong>方案 b 中二值 mask 的假设空间更大</strong></li>
+</ul>
+<h4 id="如何让主卷积核对应的多个二值-mask-相似性"><a href="#如何让主卷积核对应的多个二值-mask-相似性" class="headerlink" title="如何让主卷积核对应的多个二值 mask 相似性"></a>如何让主卷积核对应的多个二值 mask 相似性</h4><ul>
+<li>极端情况：如果一个主卷积核对应的所有二值 mask 都相同，那理论上模型效果与只是用主卷积核运算表现基本相同</li>
+<li>所以需要加入一种使得 <strong>同一个主卷积核对应的多个每个二值 mask 更倾向不同</strong> 的损失函数</li>
+<li><p>损失函数数学表示：</p>
+<ul>
+<li>$\min_{F,M}\mathcal L = \mathcal L_0(F,M) + \lambda\mathcal L_{ortho}(M)$</li>
+<li><p>$M = [vec(M_1),\ …\ ,vec(M_s)]$</p>
+<p>$ \mathcal{L}_{ortho} = \frac{1}{2} \lVert \frac{1}{d^2c}M^TM-I\rVert_F^2$</p>
+</li>
+<li>其中：<ul>
+<li>$\mathcal{L}_{ortho}$ means loss of Orthogonal（正交损失）</li>
+<li>$\mathcal{L}_0$ means 任务相关 loss</li>
+<li>$M_i$ 表示一个主卷积核的一个二值 mask</li>
+<li>正交矩阵的性质：<ul>
+<li>假设 M 是一个正交矩阵，则 $M^TM=I$</li>
+<li>正交矩阵的列向量线性无关</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h4 id="对主卷积核的优化方法"><a href="#对主卷积核的优化方法" class="headerlink" title="对主卷积核的优化方法"></a>对主卷积核的优化方法</h4><ul>
+<li>总 loss 包括 <strong>任务相关 loss</strong> 和 <strong>mask 正交 loss</strong></li>
+<li>只有 <strong>任务相关 loss</strong> 与主卷积核相关</li>
+<li>$\frac{\partial\mathcal L}{\partial f_i} = \frac{\partial\mathcal L_0}{\partial f_i} = \sum_{j=1}^{s}\frac{\partial\mathcal L_0}{\partial \hat f_{ij}}\circ M_j$</li>
+<li>$\frac{\partial\mathcal L}{\partial F} = [\frac{\partial\mathcal L_0}{\partial f_1},\ ….\ ,\frac{\partial\mathcal L_0}{\partial f_k}]$<ul>
+<li>其中 k 表示主卷积核的个数</li>
+</ul>
+</li>
+<li>$F \leftarrow F - \eta \frac{\mathcal L}{F}$</li>
+</ul>
+<h4 id="对二值-mask-的优化方法"><a href="#对二值-mask-的优化方法" class="headerlink" title="对二值 mask 的优化方法"></a>对二值 mask 的优化方法</h4><ul>
+<li>先将 $\mathcal L_{ortho}$ 展开：<ul>
+<li>$\mathcal L_{ortho} = \frac{1}{2}Tr[(\frac{1}{d^2c}M^TM-I)(\frac{1}{d^2c}M^TM-I)^T] = \frac{1}{2}Tr[\frac{1}{d^4c^2}M^TMM^TM - 2\frac{1}{d^2c}M^TM+I]$</li>
+</ul>
+</li>
+<li>所以：<ul>
+<li>$\frac{\partial\mathcal L_{ortho}}{\partial M} = \frac{1}{2}(\frac{4}{d^4c^2}MM^TM - \frac{4}{d^2c}M) = \frac{2}{d^4c^2}MM^TM - \frac{2}{d^2c}M$</li>
+</ul>
+</li>
+<li>$\because 交换门，\therefore \frac{\partial\mathcal L_{0}}{\partial M_j} = \sum_{i=1}^k\frac{\partial\mathcal L_{0}}{\partial\hat f_{ij}}\circ f_i$</li>
+<li>$\frac{\partial\mathcal L}{\partial M} = [\frac{\partial\mathcal L_0}{\partial M_1},\ …\ , \frac{\partial\mathcal L_0}{\partial M_s}] + \lambda \frac{\partial\mathcal L_{ortho}}{\partial M}$</li>
+<li>因为 M 是 binary 的离散值，所以需要一个代理的连续变量 H，实现 <strong>直通估计器 STE</strong> 的作用</li>
+<li>$M = sign(H),\ \ \ H = clip(H,0,1)$</li>
+<li>$\frac{\partial\mathcal L}{\partial M}=\frac{\partial\mathcal L}{\partial H}$</li>
+<li>$\begin{cases} H\leftarrow M\\ H\leftarrow clip(H-\eta \frac{\partial\mathcal L}{\partial H},0,1) \end{cases}$</li>
+</ul>
+<p><img src="https://i.loli.net/2021/11/10/bDxzReyKVm8Plti.png" alt="lv4.png"></p>
+<h2 id="Thought"><a href="#Thought" class="headerlink" title="Thought"></a>Thought</h2><ul>
+<li>这篇文章在 2018 年就已经发表在 <a target="_blank" rel="noopener" href="https://proceedings.neurips.cc/paper/2018/file/f0adc8838f4bdedde4ec2cfad0515589-Paper.pdf">nips</a> 上了，最近做了一些详细实验后重新挂在了 arxiv 上了</li>
+<li>本文实验非常详细，虽然没有开源，前向计算和反向计算的数学推导很精彩<del>（敲 latex 敲的想哭）</del>，像一篇 survey</li>
+<li>这篇文章 inference 阶段有点重参数化的感觉，RepMLP 思想和本文有点相似</li>
+<li>STE 部分让我想起了 <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/1606.06160.pdf">DoReFa-Net</a> 😂</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2021/10/25/Non-Deep-Networks/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1284,123 +1513,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2021/09/04/BasicVSR-The-Search-for-Essential-Components-in-Video-Super-Resolution-and-Beyond/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2021/09/04/BasicVSR-The-Search-for-Essential-Components-in-Video-Super-Resolution-and-Beyond/" class="post-title-link" itemprop="url">BasicVSR: The Search for Essential Components in Video Super-Resolution and Beyond</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2021-09-04 10:02:17" itemprop="dateCreated datePublished" datetime="2021-09-04T10:02:17+08:00">2021-09-04</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2022-07-14 17:10:21" itemprop="dateModified" datetime="2022-07-14T17:10:21+08:00">2022-07-14</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Video-Super-Resolution/" itemprop="url" rel="index"><span itemprop="name">Video Super-Resolution</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2021/09/04/BasicVSR-The-Search-for-Essential-Components-in-Video-Super-Resolution-and-Beyond/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2021/09/04/BasicVSR-The-Search-for-Essential-Components-in-Video-Super-Resolution-and-Beyond/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="URL"><a href="#URL" class="headerlink" title="URL"></a>URL</h2><p><a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2012.02181.pdf">https://arxiv.org/pdf/2012.02181.pdf</a></p>
-<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
-<li>将 VSR 任务所需的网络结构拆分成四个部分，分别是 <code>Propagation</code>、<code>Alignment</code>、<code>Aggregation</code>、<code>Upsampling</code>，并对常见的 VSR 模型进行了总结</li>
-<li>只使用常见结构没有使用奇怪操作建立了 BasicVSR 结构和针对 BasicVSR 的改进版 IconVSR，达到了当时的 SOTA</li>
-<li>代码开源在：<a target="_blank" rel="noopener" href="https://github.com/open-mmlab/mmediting">mmediting</a></li>
-</ul>
-<h1 id="BasicVSR"><a href="#BasicVSR" class="headerlink" title="BasicVSR"></a>BasicVSR</h1><h3 id="对常见的-VSR-模型结构的总结"><a href="#对常见的-VSR-模型结构的总结" class="headerlink" title="对常见的 VSR 模型结构的总结"></a>对常见的 VSR 模型结构的总结</h3><p><img src="https://i.loli.net/2021/09/04/p19H4oQzU8f3S52.png" alt="bvsr1.png"></p>
-<h3 id="BasicVSR-总体结构"><a href="#BasicVSR-总体结构" class="headerlink" title="BasicVSR 总体结构"></a>BasicVSR 总体结构</h3><p><img src="https://i.loli.net/2021/09/04/VIeQ42oNbmKdWAT.png" alt="bvsr2.png"></p>
-<h3 id="Propagation"><a href="#Propagation" class="headerlink" title="Propagation"></a>Propagation</h3><ul>
-<li>从重建后 PSNR 角度证明了 <strong>双向传播结构比单向传播结构和局部不传播结构更好</strong></li>
-</ul>
-<h3 id="Alignment"><a href="#Alignment" class="headerlink" title="Alignment"></a>Alignment</h3><ul>
-<li>同样从重建后 PSNR 角度证明了 <strong>VSR 任务中，特征对齐比图像对齐和不对齐效果更好</strong>，相较于特征对齐，图像对齐重建后平均 PSNR 降低 0.17dB，不对齐重建后平均 PSNR 降低 1.19dB</li>
-<li>本文的对齐模块使用基于光流对齐的方式，即： 双向视频光流估计 + Warp feature  + 残差，光流估计网络用的 <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/1611.00850.pdf">SPyNet</a></li>
-</ul>
-<h3 id="Aggregation"><a href="#Aggregation" class="headerlink" title="Aggregation"></a>Aggregation</h3><ul>
-<li>双向传播 + 双向对齐后的 feature 直接 concat</li>
-</ul>
-<h3 id="Upsampling"><a href="#Upsampling" class="headerlink" title="Upsampling"></a>Upsampling</h3><ul>
-<li>PixelShuffle</li>
-</ul>
-<h1 id="IconVSR"><a href="#IconVSR" class="headerlink" title="IconVSR"></a>IconVSR</h1><p><img src="https://i.loli.net/2021/09/04/1KjJhdVbXzypfDa.png" alt="bvsr3.png"></p>
-<h3 id="在-BasicVSR-的基础上增强了-Propagation-和-Aggregation-两个部分："><a href="#在-BasicVSR-的基础上增强了-Propagation-和-Aggregation-两个部分：" class="headerlink" title="在 BasicVSR 的基础上增强了 Propagation 和 Aggregation 两个部分："></a>在 BasicVSR 的基础上增强了 <code>Propagation</code> 和 <code>Aggregation</code> 两个部分：</h3><ul>
-<li><code>Aggregation</code> 部分加入了一个 <code>Information-Refill</code> 结构，对关键帧额外做一次图像级的前后帧信息融合，从代码上看是用 <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/1905.02716.pdf">EDVR</a> 做前后帧信息融合</li>
-<li><code>Propagation</code> 是将之前的 <code>Bidirectional Propagation</code> 变成 <code>Coupled Bidirectional Propagation</code>，具体来说就是将 BasicVSR 中的独立的双向传播变成了串联的双向传播</li>
-</ul>
-<h3 id="最终结果"><a href="#最终结果" class="headerlink" title="最终结果"></a>最终结果</h3><p><img src="https://i.loli.net/2021/09/04/4MrhmCxUFp2Gvlk.png" alt="bvsr4.png"> </p>
-<h2 id="Thoughts"><a href="#Thoughts" class="headerlink" title="Thoughts"></a>Thoughts</h2><ul>
-<li>将 VSR 任务的模型结构解耦，每个部分单独做 Ablation experiment，感觉作为一个 VSR 任务的 baseline 是不错的</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1469,7 +1581,7 @@
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">51</span>
+          <span class="site-state-item-count">52</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
