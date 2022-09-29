@@ -152,6 +152,160 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2022/08/01/LSQ-Improving-low-bit-quantization-through-learnable-offsets-and-better-initialization/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2022/08/01/LSQ-Improving-low-bit-quantization-through-learnable-offsets-and-better-initialization/" class="post-title-link" itemprop="url">LSQ+: Improving low-bit quantization through learnable offsets and better initialization</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2022-08-01 09:35:57" itemprop="dateCreated datePublished" datetime="2022-08-01T09:35:57+08:00">2022-08-01</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2022-08-12 15:31:03" itemprop="dateModified" datetime="2022-08-12T15:31:03+08:00">2022-08-12</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Network-Quantization/" itemprop="url" rel="index"><span itemprop="name">Network Quantization</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2022/08/01/LSQ-Improving-low-bit-quantization-through-learnable-offsets-and-better-initialization/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2022/08/01/LSQ-Improving-low-bit-quantization-through-learnable-offsets-and-better-initialization/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="URL"><a href="#URL" class="headerlink" title="URL"></a>URL</h2><ul>
+<li><a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2004.09576.pdf">https://arxiv.org/pdf/2004.09576.pdf</a></li>
+</ul>
+<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
+<li>典型量化算法（DoReFa、PACT、LSQ）对 feature 的量化通常使用无符号量化（负半轴量化到零点），这种量化算法适用于使用 Relu 激活函数的网络，但对使用新式激活函数（例如：swish, H-swish, Mish, Leaky-ReLU）的网络（例如：EfficientNet、MixNet）会造成较大的量化误差；LSQ+ 作为一种非对称量化算法可以学习 scale 和 offset，去适应需要负数激活函数的网络。</li>
+<li>量化网络训练收敛较难，所以 LSQ+ 提出了一种比较高效的 scale 和 $\beta$ 初始化方法：MSE 最小误差初始化方法优于最大最小值。</li>
+</ul>
+<h2 id="Algorithm"><a href="#Algorithm" class="headerlink" title="Algorithm"></a>Algorithm</h2><h3 id="1-LSQ-算法存在的问题"><a href="#1-LSQ-算法存在的问题" class="headerlink" title="1. LSQ 算法存在的问题"></a>1. LSQ 算法存在的问题</h3><p>$\bar{x} = \lfloor clamp (\frac{x}{s}, n, p)\rceil$</p>
+<p>$\hat{x} = \bar{x} \times s$</p>
+<blockquote>
+<p>LSQ 公式</p>
+</blockquote>
+<ul>
+<li>LSQ 对例如 Leaky-ReLU、Swish 这种存在负半轴的激活函数量化有两种方法：<ul>
+<li>截断负半轴，即 $n=0,\ p=2^b-1$，显然降低模型表现能力</li>
+<li>正负半轴相同尺度量化，即 $n=-2^{b-1},\ p=2^{b-1}-1$，由于正半轴的信息量远高于负半轴，同尺度量化会增大正半轴的量化误差</li>
+</ul>
+</li>
+</ul>
+<h3 id="2-LSQ-的解决方案"><a href="#2-LSQ-的解决方案" class="headerlink" title="2. LSQ+ 的解决方案"></a>2. LSQ+ 的解决方案</h3><ul>
+<li>LSQ+ 的改进主要包含两个方面：<ul>
+<li>在 LSQ 设置了可学习的参数 scale 的基础上，<strong>在 activation 量化上</strong> （weight 量化没有 offset）增加了另外一个可学习参数 offset</li>
+<li>对网络初始化的方法进行了改进</li>
+</ul>
+</li>
+</ul>
+<h4 id="2-1-增加可学习-offset-参数"><a href="#2-1-增加可学习-offset-参数" class="headerlink" title="2.1 增加可学习 offset 参数"></a>2.1 增加可学习 offset 参数</h4><p>$\bar{x} = \lfloor clamp (\frac{x-\beta}{s}, n, p)\rceil$</p>
+<p>$\hat{x} = \bar{x} \times s + \beta$</p>
+<blockquote>
+<p>LSQ+ 公式</p>
+</blockquote>
+<ul>
+<li>对 <code>s</code> 的梯度计算:</li>
+</ul>
+<p>$\frac{\partial\hat{x}}{\partial{s}}$ = $\frac{\partial\bar{x}}{\partial{s}}s + \bar{x} \simeq \begin{cases} -\frac{x-\beta}{s}+\lfloor\frac{x-\beta}{s}\rceil &amp;,if\ n &lt; \frac{x-\beta}{s} &lt; p\\ n&amp;, if\ \frac{x-\beta}{s} &lt; n\\ p&amp;,if\ p&lt;\frac{x-\beta}{s}\end{cases}$</p>
+<ul>
+<li>对 $\beta$ 的梯度计算</li>
+</ul>
+<p>$\frac{\partial\hat{x}}{\partial{\beta}}=\frac{\partial\bar{x}}{\partial{\beta}}+1\simeq \begin{cases} 0&amp;,if\ n&lt;\frac{x-\beta}{s} &lt;p\\ 1&amp;,otherwise\end{cases}$</p>
+<ul>
+<li>加入了 $\beta$ 参数后，对存在负半轴的激活函数进行非对称量化将几乎没有额外开销</li>
+</ul>
+<p>$\hat{w}\hat{x}=(\bar{w}\times s_w)(\bar{x}\times s_x + \beta)=\bar{w}\bar{x}s_ws_x+\begin{matrix}\underbrace{\beta s_w\bar{w}}\\ bias\end{matrix}$</p>
+<h4 id="2-2-更合理的-scale-和-beta-参数初始化方法"><a href="#2-2-更合理的-scale-和-beta-参数初始化方法" class="headerlink" title="2.2 更合理的 scale 和 $\beta$ 参数初始化方法"></a>2.2 更合理的 scale 和 $\beta$ 参数初始化方法</h4><ul>
+<li>低比特量化神经网络训练的最终性能与参数初始化方法关联性较大，这在深度可分离卷积网络中更为明显（例如： MobileNet系列）</li>
+</ul>
+<h5 id="2-2-1-weight-量化的-scale-参数初始化方法"><a href="#2-2-1-weight-量化的-scale-参数初始化方法" class="headerlink" title="2.2.1 weight 量化的 scale 参数初始化方法"></a>2.2.1 weight 量化的 scale 参数初始化方法</h5><ul>
+<li>LSQ 对于对称量化的 weight 的 scale 初始化公式是：$s_{init} = \frac{2&lt;|w|&gt;}{\sqrt{p}}$</li>
+<li><p>作者认为这样的 scale 初始化方法会导致初始 scale 太大，所以 LSQ+ 对 weight 对称量化的 scale 初始化方法是：$s_{init}=\frac{max(|\mu-3\times\sigma|, |\mu+3\times\sigma|)}{2^{b-1}}$</p>
+<ul>
+<li>其中，$\mu,\ \sigma$ 分别表示本层权重的均值和标准差<blockquote>
+<p>由于 weight 是对称量化，所以不需要 $\beta$ 参数</p>
+<h5 id="2-2-2-feature-量化的-scale-和-beta-参数初始化方法"><a href="#2-2-2-feature-量化的-scale-和-beta-参数初始化方法" class="headerlink" title="2.2.2 feature 量化的 scale 和 $\beta$ 参数初始化方法"></a>2.2.2 feature 量化的 scale 和 $\beta$ 参数初始化方法</h5></blockquote>
+</li>
+</ul>
+</li>
+<li><p>一个最理想的量化方式是 x 只被量化，没有被 clamp，因此根据 LSQ+ 的量化公式可知：</p>
+<ul>
+<li>$\frac{x_{min}-\beta_{init}}{s_{init}}\rightarrow n,\ \frac{x_{max}-\beta_{init}}{s_{init}}\rightarrow p$</li>
+<li>化简后：$s_{init}=\frac{x_{max}-x_{min}}{p-n},\ \beta_{init} = x_{min} - n \times s_{init}$</li>
+<li>但是，这种完全不 clamp 的操作容易被离群点干扰，所以 $s_{init},\ \beta_{init}$ 还是使用量化前和反量化后的数据最小 MSE loss 来确定，即：$s_{init},\ \beta_{init}=argmin_{s,\beta} ||\hat{x}-x||^2_F$</li>
+</ul>
+</li>
+</ul>
+<h2 id="Thought"><a href="#Thought" class="headerlink" title="Thought"></a>Thought</h2><ul>
+<li>量化算法中多一个可以被硬件无痛吸收的自由度自然是好事</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2022/07/25/LSQ-Learned-Step-Size-Quantization/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1068,7 +1222,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2022-07-14 17:10:21" itemprop="dateModified" datetime="2022-07-14T17:10:21+08:00">2022-07-14</time>
+                <time title="Modified: 2022-09-28 09:49:31" itemprop="dateModified" datetime="2022-09-28T09:49:31+08:00">2022-09-28</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1113,7 +1267,7 @@
 <li>本文提出一种应用于视觉任务的 Transformer</li>
 </ul>
 <h2 id="Algorithm"><a href="#Algorithm" class="headerlink" title="Algorithm"></a>Algorithm</h2><h3 id="Architecture"><a href="#Architecture" class="headerlink" title="Architecture"></a>Architecture</h3><p><img src="https://s2.loli.net/2022/01/21/R9tKyQV4wC7UiEg.gif" alt="vit.gif"></p>
-<h3 id="code"><a href="#code" class="headerlink" title="code"></a>code</h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> torch</span><br><span class="line"><span class="keyword">from</span> torch <span class="keyword">import</span> nn</span><br><span class="line"></span><br><span class="line"><span class="keyword">from</span> einops <span class="keyword">import</span> rearrange, repeat</span><br><span class="line"><span class="keyword">from</span> einops.layers.torch <span class="keyword">import</span> Rearrange</span><br><span class="line"></span><br><span class="line"><span class="comment"># helpers</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">pair</span>(<span class="params">t</span>):</span></span><br><span class="line">    <span class="keyword">return</span> t <span class="keyword">if</span> <span class="built_in">isinstance</span>(t, <span class="built_in">tuple</span>) <span class="keyword">else</span> (t, t)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment"># classes</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">PreNorm</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, dim, fn</span>):</span></span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        self.norm = nn.LayerNorm(dim)</span><br><span class="line">        self.fn = fn</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">self, x, **kwargs</span>):</span></span><br><span class="line">        <span class="keyword">return</span> self.fn(self.norm(x), **kwargs)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">FeedForward</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, dim, hidden_dim, dropout=<span class="number">0.0</span></span>):</span></span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        self.net = nn.Sequential(</span><br><span class="line">            nn.Linear(dim, hidden_dim),</span><br><span class="line">            nn.GELU(),</span><br><span class="line">            nn.Dropout(dropout),</span><br><span class="line">            nn.Linear(hidden_dim, dim),</span><br><span class="line">            nn.Dropout(dropout),</span><br><span class="line">        )</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">self, x</span>):</span></span><br><span class="line">        <span class="keyword">return</span> self.net(x)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Attention</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, dim, heads=<span class="number">8</span>, dim_head=<span class="number">64</span>, dropout=<span class="number">0.0</span></span>):</span></span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        inner_dim = dim_head * heads</span><br><span class="line">        project_out = <span class="keyword">not</span> (heads == <span class="number">1</span> <span class="keyword">and</span> dim_head == dim)</span><br><span class="line"></span><br><span class="line">        self.heads = heads</span><br><span class="line">        self.scale = dim_head ** -<span class="number">0.5</span></span><br><span class="line"></span><br><span class="line">        self.attend = nn.Softmax(dim=-<span class="number">1</span>)</span><br><span class="line">        self.to_qkv = nn.Linear(dim, inner_dim * <span class="number">3</span>, bias=<span class="literal">False</span>)</span><br><span class="line"></span><br><span class="line">        self.to_out = (</span><br><span class="line">            nn.Sequential(nn.Linear(inner_dim, dim), nn.Dropout(dropout))</span><br><span class="line">            <span class="keyword">if</span> project_out</span><br><span class="line">            <span class="keyword">else</span> nn.Identity()</span><br><span class="line">        )</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">self, x</span>):</span></span><br><span class="line">        qkv = self.to_qkv(x).chunk(<span class="number">3</span>, dim=-<span class="number">1</span>)</span><br><span class="line">        q, k, v = <span class="built_in">map</span>(<span class="keyword">lambda</span> t: rearrange(t, <span class="string">&quot;b n (h d) -&gt; b h n d&quot;</span>, h=self.heads), qkv)</span><br><span class="line"></span><br><span class="line">        dots = torch.matmul(q, k.transpose(-<span class="number">1</span>, -<span class="number">2</span>)) * self.scale</span><br><span class="line"></span><br><span class="line">        attn = self.attend(dots)</span><br><span class="line"></span><br><span class="line">        out = torch.matmul(attn, v)</span><br><span class="line">        out = rearrange(out, <span class="string">&quot;b h n d -&gt; b n (h d)&quot;</span>)</span><br><span class="line">        <span class="keyword">return</span> self.to_out(out)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Transformer</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, dim, depth, heads, dim_head, mlp_dim, dropout=<span class="number">0.0</span></span>):</span></span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        self.layers = nn.ModuleList([])</span><br><span class="line">        <span class="keyword">for</span> _ <span class="keyword">in</span> <span class="built_in">range</span>(depth):</span><br><span class="line">            self.layers.append(</span><br><span class="line">                nn.ModuleList(</span><br><span class="line">                    [</span><br><span class="line">                        PreNorm(</span><br><span class="line">                            dim,</span><br><span class="line">                            Attention(</span><br><span class="line">                                dim, heads=heads, dim_head=dim_head, dropout=dropout</span><br><span class="line">                            ),</span><br><span class="line">                        ),</span><br><span class="line">                        PreNorm(dim, FeedForward(dim, mlp_dim, dropout=dropout)),</span><br><span class="line">                    ]</span><br><span class="line">                )</span><br><span class="line">            )</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">self, x</span>):</span></span><br><span class="line">        <span class="keyword">for</span> attn, ff <span class="keyword">in</span> self.layers:</span><br><span class="line">            x = attn(x) + x</span><br><span class="line">            x = ff(x) + x</span><br><span class="line">        <span class="keyword">return</span> x</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">ViT</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params"></span></span></span><br><span class="line"><span class="params"><span class="function">        self,</span></span></span><br><span class="line"><span class="params"><span class="function">        *,</span></span></span><br><span class="line"><span class="params"><span class="function">        image_size,</span></span></span><br><span class="line"><span class="params"><span class="function">        patch_size,</span></span></span><br><span class="line"><span class="params"><span class="function">        num_classes,</span></span></span><br><span class="line"><span class="params"><span class="function">        dim,</span></span></span><br><span class="line"><span class="params"><span class="function">        depth,</span></span></span><br><span class="line"><span class="params"><span class="function">        heads,</span></span></span><br><span class="line"><span class="params"><span class="function">        mlp_dim,</span></span></span><br><span class="line"><span class="params"><span class="function">        pool=<span class="string">&quot;cls&quot;</span>,</span></span></span><br><span class="line"><span class="params"><span class="function">        channels=<span class="number">3</span>,</span></span></span><br><span class="line"><span class="params"><span class="function">        dim_head=<span class="number">64</span>,</span></span></span><br><span class="line"><span class="params"><span class="function">        dropout=<span class="number">0.0</span>,</span></span></span><br><span class="line"><span class="params"><span class="function">        emb_dropout=<span class="number">0.0</span></span></span></span><br><span class="line"><span class="params"><span class="function">    </span>):</span></span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        image_height, image_width = pair(image_size)</span><br><span class="line">        patch_height, patch_width = pair(patch_size)</span><br><span class="line"></span><br><span class="line">        <span class="keyword">assert</span> (</span><br><span class="line">            image_height % patch_height == <span class="number">0</span> <span class="keyword">and</span> image_width % patch_width == <span class="number">0</span></span><br><span class="line">        ), <span class="string">&quot;Image dimensions must be divisible by the patch size.&quot;</span></span><br><span class="line"></span><br><span class="line">        num_patches = (image_height // patch_height) * (image_width // patch_width)</span><br><span class="line">        patch_dim = channels * patch_height * patch_width</span><br><span class="line">        <span class="keyword">assert</span> pool <span class="keyword">in</span> &#123;</span><br><span class="line">            <span class="string">&quot;cls&quot;</span>,</span><br><span class="line">            <span class="string">&quot;mean&quot;</span>,</span><br><span class="line">        &#125;, <span class="string">&quot;pool type must be either cls (cls token) or mean (mean pooling)&quot;</span></span><br><span class="line"></span><br><span class="line">        self.to_patch_embedding = nn.Sequential(</span><br><span class="line">            Rearrange(</span><br><span class="line">                <span class="string">&quot;b c (h p1) (w p2) -&gt; b (h w) (p1 p2 c)&quot;</span>,</span><br><span class="line">                p1=patch_height,</span><br><span class="line">                p2=patch_width,</span><br><span class="line">            ),</span><br><span class="line">            nn.Linear(patch_dim, dim),</span><br><span class="line">        )</span><br><span class="line"></span><br><span class="line">        self.pos_embedding = nn.Parameter(torch.randn(<span class="number">1</span>, num_patches + <span class="number">1</span>, dim))</span><br><span class="line">        self.cls_token = nn.Parameter(torch.randn(<span class="number">1</span>, <span class="number">1</span>, dim))</span><br><span class="line">        self.dropout = nn.Dropout(emb_dropout)</span><br><span class="line"></span><br><span class="line">        self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout)</span><br><span class="line"></span><br><span class="line">        self.pool = pool</span><br><span class="line">        self.to_latent = nn.Identity()</span><br><span class="line"></span><br><span class="line">        self.mlp_head = nn.Sequential(nn.LayerNorm(dim), nn.Linear(dim, num_classes))</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">self, img</span>):</span></span><br><span class="line">        x = self.to_patch_embedding(img)</span><br><span class="line">        b, n, _ = x.shape</span><br><span class="line"></span><br><span class="line">        cls_tokens = repeat(self.cls_token, <span class="string">&quot;() n d -&gt; b n d&quot;</span>, b=b)</span><br><span class="line">        x = torch.cat((cls_tokens, x), dim=<span class="number">1</span>)</span><br><span class="line">        x += self.pos_embedding[:, : (n + <span class="number">1</span>)]</span><br><span class="line">        x = self.dropout(x)</span><br><span class="line"></span><br><span class="line">        x = self.transformer(x)</span><br><span class="line"></span><br><span class="line">        x = x.mean(dim=<span class="number">1</span>) <span class="keyword">if</span> self.pool == <span class="string">&quot;mean&quot;</span> <span class="keyword">else</span> x[:, <span class="number">0</span>]</span><br><span class="line"></span><br><span class="line">        x = self.to_latent(x)</span><br><span class="line">        <span class="keyword">return</span> self.mlp_head(x)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">vit = ViT(</span><br><span class="line">    image_size=<span class="number">100</span>,</span><br><span class="line">    patch_size=<span class="number">10</span>,</span><br><span class="line">    num_classes=<span class="number">10</span>,</span><br><span class="line">    dim=<span class="number">128</span>,</span><br><span class="line">    depth=<span class="number">12</span>,</span><br><span class="line">    heads=<span class="number">8</span>,</span><br><span class="line">    mlp_dim=<span class="number">256</span>,</span><br><span class="line">)</span><br><span class="line">img = torch.randn(<span class="number">2</span>, <span class="number">3</span>, <span class="number">100</span>, <span class="number">100</span>)</span><br><span class="line">out = vit(img)</span><br><span class="line"><span class="built_in">print</span>(out.shape)    <span class="comment"># [2, 10]</span></span><br></pre></td></tr></table></figure>
+<h3 id="code"><a href="#code" class="headerlink" title="code"></a>code</h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> torch</span><br><span class="line"><span class="keyword">from</span> torch <span class="keyword">import</span> nn</span><br><span class="line"></span><br><span class="line"><span class="keyword">from</span> einops <span class="keyword">import</span> rearrange, repeat</span><br><span class="line"><span class="keyword">from</span> einops.layers.torch <span class="keyword">import</span> Rearrange</span><br><span class="line"></span><br><span class="line"><span class="comment"># helpers</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">pair</span>(<span class="params">t</span>):</span></span><br><span class="line">    <span class="keyword">return</span> t <span class="keyword">if</span> <span class="built_in">isinstance</span>(t, <span class="built_in">tuple</span>) <span class="keyword">else</span> (t, t)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment"># classes</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">PreNorm</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, dim, fn</span>):</span></span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        self.norm = nn.LayerNorm(dim)</span><br><span class="line">        self.fn = fn</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">self, x, **kwargs</span>):</span></span><br><span class="line">        <span class="keyword">return</span> self.fn(self.norm(x), **kwargs)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">FeedForward</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, dim, hidden_dim, dropout=<span class="number">0.0</span></span>):</span></span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        self.net = nn.Sequential(</span><br><span class="line">            nn.Linear(dim, hidden_dim),</span><br><span class="line">            nn.GELU(),</span><br><span class="line">            nn.Dropout(dropout),</span><br><span class="line">            nn.Linear(hidden_dim, dim),</span><br><span class="line">            nn.Dropout(dropout),</span><br><span class="line">        )</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">self, x</span>):</span></span><br><span class="line">        <span class="keyword">return</span> self.net(x)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Attention</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, dim, heads=<span class="number">8</span>, dim_head=<span class="number">64</span>, dropout=<span class="number">0.0</span></span>):</span></span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        inner_dim = dim_head * heads</span><br><span class="line">        project_out = <span class="keyword">not</span> (heads == <span class="number">1</span> <span class="keyword">and</span> dim_head == dim)</span><br><span class="line"></span><br><span class="line">        self.heads = heads</span><br><span class="line">        self.scale = dim_head**-<span class="number">0.5</span></span><br><span class="line"></span><br><span class="line">        self.attend = nn.Softmax(dim=-<span class="number">1</span>)</span><br><span class="line">        self.to_qkv = nn.Linear(dim, inner_dim * <span class="number">3</span>, bias=<span class="literal">False</span>)</span><br><span class="line"></span><br><span class="line">        self.to_out = (</span><br><span class="line">            nn.Sequential(nn.Linear(inner_dim, dim), nn.Dropout(dropout))</span><br><span class="line">            <span class="keyword">if</span> project_out</span><br><span class="line">            <span class="keyword">else</span> nn.Identity()</span><br><span class="line">        )</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">self, x</span>):</span></span><br><span class="line">        qkv = self.to_qkv(x).chunk(<span class="number">3</span>, dim=-<span class="number">1</span>)</span><br><span class="line">        q, k, v = <span class="built_in">map</span>(<span class="keyword">lambda</span> t: rearrange(t, <span class="string">&quot;b n (h d) -&gt; b h n d&quot;</span>, h=self.heads), qkv)</span><br><span class="line"></span><br><span class="line">        dots = torch.matmul(q, k.transpose(-<span class="number">1</span>, -<span class="number">2</span>)) * self.scale</span><br><span class="line"></span><br><span class="line">        attn = self.attend(dots)</span><br><span class="line"></span><br><span class="line">        out = torch.matmul(attn, v)</span><br><span class="line">        out = rearrange(out, <span class="string">&quot;b h n d -&gt; b n (h d)&quot;</span>)</span><br><span class="line">        <span class="keyword">return</span> self.to_out(out)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Transformer</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, dim, depth, heads, dim_head, mlp_dim, dropout=<span class="number">0.0</span></span>):</span></span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        self.layers = nn.ModuleList([])</span><br><span class="line">        <span class="keyword">for</span> _ <span class="keyword">in</span> <span class="built_in">range</span>(depth):</span><br><span class="line">            self.layers.append(</span><br><span class="line">                nn.ModuleList(</span><br><span class="line">                    [</span><br><span class="line">                        PreNorm(</span><br><span class="line">                            dim,</span><br><span class="line">                            Attention(</span><br><span class="line">                                dim, heads=heads, dim_head=dim_head, dropout=dropout</span><br><span class="line">                            ),</span><br><span class="line">                        ),</span><br><span class="line">                        PreNorm(dim, FeedForward(dim, mlp_dim, dropout=dropout)),</span><br><span class="line">                    ]</span><br><span class="line">                )</span><br><span class="line">            )</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">self, x</span>):</span></span><br><span class="line">        <span class="keyword">for</span> attn, ff <span class="keyword">in</span> self.layers:</span><br><span class="line">            x = attn(x) + x</span><br><span class="line">            x = ff(x) + x</span><br><span class="line">        <span class="keyword">return</span> x</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">ViT</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params"></span></span></span><br><span class="line"><span class="params"><span class="function">        self,</span></span></span><br><span class="line"><span class="params"><span class="function">        *,</span></span></span><br><span class="line"><span class="params"><span class="function">        image_size,</span></span></span><br><span class="line"><span class="params"><span class="function">        patch_size,</span></span></span><br><span class="line"><span class="params"><span class="function">        num_classes,</span></span></span><br><span class="line"><span class="params"><span class="function">        dim,</span></span></span><br><span class="line"><span class="params"><span class="function">        depth,</span></span></span><br><span class="line"><span class="params"><span class="function">        heads,</span></span></span><br><span class="line"><span class="params"><span class="function">        mlp_dim,</span></span></span><br><span class="line"><span class="params"><span class="function">        pool=<span class="string">&quot;cls&quot;</span>,</span></span></span><br><span class="line"><span class="params"><span class="function">        channels=<span class="number">3</span>,</span></span></span><br><span class="line"><span class="params"><span class="function">        dim_head=<span class="number">64</span>,</span></span></span><br><span class="line"><span class="params"><span class="function">        dropout=<span class="number">0.0</span>,</span></span></span><br><span class="line"><span class="params"><span class="function">        emb_dropout=<span class="number">0.0</span></span></span></span><br><span class="line"><span class="params"><span class="function">    </span>):</span></span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        image_height, image_width = pair(image_size)</span><br><span class="line">        patch_height, patch_width = pair(patch_size)</span><br><span class="line"></span><br><span class="line">        <span class="keyword">assert</span> (</span><br><span class="line">            image_height % patch_height == <span class="number">0</span> <span class="keyword">and</span> image_width % patch_width == <span class="number">0</span></span><br><span class="line">        ), <span class="string">&quot;Image dimensions must be divisible by the patch size.&quot;</span></span><br><span class="line"></span><br><span class="line">        num_patches = (image_height // patch_height) * (image_width // patch_width)</span><br><span class="line">        patch_dim = channels * patch_height * patch_width</span><br><span class="line">        <span class="keyword">assert</span> pool <span class="keyword">in</span> &#123;</span><br><span class="line">            <span class="string">&quot;cls&quot;</span>,</span><br><span class="line">            <span class="string">&quot;mean&quot;</span>,</span><br><span class="line">        &#125;, <span class="string">&quot;pool type must be either cls (cls token) or mean (mean pooling)&quot;</span></span><br><span class="line"></span><br><span class="line">        self.to_patch_embedding = nn.Sequential(</span><br><span class="line">            Rearrange(</span><br><span class="line">                <span class="string">&quot;b c (h p1) (w p2) -&gt; b (h w) (p1 p2 c)&quot;</span>,</span><br><span class="line">                p1=patch_height,</span><br><span class="line">                p2=patch_width,</span><br><span class="line">            ),</span><br><span class="line">            nn.Linear(patch_dim, dim),</span><br><span class="line">        )</span><br><span class="line"></span><br><span class="line">        self.pos_embedding = nn.Parameter(torch.randn(<span class="number">1</span>, num_patches + <span class="number">1</span>, dim))</span><br><span class="line">        self.cls_token = nn.Parameter(torch.randn(<span class="number">1</span>, <span class="number">1</span>, dim))</span><br><span class="line">        self.dropout = nn.Dropout(emb_dropout)</span><br><span class="line"></span><br><span class="line">        self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout)</span><br><span class="line"></span><br><span class="line">        self.pool = pool</span><br><span class="line">        self.to_latent = nn.Identity()</span><br><span class="line"></span><br><span class="line">        self.mlp_head = nn.Sequential(nn.LayerNorm(dim), nn.Linear(dim, num_classes))</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">self, img</span>):</span></span><br><span class="line">        x = self.to_patch_embedding(img)</span><br><span class="line">        b, n, _ = x.shape</span><br><span class="line"></span><br><span class="line">        cls_tokens = repeat(self.cls_token, <span class="string">&quot;() n d -&gt; b n d&quot;</span>, b=b)</span><br><span class="line">        x = torch.cat((cls_tokens, x), dim=<span class="number">1</span>)</span><br><span class="line">        x += self.pos_embedding[:, : (n + <span class="number">1</span>)]</span><br><span class="line">        x = self.dropout(x)</span><br><span class="line"></span><br><span class="line">        x = self.transformer(x)</span><br><span class="line"></span><br><span class="line">        x = x.mean(dim=<span class="number">1</span>) <span class="keyword">if</span> self.pool == <span class="string">&quot;mean&quot;</span> <span class="keyword">else</span> x[:, <span class="number">0</span>]</span><br><span class="line"></span><br><span class="line">        x = self.to_latent(x)</span><br><span class="line">        <span class="keyword">return</span> self.mlp_head(x)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">vit = ViT(</span><br><span class="line">    image_size=<span class="number">100</span>,</span><br><span class="line">    patch_size=<span class="number">10</span>,</span><br><span class="line">    num_classes=<span class="number">10</span>,</span><br><span class="line">    dim=<span class="number">128</span>,</span><br><span class="line">    depth=<span class="number">12</span>,</span><br><span class="line">    heads=<span class="number">8</span>,</span><br><span class="line">    mlp_dim=<span class="number">256</span>,</span><br><span class="line">)</span><br><span class="line">img = torch.randn(<span class="number">2</span>, <span class="number">3</span>, <span class="number">100</span>, <span class="number">100</span>)</span><br><span class="line">out = vit(img)</span><br><span class="line"><span class="built_in">print</span>(out.shape)  <span class="comment"># [2, 10]</span></span><br></pre></td></tr></table></figure>
       
     </div>
 
@@ -1253,175 +1407,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2021/12/30/BERT-Pre-training-of-Deep-Bidirectional-Transformers-for-Language-Understanding/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2021/12/30/BERT-Pre-training-of-Deep-Bidirectional-Transformers-for-Language-Understanding/" class="post-title-link" itemprop="url">BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2021-12-30 09:14:01" itemprop="dateCreated datePublished" datetime="2021-12-30T09:14:01+08:00">2021-12-30</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2022-07-14 17:10:21" itemprop="dateModified" datetime="2022-07-14T17:10:21+08:00">2022-07-14</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Self-Supervised-Learning/" itemprop="url" rel="index"><span itemprop="name">Self-Supervised Learning</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2021/12/30/BERT-Pre-training-of-Deep-Bidirectional-Transformers-for-Language-Understanding/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2021/12/30/BERT-Pre-training-of-Deep-Bidirectional-Transformers-for-Language-Understanding/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="URL"><a href="#URL" class="headerlink" title="URL"></a>URL</h2><ul>
-<li><a target="_blank" rel="noopener" href="https://arxiv.org/pdf/1810.04805.pdf">https://arxiv.org/pdf/1810.04805.pdf</a></li>
-</ul>
-<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
-<li>一种 <strong>用于语义理解的预训练深层双向 <code>transformer</code></strong>，任务相关的 fine-tuning 即可 SOTA</li>
-<li><code>BERT</code> 全称：<strong>B</strong>idirection <strong>E</strong>ncoder <strong>R</strong>epresentation from <strong>T</strong>ransformer</li>
-<li>使用 <strong>无标签文本</strong> 进行预训练，自监督预训练的方法包括：<ul>
-<li><code>masked language model</code>：预测被遮挡的词的 token（不需要重建整个句子）</li>
-<li><code>next sentence prediction</code>：预测两个句子是否是前后相连的关系（只需预测 是 或者 否）</li>
-</ul>
-</li>
-</ul>
-<h2 id="Algorithm"><a href="#Algorithm" class="headerlink" title="Algorithm"></a>Algorithm</h2><h3 id="自监督语义表征方法"><a href="#自监督语义表征方法" class="headerlink" title="自监督语义表征方法"></a>自监督语义表征方法</h3><ul>
-<li><p>自监督语义表征方法常用的监督方法有两种：</p>
-<ul>
-<li>feature based：任务相关的预训练</li>
-<li>fine-tuning：在预训练过程中增加任务相关参数，预训练结束后只需要替换这些任务相关参数，在任务数据上有监督 end-to-end fine-tuning 很少 step 即可</li>
-</ul>
-</li>
-<li><p>相较于 GPT 的 left -&gt; right 单向语义结构，双向语义结构对下游任务更友好</p>
-</li>
-</ul>
-<h3 id="BERT-模型结构"><a href="#BERT-模型结构" class="headerlink" title="BERT 模型结构"></a>BERT 模型结构</h3><ul>
-<li>BERT 参数含义：<ul>
-<li>L：transformer layers</li>
-<li>H：hidden size</li>
-<li>A：self-attention heads</li>
-</ul>
-</li>
-<li>$BERT_{base}(L=12,H=768,A=12,Total\ Parameters=110M)$</li>
-<li>$BERT_{large}(L=24,H=1024,A=16,Total\ Parameters=340M)$</li>
-</ul>
-<h3 id="BERT-输入输出结构"><a href="#BERT-输入输出结构" class="headerlink" title="BERT 输入输出结构"></a>BERT 输入输出结构</h3><p><img src="https://s2.loli.net/2022/01/06/IrzAlHJ5Nbmyo8S.png" alt="bert1.png"></p>
-<h4 id="输入"><a href="#输入" class="headerlink" title="输入"></a>输入</h4><ul>
-<li>BERT 输入可以是一个句子，也可以是多个句子的 concat（用特殊分隔符分隔），例如问答数据集中，输入的句子是 <question, answer> concat<ul>
-<li>[CLS] 为 <code>Sequence</code> 开始标志位</li>
-<li>[SEP] 为 <code>Sentence</code> 结束标志位</li>
-</ul>
-</li>
-<li><code>Token Embeddings</code> 是将句子转化成词向量，英文版本 BERT 用的分词器是 <code>WordPiece embeddings</code>，词表容量 30,000</li>
-<li><code>Segment Embeddings</code> 用于指明句子如何分割</li>
-<li><code>Position Embedding</code> 用于记录原始位置信息（与 CNN 不同，Transformer 中没有位置信息）</li>
-</ul>
-<h4 id="输出"><a href="#输出" class="headerlink" title="输出"></a>输出</h4><p><img src="https://s2.loli.net/2022/01/06/OgZQjopXf8nFSIe.png" alt="bert3.png"></p>
-<p>$C\in \mathbb{R}^H,\ T_i \in \mathbb{R}^H,\ \ H\ means\ hidden\ size$</p>
-<h3 id="BERT-预训练细节"><a href="#BERT-预训练细节" class="headerlink" title="BERT 预训练细节"></a>BERT 预训练细节</h3><h4 id="Masked-Language-Model"><a href="#Masked-Language-Model" class="headerlink" title="Masked Language Model"></a>Masked Language Model</h4><ul>
-<li><p>mask 策略：</p>
-<ul>
-<li>训练数据随机 mask 15% 的位置</li>
-<li>mask 数据的 80% 使用 <code>[MASK]</code> token 去 mask</li>
-<li>mask 数据的 10% 使用随机 token 去 mask</li>
-<li>mask 数据的 10% 什么都不改变</li>
-</ul>
-</li>
-<li><p>计算 loss</p>
-<ul>
-<li>假如第 $i$ 个 token 被 mask，那只计算输出 $T_i$ 映射到词表空间的 token 分布和真实 token 之间的交叉熵 Loss（本质就是分类）</li>
-</ul>
-</li>
-</ul>
-<h4 id="Next-Sentence-Prediction"><a href="#Next-Sentence-Prediction" class="headerlink" title="Next Sentence Prediction"></a>Next Sentence Prediction</h4><ul>
-<li><p>数据生成策略：</p>
-<ul>
-<li>每个样本由两个句子组成，50% 的可能两个句子是前后句的关系，50% 的可能两个句子不是前后句的关系，预测 IsNext OR NotNext</li>
-</ul>
-</li>
-<li><p>计算 loss</p>
-<ul>
-<li>只用输出 <code>C</code> 映射到二分类空间的结果和二分类 label，计算交叉熵损失</li>
-</ul>
-</li>
-<li><p>在 <code>NSP</code> 数据集中，无监督预训练即可达到 97% - 98% 的准确率</p>
-</li>
-</ul>
-<h3 id="BERT-fine-tuning"><a href="#BERT-fine-tuning" class="headerlink" title="BERT fine-tuning"></a>BERT fine-tuning</h3><ul>
-<li>对于不同的任务，只需要替换 BERT 之后的网络结构，使用有监督数据 end-to-end fine-tuning 即可</li>
-</ul>
-<h3 id="消融实验"><a href="#消融实验" class="headerlink" title="消融实验"></a>消融实验</h3><p><img src="https://s2.loli.net/2022/01/07/D2Lu74BF6hAElST.png" alt="bert4.png"></p>
-<blockquote>
-<p>分析了 NSP、双向网络结构等对效果的影响</p>
-</blockquote>
-<h3 id="效果对比"><a href="#效果对比" class="headerlink" title="效果对比"></a>效果对比</h3><p><img src="https://s2.loli.net/2022/01/07/BKo3uPk64agwhbI.png" alt="bert2.png"></p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1490,7 +1475,7 @@
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">56</span>
+          <span class="site-state-item-count">57</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
