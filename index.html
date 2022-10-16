@@ -290,10 +290,16 @@
                 <i class="far fa-calendar"></i>
               </span>
               <span class="post-meta-item-text">Posted on</span>
-              
 
-              <time title="Created: 2022-09-30 15:06:32 / Modified: 15:10:20" itemprop="dateCreated datePublished" datetime="2022-09-30T15:06:32+08:00">2022-09-30</time>
+              <time title="Created: 2022-09-30 15:06:32" itemprop="dateCreated datePublished" datetime="2022-09-30T15:06:32+08:00">2022-09-30</time>
             </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2022-10-16 21:36:01" itemprop="dateModified" datetime="2022-10-16T21:36:01+08:00">2022-10-16</time>
+              </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
                 <i class="far fa-folder"></i>
@@ -330,10 +336,89 @@
 
       
           <h2 id="URL"><a href="#URL" class="headerlink" title="URL"></a>URL</h2><ul>
-<li><a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2008.05711.pdf">https://arxiv.org/pdf/2008.05711.pdf</a></li>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2008.05711.pdf">https://arxiv.org/pdf/2008.05711.pdf</a></li>
+<li>code: <a target="_blank" rel="noopener" href="https://github.com/real-zhangzhe/lift-splat-shoot">https://github.com/real-zhangzhe/lift-splat-shoot</a> (fork from official implementation, adding comments and predictions)</li>
 </ul>
-<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><h2 id="Algorithm"><a href="#Algorithm" class="headerlink" title="Algorithm"></a>Algorithm</h2><ul>
-<li><img src="https://s2.loli.net/2022/09/30/Och3j8xf7WlQp2D.png" alt="LSS"></li>
+<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
+<li>本文是 <code>BEV (bird eye view)</code> 的开山之作，通过隐式 <code>2D</code> 深度估计和像素坐标到世界坐标转换，将多张（6张）车周环视图拼接得到一张鸟瞰图。</li>
+<li>具体实现请看代码，代码中有非常详细的注释。</li>
+</ul>
+<h2 id="Algorithm"><a href="#Algorithm" class="headerlink" title="Algorithm"></a>Algorithm</h2><p><img src="https://s2.loli.net/2022/10/16/Rfay7qBZSU2QkHx.jpg" alt="eval000007_000.jpg"></p>
+<blockquote>
+<p>在 inference 过程中，下半部分的 6 张环视图为输入，上半部分的鸟瞰图为输出（地图和本算法无关）。</p>
+</blockquote>
+<h3 id="Dataset"><a href="#Dataset" class="headerlink" title="Dataset"></a>Dataset</h3><ul>
+<li>本文使用自动驾驶数据集 <code>nuScense</code><ul>
+<li>官网：<a target="_blank" rel="noopener" href="https://www.nuscenes.org/">https://www.nuscenes.org/</a></li>
+<li>数据集介绍论文：<a target="_blank" rel="noopener" href="https://arxiv.org/pdf/1903.11027.pdf">https://arxiv.org/pdf/1903.11027.pdf</a></li>
+</ul>
+</li>
+</ul>
+<p><img src="https://s2.loli.net/2022/10/16/TlHkahvsFCtEXL6.png" alt="LSS1.png"></p>
+<ul>
+<li><p>输入的 6 张图来自上图的 6 个绿色 camera</p>
+</li>
+<li><p>世界坐标系如图 <code>IMU</code> 所示原点定为 <strong>车后轴中心</strong>，<code>x</code> 轴正方向为车辆前进方向， <code>y</code> 轴正方向为面向车辆前进方向的左手边，<code>z</code> 轴正方向为竖直向上。</p>
+</li>
+</ul>
+<h3 id="相关知识"><a href="#相关知识" class="headerlink" title="相关知识"></a>相关知识</h3><ul>
+<li><p>相机内外参：参考 <a target="_blank" rel="noopener" href="https://zhangzhe.space/2022/10/16/%E7%9B%B8%E6%9C%BA%E5%86%85%E5%8F%82%E4%B8%8E%E5%A4%96%E5%8F%82/">相机内参与外参</a></p>
+</li>
+<li><p>体素：</p>
+<ul>
+<li>立体像素</li>
+<li>在本文中，一个体素表示 <strong>x 方向上 0.5m，y 方向上 0.5m，z 方向上 20m 的立方体区域</strong></li>
+<li>体素为鸟瞰视角中可区分的最小单元</li>
+</ul>
+</li>
+</ul>
+<h3 id="算法细节"><a href="#算法细节" class="headerlink" title="算法细节"></a>算法细节</h3><blockquote>
+<p>特别细节的看代码</p>
+</blockquote>
+<h4 id="1-特征提取"><a href="#1-特征提取" class="headerlink" title="1. 特征提取"></a>1. 特征提取</h4><ul>
+<li>使用 <code>EfficientNet</code> 进行 <strong><code>2D</code> 特征提取 + 隐式深度估计</strong><ul>
+<li><strong>输入</strong>：<code>shape = [4, 6, 3, 128, 352]</code>，分别表示：<code>[batch, cameras, channel, height, width]</code></li>
+<li><strong>输出</strong>：<code>shape = [24, 64, 41, 8, 22]</code>，分别表示：<code>[batch * cameras, features, depth, height, width]</code><ul>
+<li>使用 <code>64</code> 维向量编码深度（不是直接预测深度，所以被称为隐式深度估计）</li>
+<li>深度从 <code>4m ~ 45m</code>，编码精度为 <code>1m</code>，所以有 <code>41</code> 种离散深度，相机坐标系下深度估计的目的是：<strong>从像素坐标转化为世界坐标</strong></li>
+<li>长宽各下采样 <code>16</code> 倍，减小计算量</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h4 id="2-像素坐标和相机坐标系下深度到世界坐标的映射"><a href="#2-像素坐标和相机坐标系下深度到世界坐标的映射" class="headerlink" title="2. 像素坐标和相机坐标系下深度到世界坐标的映射"></a>2. 像素坐标和相机坐标系下深度到世界坐标的映射</h4><ul>
+<li>使用如下参数将像素坐标和相机坐标系下深度映射到世界坐标<ul>
+<li>相机内参</li>
+<li>相机外参<ul>
+<li>旋转</li>
+<li>平移</li>
+</ul>
+</li>
+<li>像素坐标系内变换参数（缩放 + 裁剪（平移））<ul>
+<li>原图(900 <em> 1600) -&gt; 模型输入图(128 </em> 352) -&gt; 模型预测图(8, 22)</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>体素池化：将属于同一个体素的深度估计向量求和</li>
+<li><strong>输入</strong>：<ul>
+<li>深度估计：<code>shape = [24, 64, 41, 8, 22]</code></li>
+<li>相机和缩放参数</li>
+</ul>
+</li>
+<li><strong>输出</strong>：<code>shape = [4, 64, 200, 200]</code><ul>
+<li><code>200 * 200</code> 个体素</li>
+<li>每个体素用 <code>64</code> 维向量编码</li>
+</ul>
+</li>
+</ul>
+<h4 id="3-体素编码降维"><a href="#3-体素编码降维" class="headerlink" title="3. 体素编码降维"></a>3. 体素编码降维</h4><ul>
+<li><strong>输入</strong>：<code>shape = [4, 64, 200, 200]</code></li>
+<li><strong>输出</strong>：<code>shape = [4, 1, 200, 200]</code>，<strong>BEV 图</strong></li>
+</ul>
+<h2 id="Thought"><a href="#Thought" class="headerlink" title="Thought"></a>Thought</h2><ul>
+<li>代码中 <strong>像素坐标和相机坐标系下深度到世界坐标的映射</strong> 部分比较难懂，需要较强的相机成像原理 / 图像 <code>2D</code> 转 <code>3D</code> 背景才能看懂</li>
 </ul>
 
       
