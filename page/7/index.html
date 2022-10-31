@@ -152,6 +152,123 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2021/07/21/Training-data-efficient-image-transformers-distillation-through-attention/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2021/07/21/Training-data-efficient-image-transformers-distillation-through-attention/" class="post-title-link" itemprop="url">Training data-efficient image transformers & distillation through attention</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2021-07-21 16:43:15" itemprop="dateCreated datePublished" datetime="2021-07-21T16:43:15+08:00">2021-07-21</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2022-09-30 14:56:09" itemprop="dateModified" datetime="2022-09-30T14:56:09+08:00">2022-09-30</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Transformer/" itemprop="url" rel="index"><span itemprop="name">Transformer</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2021/07/21/Training-data-efficient-image-transformers-distillation-through-attention/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2021/07/21/Training-data-efficient-image-transformers-distillation-through-attention/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="URL"><a href="#URL" class="headerlink" title="URL"></a>URL</h2><p><a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2012.12877.pdf">https://arxiv.org/pdf/2012.12877.pdf</a></p>
+<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
+<li>基于 ViT，但解决了 ViT 依赖超大数据集预训练的问题，与 ConvNet 同样在 imageNet 数据集上训练，可以达到 SOTA</li>
+<li>提出一种基于 distillation token 的蒸馏</li>
+</ul>
+<h2 id="Algorithm"><a href="#Algorithm" class="headerlink" title="Algorithm"></a>Algorithm</h2><h3 id="transformer-ViT"><a href="#transformer-ViT" class="headerlink" title="transformer (ViT)"></a>transformer (ViT)</h3><ul>
+<li>Multi-head self attention layer (MSA)：<br>$head_i=Attention(QW_i^Q,KW_i^K,VW_i^V)=softmax[\frac{QW_i^Q(KW_i^K)^T}{\sqrt{d_k}}]VW_i^V$</li>
+<li>Transformer block： FFN （2 × FC + bottleneck + GeLU + LayerNorm） + MSA + Residual</li>
+<li>Class token： 在 patch 维度 concat 一维 <code>P x P</code> （P 表示 patch_size），并将这个维度作为输出，其他 patch 维度丢弃</li>
+<li>Interpolate position embeding： 当输入分辨率变化时，直接对 embeding 插值</li>
+</ul>
+<h3 id="distillation"><a href="#distillation" class="headerlink" title="distillation"></a>distillation</h3><ul>
+<li><p>常用 Soft distillation：<br>$L=(1-\lambda)L_{CE}(\psi(Z_s),y)+\lambda\tau^2KL(\psi(Z_s/\tau),\psi(Z_t/\tau))$<br>其中： $y$ 表示 <code>GT label</code>， $Z_s\ ,\ Z_t$ 表示 <code>logits of student model and teacher model</code>， $\psi$ 表示 <code>softmax</code>， $\tau$ 表示蒸馏温度， $L_{CE}, KL$ 分表表示交叉熵与 KL 散度</p>
+</li>
+<li><p>Hard distillation：<br>$L=\frac{1}{2}L_{CE}(\psi(Z_s),y)+\frac{1}{2}L_{CE}(\psi(Z_s),y_t),\ \ \ y_t = argmax(Z_t)$</p>
+</li>
+<li><p>Hard distillation + label smooth 解决 data augmentation 中 crop 导致的图像与 label 不对应的问题</p>
+</li>
+<li><p>Distillation token：类似 Class token，在 patch 维度 concat 一维 <code>P x P</code>，与 Class token 一起输出计算 loss 与 inference</p>
+</li>
+<li><p>Joint classifier： $pred=argmax(\psi(C_s)+\psi(D_s))$ ，其中 $C_s\ ,\ D_s$ 分别表示 <code>logits of class token and distillation token</code></p>
+</li>
+</ul>
+<h3 id="other"><a href="#other" class="headerlink" title="other"></a>other</h3><ul>
+<li>很多很多的训练技巧</li>
+</ul>
+<h2 id="Thoughts"><a href="#Thoughts" class="headerlink" title="Thoughts"></a>Thoughts</h2><ul>
+<li>训练技巧很重要。从 <a target="_blank" rel="noopener" href="https://github.com/facebookresearch/deit">源码</a> 角度看，本文能解决 ViT 依赖超大数据集预训练的问题，主要原因是训练技巧强大</li>
+<li>本文提出的关于蒸馏方法的理解可以作为蒸馏 Transformer 的指导</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2021/07/21/Late-Temporal-Modeling-in-3D-CNN-Architectures-with-BERT-for-Action-Recognition/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -345,7 +462,7 @@
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">61</span>
+          <span class="site-state-item-count">62</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
