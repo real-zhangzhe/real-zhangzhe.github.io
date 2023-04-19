@@ -177,7 +177,7 @@
               <span class="post-meta-item-text">Posted on</span>
               
 
-              <time title="Created: 2023-04-19 10:00:53 / Modified: 12:54:27" itemprop="dateCreated datePublished" datetime="2023-04-19T10:00:53+08:00">2023-04-19</time>
+              <time title="Created: 2023-04-19 10:00:53 / Modified: 13:42:23" itemprop="dateCreated datePublished" datetime="2023-04-19T10:00:53+08:00">2023-04-19</time>
             </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -261,7 +261,7 @@
 </li>
 <li><p>回归分支：</p>
 <ul>
-<li><p>box:  <code>output_shape = (N, 9, H, W)</code>， <code>(dx, dy, log(z), w, l, h, yaw, vx, vy)</code>，使用 <code>SmoothL1Loss</code></p>
+<li><p>box:  <code>output_shape = (N, 9, H, W)</code>， <code>(dx, dy, log(z), log(w), log(l), log(h), yaw, vx, vy)</code>，使用 <code>SmoothL1Loss</code></p>
 </li>
 <li><p>centerness: <code>output_shape = (N, 1, H, W)</code>，使用 <code>BCEWithLogitsLoss</code></p>
 </li>
@@ -278,11 +278,14 @@
 <h4 id="x-y-z-target-设置"><a href="#x-y-z-target-设置" class="headerlink" title="(x, y, z) target 设置"></a><code>(x, y, z)</code> target 设置</h4><ul>
 <li><p>由于是 3D 检测，所以 GT 的 3D 框坐标（x, y, z, w, l, h）单位都是米，这对神经网络是不友好的（因为神经网络看到的是像素，预测以像素为单位更容易）。</p>
 </li>
-<li><p>因此，本文实际是一个 <code>2.5D</code> 的预测<code>（xy 2D, z 3D）</code>，实际预测的 <code>x, y</code> 是像素坐标系下相对于 feature map 每一个点的偏移量（由相机坐标系和相机内参可计算得到像素坐标系），<code>z</code> 的预测是相机坐标系下的深度取 <code>log</code>。</p>
+<li><p>因此，<strong>本文实际是一个 <code>2.5D</code> 的预测<code>（xy 2D, z 3D）</code>，实际预测的 <code>x, y</code> 是像素坐标系下相对于 feature map 每一个点的偏移量（由相机坐标系和相机内参可计算得到像素坐标系），<code>z, w, l, h</code> 的预测是相机坐标系下的米为单位的真值取 <code>log</code>。</strong></p>
 </li>
 </ul>
-<h4 id="centerness-设置"><a href="#centerness-设置" class="headerlink" title="centerness 设置"></a>centerness 设置</h4><ul>
+<h4 id="centerness-target-设置"><a href="#centerness-target-设置" class="headerlink" title="centerness target 设置"></a>centerness target 设置</h4><ul>
 <li>与 <code>FCOS</code> 不同，<code>FCOS3D centerness</code>: $c = e^{-\alpha((\Delta x)^2+(\Delta y)^2)}$ ，$\alpha=2.5$</li>
+</ul>
+<h4 id="yaw-target-设置"><a href="#yaw-target-设置" class="headerlink" title="yaw target 设置"></a>yaw target 设置</h4><ul>
+<li>本文将 yaw （0 ~ $2\pi$）编码成 yaw （0 ~ $\pi$）和方向</li>
 </ul>
 <h3 id="正样本选择"><a href="#正样本选择" class="headerlink" title="正样本选择"></a>正样本选择</h3><ul>
 <li><p><code>FCOS</code> 是将 <code>feature map</code> 上的每个位置到 GT 中心点的距离小于 <code>1.5 * stride</code> 的点作为正样本。</p>
@@ -299,7 +302,7 @@
 <h2 id="Thought"><a href="#Thought" class="headerlink" title="Thought"></a>Thought</h2><ul>
 <li><p>本文极大程度的借鉴了 <code>FCOS</code>，相当于 <code>FCOS</code> 的 <code>2.5D</code> 版</p>
 </li>
-<li><p>加入了很多 <code>trick</code>: log(z), centerness 定义等，很 work</p>
+<li><p>加入了很多 <code>trick</code>: log(z), centerness target 定义，encode yaw 等，很 work</p>
 </li>
 </ul>
 
