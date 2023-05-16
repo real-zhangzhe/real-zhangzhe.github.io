@@ -1103,7 +1103,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2022-09-30 14:56:09" itemprop="dateModified" datetime="2022-09-30T14:56:09+08:00">2022-09-30</time>
+                <time title="Modified: 2023-05-16 11:15:30" itemprop="dateModified" datetime="2023-05-16T11:15:30+08:00">2023-05-16</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1141,7 +1141,70 @@
 
       
           <h2 id="URL"><a href="#URL" class="headerlink" title="URL"></a>URL</h2><ul>
-<li><a target="_blank" rel="noopener" href="https://cdn.openai.com/research-covers/language-unsupervised/language_understanding_paper.pdf">https://cdn.openai.com/research-covers/language-unsupervised/language_understanding_paper.pdf</a></li>
+<li>paper: <a target="_blank" rel="noopener" href="https://s3-us-west-2.amazonaws.com/openai-assets/research-covers/language-unsupervised/language_understanding_paper.pdf">https://s3-us-west-2.amazonaws.com/openai-assets/research-covers/language-unsupervised/language_understanding_paper.pdf</a></li>
+</ul>
+<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
+<li><code>GPT (Generative Pre-Training)</code> 是一种基于 <code>transformer decoder</code> 结构的语言预训练模型，和视觉预训练模型不同的是使用没有 <code>label</code> 的文本数据做自监督预训练训练。</li>
+<li><p><code>GPT</code> 训练主要分成两个步骤：</p>
+<ul>
+<li><ol>
+<li>在无标注数据上做自监督预训练，具体训练目标函数是：根据前 k 个词预测下一个词</li>
+</ol>
+</li>
+<li><ol>
+<li>在有监督数据集上做有监督微调，具体微调目标函数是：任务相关预测 + 根据前 k 个词预测下一个词</li>
+</ol>
+</li>
+</ul>
+</li>
+<li><p>预训练好的模型在下游任务上微调时，只需要对网络输出头做较小的修改即可适配，效果很好。</p>
+</li>
+</ul>
+<h2 id="Algorithm"><a href="#Algorithm" class="headerlink" title="Algorithm"></a>Algorithm</h2><ul>
+<li>发展历程： Transformer -&gt; GPT -&gt; Bert -&gt; GPT2 -&gt; GPT3 -&gt; GPT4</li>
+</ul>
+<h3 id="Unsupervised-pre-training"><a href="#Unsupervised-pre-training" class="headerlink" title="Unsupervised pre-training"></a>Unsupervised pre-training</h3><ul>
+<li><p>使用标准语言建模（用前面的词预测下一个词）目标来最大化如下的似然函数：<br>目标函数： $L_1(U)=\sum_ilogP(u_i|u_{i-k},…,u_{i-1} | \Theta)$<br>其中：U 表示 token 的上下文向量，k 为窗口大小， $\Theta$ 为模型参数</p>
+</li>
+<li><p>模型使用 <code>Transformer decoder</code> 结构，整体计算流程可简写为：<br>$h_0=UW_e+W_p$<br>$h_l=transformer_block(h_{l-1}),\ \ \ \forall i\in[1,n]$<br>$P(u)=softmax(h_nW_e^T)$<br>其中： n 表示 transformer 层数，U 表示上下文 token， $W_e$ 表示 token 的 embedding 矩阵， $W_p$ 表示 position embedding 矩阵</p>
+</li>
+</ul>
+<h3 id="Supervised-fine-tuning"><a href="#Supervised-fine-tuning" class="headerlink" title="Supervised fine-tuning"></a>Supervised fine-tuning</h3><ul>
+<li><p>有监督 <code>fine-tuning</code> 使用的数据可表示为：</p>
+<ul>
+<li>输入 $x_1, x_2, …, x_m$</li>
+<li>标签 y</li>
+</ul>
+</li>
+<li><p>预测 $P(y|x_i,…,x_m)=softmax(h_l^mW_y)$ 这里使用 <strong>最后一个一层的最后一个 token 对应的输出</strong></p>
+</li>
+<li><p>因此，有监督目标函数为： $L_2(C)=\sum_{(x,y)}logP(y|x_1,…,x_m)$ ，其中 C 表示 <code>fine-tuning</code> 使用的有标签数据集</p>
+</li>
+<li><p>作者发现在 <code>fine-tuning</code> 阶段，加上无监督损失函数效果会更好，即： $L_3(C)=L_2(C)+\lambda * L_1(C)$</p>
+</li>
+</ul>
+<h3 id="Task-specific-input-transformations"><a href="#Task-specific-input-transformations" class="headerlink" title="Task-specific input transformations"></a>Task-specific input transformations</h3><ul>
+<li>本节讨论的是在 <code>fine-tunning</code> 以及 <code>inference</code> 阶段如何构造模型输入</li>
+</ul>
+<p><img src="https://s2.loli.net/2023/05/14/UVxR4yisz7BFdNu.png" alt="GPT.png"></p>
+<ul>
+<li><p>上图举例了四个常见 <code>NLP</code> 任务：</p>
+<ul>
+<li><p>分类：图中的 <code>Start</code> 和 <code>Extract</code> 分别是两个保留的特殊 token，分别表示输入的开始和输出特征的抽取（linear 层只输入 transformer 最后一层的最后一个 token 的输出，因此在最后填充一个 Extract 特殊标记 token）</p>
+</li>
+<li><p>蕴含：用于分析 <strong>前提（premise）</strong> 是否蕴含 <strong>假设（hypothesis）</strong>，本质是一个 <strong>蕴含 / 不蕴含 / 不确定</strong> 三分类问题，中间的 <code>Delim</code> 是特殊标识 token，表示分割含义</p>
+</li>
+<li><p>相似：用于分析两个句子是否具有相似关系，由于相似具有对称性，所以需要构造两种顺序的输入，本质是二分类</p>
+</li>
+<li><p>多选：其中 <code>context</code> 包含上下文文本和问题，需要针对每个答案构建一个 <code>context</code> 和 <code>answer</code> 对，最后用 <code>softmax</code> 计算 <code>answer</code> 概率分布</p>
+</li>
+</ul>
+</li>
+</ul>
+<h2 id="Thought"><a href="#Thought" class="headerlink" title="Thought"></a>Thought</h2><ul>
+<li><code>GPT</code> 使用了 <code>Transformer decoder</code>，由于 <code>mask</code> 的存在，无法知道之后的句子，因此选择了比 <code>Bert</code> 更难的标准语言建模（根据前 k 个词预测下一个词）的代理任务，对应的模型无监督预训练效果上限也相应提高。</li>
+<li>由于 <code>Bert</code> 使用的 <code>Transformer encoder</code>，因此可以看到句子的上下文，因此 <code>Bert</code> 使用了较为简单的完形填空无监督目标函数。</li>
+<li><code>Bert</code> 晚于 <code>GPT</code>，借鉴了很多 <code>GPT</code> 的思想，效果也优于 <code>GPT</code>，但 <code>GPT</code> 开启了语言模型无监督预训练先河，有可能成为 <code>AIGC</code> 的原型机。</li>
 </ul>
 
       
@@ -1579,7 +1642,7 @@
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">37</span>
+        <span class="site-state-item-count">38</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
