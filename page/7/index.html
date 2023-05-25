@@ -152,6 +152,166 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2021/08/22/PSConv-Squeezing-Feature-Pyramid-into-One-Compact-Poly-Scale-Convolutional-Layer/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2021/08/22/PSConv-Squeezing-Feature-Pyramid-into-One-Compact-Poly-Scale-Convolutional-Layer/" class="post-title-link" itemprop="url">PSConv: Squeezing Feature Pyramid into One Compact Poly-Scale Convolutional Layer</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2021-08-22 16:58:59" itemprop="dateCreated datePublished" datetime="2021-08-22T16:58:59+08:00">2021-08-22</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2022-09-30 14:56:09" itemprop="dateModified" datetime="2022-09-30T14:56:09+08:00">2022-09-30</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/CNN-Architecture-Design/" itemprop="url" rel="index"><span itemprop="name">CNN Architecture Design</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2021/08/22/PSConv-Squeezing-Feature-Pyramid-into-One-Compact-Poly-Scale-Convolutional-Layer/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2021/08/22/PSConv-Squeezing-Feature-Pyramid-into-One-Compact-Poly-Scale-Convolutional-Layer/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="URL"><a href="#URL" class="headerlink" title="URL"></a>URL</h2><p><a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2007.06191.pdf">https://arxiv.org/pdf/2007.06191.pdf</a></p>
+<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
+<li>本文提出了一种新颖的卷积方式——PSConv，参数量与计算量都不变的情况下可以提高网络特征提取能力</li>
+<li>PSConv的本质是一种dilated系数周期性变化的空洞卷积，周期性变化发生在 $C_{in}$ 和 $C_{out}$ 两个“正交”坐标系中</li>
+</ul>
+<h2 id="Algorithm"><a href="#Algorithm" class="headerlink" title="Algorithm"></a>Algorithm</h2><h3 id="什么是PSConv"><a href="#什么是PSConv" class="headerlink" title="什么是PSConv"></a>什么是PSConv</h3><ul>
+<li><p>标准卷积：</p>
+<p>  $H_{c,x,y} = \sum_{k=1}^{C_{in}}\sum_{i=-\frac{K-1}{2}}^{\frac{K-1}{2}}\sum_{j=-\frac{K-1}{2}}^{\frac{K-1}{2}} G_{c,k,i,j}F_{k,x+i,y+j}$</p>
+<p>  其中，F表示输入feature， $F\in\mathbb{R}^{C_{in}\times H\times W}$ ，G表示kernel， $G\in\mathbb{R}^{C_{out}\times C_{in}\times K\times K}$ ，H表示一个kernel卷积输出 $H\in\mathbb R^{1\times H\times W}$ ，i，j分表表示kernel中的点距离kernel中心在H于W方向上的偏移</p>
+</li>
+<li><p>空洞卷积：</p>
+<p>  $H_{c,x,y} = \sum_{k=1}^{C_{in}}\sum_{i=-\frac{K-1}{2}}^{\frac{K-1}{2}}\sum_{j=-\frac{K-1}{2}}^{\frac{K-1}{2}} G_{c,k,i,j}F_{k,x+id,y+jd}$</p>
+<p>  其中：id表示 <strong>偏移 i * 空洞系数 d</strong></p>
+</li>
+<li><p>PSConv：</p>
+<p>  $H_{c,x,y} = \sum_{k=1}^{C_{in}}\sum_{i=-\frac{K-1}{2}}^{\frac{K-1}{2}}\sum_{j=-\frac{K-1}{2}}^{\frac{K-1}{2}} G_{c,k,i,j}F_{k,x+iD(c,k),y+jD(c,k)}$</p>
+<p>  其中：i * D(c, k)表示 <strong>偏移 i * 空洞系数 D(c, k)，D是空洞系数矩阵</strong>，$D\in\mathbb R^{C_{out}\times C_{in}}$ ，<strong>D(i, j) 表示 第 i 个 kernel 第 j channel 的空洞系数 d</strong></p>
+</li>
+</ul>
+<h3 id="空洞系数矩阵D设计的基本法"><a href="#空洞系数矩阵D设计的基本法" class="headerlink" title="空洞系数矩阵D设计的基本法"></a>空洞系数矩阵D设计的基本法</h3><ul>
+<li><p>D矩阵的一行表示一个kernel，kernel 的通道数为 $C_{in}$</p>
+</li>
+<li><p>PSConv 是将这 $C_{in}$ 通道分为 P 个周期，每个周期的长度为 $t = \lceil \frac{C_{in}}{P}\rceil$ </p>
+</li>
+<li><p>每个周期 t 个空洞系数 $d = \{d_1, d_2,…,d_t\}$ ，实验证明当 $t=4，d=\{1,2,1,4\}$ 效果最好</p>
+</li>
+<li><p>另外D矩阵的列上也要具有周期性，方法是让每一行相对与上一行偏移 1个相位（一个周期 t 个相位）</p>
+</li>
+</ul>
+<h3 id="效果"><a href="#效果" class="headerlink" title="效果"></a>效果</h3><ul>
+<li><p>涨点，替换什么什么就涨点，原因是使用一种类似周期性金字塔kernel的方法，得到了非常有想象力的感受野</p>
+</li>
+<li><p>虽然不增加参数量与计算量，但是train与inference都会变慢，所以作者附录中给出了一种优化实现方式，是将每个周期的相同相位合并到一起使用group Conv，然后再shuffle index，与ShuffleNet一个意思</p>
+</li>
+<li><p>优化后确实会变快，可以将PS-ResNet-50/101在inference速度提升到与标准ResNet-50/101基本一致</p>
+</li>
+<li><p>消融实验对比了只在 $C_{in}$ 或者 只在$C_{out}$ 上周期性变化，发现哪个轴上周期变化都是必要的</p>
+</li>
+<li><p>当 t = 1时，D中只会包含一种元素，此时PSconv退化为标准空洞卷积</p>
+</li>
+<li><p>PSConv 可以加入 group 参数，每个 group 内单独周期变化</p>
+</li>
+</ul>
+<h2 id="Thoughts"><a href="#Thoughts" class="headerlink" title="Thoughts"></a>Thoughts</h2><ul>
+<li><p>不增加计算量和参数量，且文章附录中提出经过优化实现可以将PS-ResNet-50/101在inference速度提升到与标准ResNet-50/101基本一致。</p>
+</li>
+<li><p>如果在硬件设计中，预留了dilated Conv接口，并借鉴文中的优化实现方式，使用分组卷积+index shuffle减小filter通道间dilated不同的问题，这种白送的点也挺香的</p>
+</li>
+</ul>
+<h3 id="图表"><a href="#图表" class="headerlink" title="图表"></a>图表</h3><ul>
+<li>标准卷积与PSConv （可以带group参数）</li>
+</ul>
+<p><img src="https://i.loli.net/2021/08/22/eFhEgOj6IBLSq7l.png" alt="ps1.png"></p>
+<ul>
+<li>PS group Conv</li>
+</ul>
+<p><img src="https://i.loli.net/2021/08/22/w4qvntoYMI3TsZX.png" alt="ps2.png"></p>
+<ul>
+<li>优化实现</li>
+</ul>
+<p><img src="https://i.loli.net/2021/08/22/QwKXLlsSyZWfctV.png" alt="ps3.png"></p>
+<ul>
+<li>搜索 t 与 d</li>
+</ul>
+<p><img src="https://i.loli.net/2021/08/22/VnurNl1xi3KJPYd.png" alt="ps4.png"></p>
+<ul>
+<li>横纵坐标周期消融实验</li>
+</ul>
+<p><img src="https://i.loli.net/2021/08/22/sbJpqxeLUhnrD2K.png" alt="ps5.png"></p>
+<ul>
+<li>涨点涨点涨点….</li>
+</ul>
+<p><img src="https://i.loli.net/2021/08/22/UPvntfFCTzEMpXQ.png" alt="ps8.png"><br><img src="https://i.loli.net/2021/08/22/DValA5Jd3F6hLuC.png" alt="ps9.png"><br><img src="https://i.loli.net/2021/08/22/ThYbKnxagJjfDmi.png" alt="ps7.png"><br><img src="https://i.loli.net/2021/08/22/vsK4yqIVYd18FLZ.png" alt="ps6.png"></p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2021/08/17/Diverse-Branch-Block-Building-a-Convolution-as-an-Inception-like-Unit/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1118,131 +1278,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2021/07/26/Linformer-Self-Attention-with-Linear-Complexity/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2021/07/26/Linformer-Self-Attention-with-Linear-Complexity/" class="post-title-link" itemprop="url">Linformer: Self-Attention with Linear Complexity</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2021-07-26 11:42:28" itemprop="dateCreated datePublished" datetime="2021-07-26T11:42:28+08:00">2021-07-26</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2022-09-30 14:56:09" itemprop="dateModified" datetime="2022-09-30T14:56:09+08:00">2022-09-30</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Transformer/" itemprop="url" rel="index"><span itemprop="name">Transformer</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2021/07/26/Linformer-Self-Attention-with-Linear-Complexity/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2021/07/26/Linformer-Self-Attention-with-Linear-Complexity/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="URL"><a href="#URL" class="headerlink" title="URL"></a>URL</h2><p><a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2006.04768.pdf">https://arxiv.org/pdf/2006.04768.pdf</a></p>
-<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
-<li><p>本方法—— <code>Linformer</code> 使用矩阵的低秩来降低原始 <code>Transformer</code> 的 <code>Multi-HEAD Attention</code> 计算的时空复杂度</p>
-</li>
-<li><p>不同 <code>Transformer</code> 结构的复杂度</p>
-</li>
-</ul>
-<p><img src="https://i.loli.net/2021/07/26/146DIsFr9tM7xhu.png" alt="linformer"> </p>
-<h2 id="Algorithm"><a href="#Algorithm" class="headerlink" title="Algorithm"></a>Algorithm</h2><h3 id="原始-Transformer-使用的-Multi-HEAD-Attention"><a href="#原始-Transformer-使用的-Multi-HEAD-Attention" class="headerlink" title="原始 Transformer 使用的 Multi-HEAD Attention"></a>原始 <code>Transformer</code> 使用的 <code>Multi-HEAD Attention</code></h3><p>$head_i = Attention(QW_i^Q,KW_i^K,VW_i^V)=softmax[\frac{QW_i^Q(KW_i^K)^T}{\sqrt d_k}]VW_i^V$</p>
-<p>其中： $K,Q,V \in \mathbb R^{n\times d_m} \ \ \ W_i^Q,W_i^K\in \mathbb R^{d_m\times d_k}$</p>
-<p>所以： $softmax[\frac{QW_i^Q(KW_i^K)^T}{\sqrt d_k}] \in \mathbb {R} ^{n\times n}$ ，<code>n</code> 表示序列长度，所以原始 <code>Transformer</code> 使用的 <code>Multi-HEAD Attention</code> 的时空复杂度为 $O(n^2)$</p>
-<h3 id="Linformer-对-Multi-HEAD-Attention-的修改"><a href="#Linformer-对-Multi-HEAD-Attention-的修改" class="headerlink" title="Linformer 对 Multi-HEAD Attention 的修改"></a><code>Linformer</code> 对 <code>Multi-HEAD Attention</code> 的修改</h3><ul>
-<li><p>将 $KW_i^K, VW_i^V\in  \mathbb R^{n\times d_k}$ 投影到  $E_iKW_i^K, F_iVW_i^V\in  \mathbb R^{k\times d_k}$ ，其中 <code>k</code> 是一个常数，时空复杂度变成了 $O(n)$ ，其中，<code>E、F</code> 都是可学习的投影矩阵， $E,F \in \mathbb R^{k\times n}$ </p>
-</li>
-<li><p>$\bar{head_i} = Attention(QW_i^Q,E_iKW_i^K, F_iVW_i^V)=softmax[\frac{QW_i^Q(E_iKW_i^K)^T}{\sqrt d_k}]F_iVW_i^V$</p>
-</li>
-<li><p>投影矩阵 <code>E、F</code> 可共享参数，分为：</p>
-<ul>
-<li>Headwise sharing： $E_i=E,\ \ F_i=F, \ \ for\ each\ layer$</li>
-<li>Key-value sharing： $E_i=E = F_i, \ \ for\ each\ layer$</li>
-<li>Layerwise sharing： $E, F, \ \ layer\ sharing$</li>
-</ul>
-</li>
-</ul>
-<h3 id="理论依据与结果"><a href="#理论依据与结果" class="headerlink" title="理论依据与结果"></a>理论依据与结果</h3><ul>
-<li>特征值的长尾分布</li>
-</ul>
-<p><img src="https://i.loli.net/2021/07/26/hLo1xU5BAzltsTq.png" alt="linformer2"> </p>
-<ul>
-<li>效果（与 BERT-base 对比）</li>
-</ul>
-<p><img src="https://i.loli.net/2021/07/26/UWvgRwk2LXuVzf8.png" alt="linformer3"> </p>
-<h2 id="Thoughts"><a href="#Thoughts" class="headerlink" title="Thoughts"></a>Thoughts</h2><ul>
-<li><p>文中提到不使用奇异值分解来得到低秩矩阵的原因是：奇异值分解会引入额外的计算量，并且无法共享参数</p>
-</li>
-<li><p>代码被打包为了 <code>linformer</code> 的 <code>pip</code> 包，可以在 <code>torch</code> 框架下直接使用</p>
-</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1311,7 +1346,7 @@
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">72</span>
+          <span class="site-state-item-count">73</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -1324,7 +1359,7 @@
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">38</span>
+        <span class="site-state-item-count">40</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
