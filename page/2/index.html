@@ -152,6 +152,155 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2022/11/21/CUDA-%E5%9F%BA%E7%A1%80%E4%B9%8B%E7%9F%A9%E9%98%B5%E4%B9%98%E4%BC%98%E5%8C%96/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2022/11/21/CUDA-%E5%9F%BA%E7%A1%80%E4%B9%8B%E7%9F%A9%E9%98%B5%E4%B9%98%E4%BC%98%E5%8C%96/" class="post-title-link" itemprop="url">CUDA 基础之矩阵乘优化</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2022-11-21 22:14:58 / Modified: 22:16:30" itemprop="dateCreated datePublished" datetime="2022-11-21T22:14:58+08:00">2022-11-21</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/CUDA/" itemprop="url" rel="index"><span itemprop="name">CUDA</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2022/11/21/CUDA-%E5%9F%BA%E7%A1%80%E4%B9%8B%E7%9F%A9%E9%98%B5%E4%B9%98%E4%BC%98%E5%8C%96/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2022/11/21/CUDA-%E5%9F%BA%E7%A1%80%E4%B9%8B%E7%9F%A9%E9%98%B5%E4%B9%98%E4%BC%98%E5%8C%96/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="CUDA（Compute-Unified-Device-Architecture，统一计算设备架构）资料："><a href="#CUDA（Compute-Unified-Device-Architecture，统一计算设备架构）资料：" class="headerlink" title="CUDA（Compute Unified Device Architecture，统一计算设备架构）资料："></a>CUDA（Compute Unified Device Architecture，统一计算设备架构）资料：</h2><ul>
+<li><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/34587739">知乎 CUDA 编程入门极简教程</a></li>
+<li><a target="_blank" rel="noopener" href="https://face2ai.com/categories/CUDA/page/4/">谭升的博客</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.nvidia.cn/docs/IO/51635/NVIDIA_CUDA_Programming_Guide_1.1_chs.pdf">NVIDIA CUDA 编程指南</a></li>
+<li><a target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/cuda-c-programming-guide/">CUDA C++ 编程指南</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.cnblogs.com/1024incn/p/4564726.html">CUDA memory hierarchy</a></li>
+</ul>
+<h2 id="GPU-体系结构"><a href="#GPU-体系结构" class="headerlink" title="GPU 体系结构"></a>GPU 体系结构</h2><ul>
+<li><p>物理模型</p>
+  <center><img src="https://s2.loli.net/2022/11/19/JdMwmXu9oTrE3H4.png" width=50%></center>
+
+<ul>
+<li>典型的 <code>GPU</code> 包含一组流处理器 (<code>stream multi-processors</code>, <code>SM</code>)，每个流处理器都有许多核心，硬件实现上这些核心之间可共享内存（<code>shared memory</code>）</li>
+</ul>
+</li>
+<li><p>逻辑模型</p>
+  <center><img src="https://s2.loli.net/2022/11/19/uEcUSFqiQbpdeHM.png" width=50%></center>
+
+<ul>
+<li><p>逻辑模型中，引入了 <code>Grid</code> / <code>Block</code> / <code>Thread</code> 三级概念，逻辑模型与物理的对应关系如下：</p>
+  <center><img src="https://s2.loli.net/2022/11/19/ovTRipHj94Uemlb.png" width=50%></center>
+
+<blockquote>
+<p>因此：同一个 <code>Block</code> 中的 <code>Thread</code> 可共享 <code>shared memory</code></p>
+</blockquote>
+</li>
+</ul>
+</li>
+<li><p>Memory Hierarchy</p>
+<p>  <img src="https://s2.loli.net/2022/11/19/CXoJct3fqD7ui4P.png" alt="memory_hierarchy.png"></p>
+<blockquote>
+<p><code>shared memory</code> 速度几乎和 <strong>L1 cache</strong> 一样，比 <code>local memory</code> 和 <code>global memory</code> 都快的多（在物理上，<code>local memory</code> 和 <code>global memory</code> 是同一块 <code>DRAM</code>）</p>
+</blockquote>
+</li>
+<li><p>在对 <code>GPU</code> 进行编程时，需要创建一组进程块 (<code>thread blocks</code>)，每个 <code>thread</code> 映射到单个核心，而 <code>block</code> 映射到流式多处理器 (<code>SM</code>)，如下图所示：</p>
+</li>
+</ul>
+<p><img src="https://s2.loli.net/2022/11/09/BFIHjXAhY534Sar.png" alt="2.png"></p>
+<ul>
+<li>每个线程可由 <code>threadIdx</code> 和 <code>blockIdx</code> 索引，在实际应用中，可以有多维线程索引</li>
+</ul>
+<h2 id="共享内存优化"><a href="#共享内存优化" class="headerlink" title="共享内存优化"></a>共享内存优化</h2><ul>
+<li><p>以矩阵乘为例，$A\in \mathbb{R}^{1024\times 1024},B\in \mathbb{R}^{1024\times 1024}$</p>
+<p>  <img src="https://s2.loli.net/2022/11/14/exR47Sh82q3tHBa.png" alt="4.png"></p>
+<ul>
+<li><p>同一个 <code>block</code> 中的多个 <code>thread</code> 可共享内存，因此可以重排同一个 <code>block</code> 中的 <code>thread</code> 数据，使得尽可能少的数据缓存到 <code>shared memory</code> 中</p>
+</li>
+<li><p>优化前：</p>
+<ul>
+<li>每个 <code>thread</code> 需要计算输出矩阵中 <code>8 * 8</code> 的数据，需要从 <code>local memory</code> 中读取 <code>8 * 8 * 1024 * 2</code> 数据</li>
+<li>每个 <code>block</code> 中的 <code>thread</code> 之间没有数据共享，所以需要从 <code>local memory</code> 中读取 $8 <em> 8 </em> 8 <em> 8 </em> 1024 * 2 = 2^{23}$ 个矩阵元素</li>
+</ul>
+</li>
+<li><p>优化后：</p>
+<ul>
+<li>每个 <code>block</code> 计算输出矩阵的 <code>64 * 64</code> 的数据最少需要 $64 <em> 1024 </em> 2=2^{17}$ 的数据，可提前将这部分数据缓存到 <code>shared memory</code></li>
+<li>然后每个 <code>thread</code> 从 <code>shared memory</code> 读数据计算，需读取 $64 <em> 1024 </em> 2=2^{17}$ 个数据</li>
+</ul>
+</li>
+<li><p>内存优化前后每个 <code>block</code> 读取数据对比：</p>
+<ul>
+<li>优化前：从 <code>local memory</code> 读取 $2^{23}$ 个矩阵元素</li>
+<li>优化后：从 <code>local memory</code> 读取 $2^{17}$ 个矩阵元素到 <code>shared memory</code>，再从 <code>shared memory</code> 读取 $2^{17}$ 个数据计算</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2022/11/21/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0%E7%BC%96%E8%AF%91%E6%80%BB%E7%BB%93/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1503,103 +1652,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2022/09/19/A-White-Paper-on-Neural-Network-Quantization/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2022/09/19/A-White-Paper-on-Neural-Network-Quantization/" class="post-title-link" itemprop="url">A White Paper on Neural Network Quantization</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2022-09-19 10:28:28" itemprop="dateCreated datePublished" datetime="2022-09-19T10:28:28+08:00">2022-09-19</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2022-09-30 14:56:09" itemprop="dateModified" datetime="2022-09-30T14:56:09+08:00">2022-09-30</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Network-Quantization/" itemprop="url" rel="index"><span itemprop="name">Network Quantization</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2022/09/19/A-White-Paper-on-Neural-Network-Quantization/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2022/09/19/A-White-Paper-on-Neural-Network-Quantization/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="URL"><a href="#URL" class="headerlink" title="URL"></a>URL</h2><ul>
-<li><a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2106.08295.pdf">https://arxiv.org/pdf/2106.08295.pdf</a></li>
-</ul>
-<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
-<li>神经网络的量化分成 <code>PTQ (Post-Training Quantization)</code> 和 <code>QAT (Quantization-Aware-Training)</code>:<ul>
-<li><code>PTQ</code>:</li>
-<li><code>QAT</code>:</li>
-</ul>
-</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1668,7 +1720,7 @@
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">74</span>
+          <span class="site-state-item-count">75</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
