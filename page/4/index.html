@@ -152,6 +152,165 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2022/08/01/LSQ-Improving-low-bit-quantization-through-learnable-offsets-and-better-initialization/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2022/08/01/LSQ-Improving-low-bit-quantization-through-learnable-offsets-and-better-initialization/" class="post-title-link" itemprop="url">LSQ+: Improving low-bit quantization through learnable offsets and better initialization</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2022-08-01 09:35:57" itemprop="dateCreated datePublished" datetime="2022-08-01T09:35:57+08:00">2022-08-01</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2022-09-30 14:56:09" itemprop="dateModified" datetime="2022-09-30T14:56:09+08:00">2022-09-30</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Network-Quantization/" itemprop="url" rel="index"><span itemprop="name">Network Quantization</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2022/08/01/LSQ-Improving-low-bit-quantization-through-learnable-offsets-and-better-initialization/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2022/08/01/LSQ-Improving-low-bit-quantization-through-learnable-offsets-and-better-initialization/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="URL"><a href="#URL" class="headerlink" title="URL"></a>URL</h2><ul>
+<li><a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2004.09576.pdf">https://arxiv.org/pdf/2004.09576.pdf</a></li>
+</ul>
+<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
+<li>典型量化算法（如：<code>DoReFa</code>、<code>PACT</code>、<code>LSQ</code>）对 <code>feature</code> 的量化通常使用无符号量化（负半轴量化到零点）：<ul>
+<li>这种量化算法适用于使用 <code>Relu</code> 激活函数的网络。</li>
+<li>但对使用新式激活函数（如：<code>swish</code>, <code>H-swish</code>, <code>Mish</code>, <code>Leaky-ReLU</code>）的网络（如：<code>EfficientNet</code>、<code>MixNet</code>）会造成较大的量化误差。</li>
+<li><code>LSQ+</code> 作为一种非对称量化算法可以学习 <code>scale</code> 和 <code>offset</code>，去适应需要负数激活函数的网络。</li>
+</ul>
+</li>
+<li>量化网络训练收敛较难，所以 <code>LSQ+</code> 提出了一种比较高效的 <code>scale</code> 和 $\beta$ 初始化方法：MSE 最小误差初始化方法优于最大最小值。</li>
+</ul>
+<h2 id="Algorithm"><a href="#Algorithm" class="headerlink" title="Algorithm"></a>Algorithm</h2><h3 id="1-LSQ-算法存在的问题"><a href="#1-LSQ-算法存在的问题" class="headerlink" title="1. LSQ 算法存在的问题"></a>1. LSQ 算法存在的问题</h3><ul>
+<li><p><code>LSQ</code> 公式</p>
+<p>$\bar{x} = \lfloor clamp (\frac{x}{s}, n, p)\rceil$</p>
+<p>$\hat{x} = \bar{x} \times s$</p>
+</li>
+</ul>
+<ul>
+<li><code>LSQ</code> 对例如 <code>Leaky-ReLU</code>、<code>Swish</code> 这种存在负半轴的激活函数量化有两种方法：<ul>
+<li>截断负半轴，即 $n=0,\ p=2^b-1$，显然降低模型表现能力</li>
+<li>正负半轴相同尺度量化，即 $n=-2^{b-1},\ p=2^{b-1}-1$，由于正半轴的信息量远高于负半轴，同尺度量化会增大正半轴的量化误差</li>
+</ul>
+</li>
+</ul>
+<h3 id="2-LSQ-的解决方案"><a href="#2-LSQ-的解决方案" class="headerlink" title="2. LSQ+ 的解决方案"></a>2. LSQ+ 的解决方案</h3><ul>
+<li><code>LSQ+</code> 的改进主要包含两个方面：<ul>
+<li>在 <code>LSQ</code> 设置了可学习的参数 <code>scale</code> 的基础上，<strong>在 activation 量化上</strong> （<code>weight</code> 量化没有 <code>offset</code>）增加了另外一个可学习参数 <code>offset</code></li>
+<li>对网络初始化的方法进行了改进</li>
+</ul>
+</li>
+</ul>
+<h4 id="2-1-增加可学习-offset-参数"><a href="#2-1-增加可学习-offset-参数" class="headerlink" title="2.1 增加可学习 offset 参数"></a>2.1 增加可学习 offset 参数</h4><ul>
+<li><p>LSQ+ 公式<br>$\bar{x} = \lfloor clamp (\frac{x-\beta}{s}, n, p)\rceil$</p>
+<p>$\hat{x} = \bar{x} \times s + \beta$</p>
+</li>
+</ul>
+<ul>
+<li><p>对 <code>s</code> 的梯度计算:</p>
+<p>$\frac{\partial\hat{x}}{\partial{s}}$ = $\frac{\partial\bar{x}}{\partial{s}}s + \bar{x} \simeq \begin{cases} -\frac{x-\beta}{s}+\lfloor\frac{x-\beta}{s}\rceil &amp;,if\ n &lt; \frac{x-\beta}{s} &lt; p\\ n&amp;, if\ \frac{x-\beta}{s} &lt; n\\ p&amp;,if\ p&lt;\frac{x-\beta}{s}\end{cases}$</p>
+</li>
+<li><p>对 $\beta$ 的梯度计算</p>
+<p>$\frac{\partial\hat{x}}{\partial{\beta}}=\frac{\partial\bar{x}}{\partial{\beta}}+1\simeq \begin{cases} 0&amp;,if\ n&lt;\frac{x-\beta}{s} &lt;p\\ 1&amp;,otherwise\end{cases}$</p>
+</li>
+<li><p>加入了 $\beta$ 参数后，对存在负半轴的激活函数进行非对称量化将几乎没有额外开销</p>
+<p>$\hat{w}\hat{x}=(\bar{w}\times s_w)(\bar{x}\times s_x + \beta)=\bar{w}\bar{x}s_ws_x+\begin{matrix}\underbrace{\beta s_w\bar{w}}\\ bias\end{matrix}$</p>
+</li>
+</ul>
+<h4 id="2-2-更合理的-scale-和-beta-参数初始化方法"><a href="#2-2-更合理的-scale-和-beta-参数初始化方法" class="headerlink" title="2.2 更合理的 scale 和 $\beta$ 参数初始化方法"></a>2.2 更合理的 scale 和 $\beta$ 参数初始化方法</h4><ul>
+<li>低比特量化神经网络训练的最终性能与参数初始化方法关联性较大，这在深度可分离卷积网络中更为明显（例如： MobileNet系列）</li>
+</ul>
+<h5 id="2-2-1-weight-量化的-scale-参数初始化方法"><a href="#2-2-1-weight-量化的-scale-参数初始化方法" class="headerlink" title="2.2.1 weight 量化的 scale 参数初始化方法"></a>2.2.1 weight 量化的 scale 参数初始化方法</h5><ul>
+<li>LSQ 对于对称量化的 <code>weight</code> 的 <code>scale</code> 初始化公式是：$s_{init} = \frac{2&lt;|w|&gt;}{\sqrt{p}}$</li>
+<li><p>作者认为这样的 <code>scale</code> 初始化方法会导致初始 <code>scale</code> 太大，所以 LSQ+ 对 weight 对称量化的 <code>scale</code> 初始化方法是：$s_{init}=\frac{max(|\mu-3\times\sigma|, |\mu+3\times\sigma|)}{2^{b-1}}$</p>
+<ul>
+<li>其中，$\mu,\ \sigma$ 分别表示本层权重的均值和标准差<blockquote>
+<p>由于 weight 是对称量化，所以不需要 $\beta$ 参数</p>
+<h5 id="2-2-2-feature-量化的-scale-和-beta-参数初始化方法"><a href="#2-2-2-feature-量化的-scale-和-beta-参数初始化方法" class="headerlink" title="2.2.2 feature 量化的 scale 和 $\beta$ 参数初始化方法"></a>2.2.2 feature 量化的 scale 和 $\beta$ 参数初始化方法</h5></blockquote>
+</li>
+</ul>
+</li>
+<li><p>一个最理想的量化方式是 x 只被量化，没有被 clamp，因此根据 LSQ+ 的量化公式可知：</p>
+<ul>
+<li>$\frac{x_{min}-\beta_{init}}{s_{init}}\rightarrow n,\ \frac{x_{max}-\beta_{init}}{s_{init}}\rightarrow p$</li>
+<li>化简后：$s_{init}=\frac{x_{max}-x_{min}}{p-n},\ \beta_{init} = x_{min} - n \times s_{init}$</li>
+<li>但是，这种完全不 clamp 的操作容易被离群点干扰，所以 $s_{init},\ \beta_{init}$ 还是使用量化前和反量化后的数据最小 MSE loss 来确定，即：$s_{init},\ \beta_{init}=argmin_{s,\beta} ||\hat{x}-x||^2_F$</li>
+</ul>
+</li>
+</ul>
+<h2 id="Thought"><a href="#Thought" class="headerlink" title="Thought"></a>Thought</h2><ul>
+<li>量化算法中多一个可以被硬件无痛吸收的自由度自然是好事</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2022/07/25/LSQ-Learned-Step-Size-Quantization/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1352,177 +1511,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2021/12/30/BERT-Pre-training-of-Deep-Bidirectional-Transformers-for-Language-Understanding/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2021/12/30/BERT-Pre-training-of-Deep-Bidirectional-Transformers-for-Language-Understanding/" class="post-title-link" itemprop="url">BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2021-12-30 09:14:01" itemprop="dateCreated datePublished" datetime="2021-12-30T09:14:01+08:00">2021-12-30</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2022-09-30 14:56:09" itemprop="dateModified" datetime="2022-09-30T14:56:09+08:00">2022-09-30</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Self-Supervised-Learning/" itemprop="url" rel="index"><span itemprop="name">Self-Supervised Learning</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2021/12/30/BERT-Pre-training-of-Deep-Bidirectional-Transformers-for-Language-Understanding/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2021/12/30/BERT-Pre-training-of-Deep-Bidirectional-Transformers-for-Language-Understanding/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="URL"><a href="#URL" class="headerlink" title="URL"></a>URL</h2><ul>
-<li><a target="_blank" rel="noopener" href="https://arxiv.org/pdf/1810.04805.pdf">https://arxiv.org/pdf/1810.04805.pdf</a></li>
-</ul>
-<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
-<li>一种 <strong>用于语义理解的预训练深层双向 <code>transformer</code></strong>，任务相关的 fine-tuning 即可 SOTA</li>
-<li><code>BERT</code> 全称：<strong>B</strong>idirection <strong>E</strong>ncoder <strong>R</strong>epresentation from <strong>T</strong>ransformer</li>
-<li>使用 <strong>无标签文本</strong> 进行预训练，自监督预训练的方法包括：<ul>
-<li><code>masked language model</code>：预测被遮挡的词的 token（不需要重建整个句子）</li>
-<li><code>next sentence prediction</code>：预测两个句子是否是前后相连的关系（只需预测 是 或者 否）</li>
-</ul>
-</li>
-</ul>
-<h2 id="Algorithm"><a href="#Algorithm" class="headerlink" title="Algorithm"></a>Algorithm</h2><h3 id="自监督语义表征方法"><a href="#自监督语义表征方法" class="headerlink" title="自监督语义表征方法"></a>自监督语义表征方法</h3><ul>
-<li><p>自监督语义表征方法常用的监督方法有两种：</p>
-<ul>
-<li>feature based：任务相关的预训练</li>
-<li>fine-tuning：在预训练过程中增加任务相关参数，预训练结束后只需要替换这些任务相关参数，在任务数据上有监督 end-to-end fine-tuning 很少 step 即可</li>
-</ul>
-</li>
-<li><p>相较于 GPT 的 left -&gt; right 单向语义结构，双向语义结构对下游任务更友好</p>
-</li>
-</ul>
-<h3 id="BERT-模型结构"><a href="#BERT-模型结构" class="headerlink" title="BERT 模型结构"></a>BERT 模型结构</h3><ul>
-<li>BERT 参数含义：<ul>
-<li>L：transformer layers</li>
-<li>H：hidden size</li>
-<li>A：self-attention heads</li>
-</ul>
-</li>
-<li>$BERT_{base}(L=12,H=768,A=12,Total\ Parameters=110M)$</li>
-<li>$BERT_{large}(L=24,H=1024,A=16,Total\ Parameters=340M)$</li>
-</ul>
-<h3 id="BERT-输入输出结构"><a href="#BERT-输入输出结构" class="headerlink" title="BERT 输入输出结构"></a>BERT 输入输出结构</h3><p><img src="https://s2.loli.net/2022/01/06/IrzAlHJ5Nbmyo8S.png" alt="bert1.png"></p>
-<h4 id="输入"><a href="#输入" class="headerlink" title="输入"></a>输入</h4><ul>
-<li>BERT 输入可以是一个句子，也可以是多个句子的 concat（用特殊分隔符分隔），例如问答数据集中，输入的句子是 <question, answer> concat<ul>
-<li>[CLS] 为 <code>Sequence</code> 开始标志位</li>
-<li>[SEP] 为 <code>Sentence</code> 结束标志位</li>
-</ul>
-</li>
-<li><code>Token Embeddings</code> 是将句子转化成词向量，英文版本 BERT 用的分词器是 <code>WordPiece embeddings</code>，词表容量 30,000</li>
-<li><code>Segment Embeddings</code> 用于指明句子如何分割</li>
-<li><code>Position Embedding</code> 用于记录原始位置信息（与 CNN 不同，Transformer 中没有位置信息）</li>
-</ul>
-<h4 id="输出"><a href="#输出" class="headerlink" title="输出"></a>输出</h4><p><img src="https://s2.loli.net/2022/01/06/OgZQjopXf8nFSIe.png" alt="bert3.png"></p>
-<blockquote>
-<p>其中：$C\in \mathbb{R}^H,\ T_i \in \mathbb{R}^H,\ \ H\ means\ hidden\ size$</p>
-</blockquote>
-<h3 id="BERT-预训练细节"><a href="#BERT-预训练细节" class="headerlink" title="BERT 预训练细节"></a>BERT 预训练细节</h3><h4 id="Masked-Language-Model"><a href="#Masked-Language-Model" class="headerlink" title="Masked Language Model"></a>Masked Language Model</h4><ul>
-<li><p>mask 策略：</p>
-<ul>
-<li>训练数据随机 mask 15% 的位置</li>
-<li>mask 数据的 80% 使用 <code>[MASK]</code> token 去 mask</li>
-<li>mask 数据的 10% 使用随机 token 去 mask</li>
-<li>mask 数据的 10% 什么都不改变</li>
-</ul>
-</li>
-<li><p>计算 loss</p>
-<ul>
-<li>假如第 $i$ 个 token 被 mask，那只计算输出 $T_i$ 映射到词表空间的 token 分布和真实 token 之间的交叉熵 Loss（本质就是分类）</li>
-</ul>
-</li>
-</ul>
-<h4 id="Next-Sentence-Prediction"><a href="#Next-Sentence-Prediction" class="headerlink" title="Next Sentence Prediction"></a>Next Sentence Prediction</h4><ul>
-<li><p>数据生成策略：</p>
-<ul>
-<li>每个样本由两个句子组成，50% 的可能两个句子是前后句的关系，50% 的可能两个句子不是前后句的关系，预测 IsNext OR NotNext</li>
-</ul>
-</li>
-<li><p>计算 loss</p>
-<ul>
-<li>只用输出 <code>C</code> 映射到二分类空间的结果和二分类 label，计算交叉熵损失</li>
-</ul>
-</li>
-<li><p>在 <code>NSP</code> 数据集中，无监督预训练即可达到 97% - 98% 的准确率</p>
-</li>
-</ul>
-<h3 id="BERT-fine-tuning"><a href="#BERT-fine-tuning" class="headerlink" title="BERT fine-tuning"></a>BERT fine-tuning</h3><ul>
-<li>对于不同的任务，只需要替换 BERT 之后的网络结构，使用有监督数据 end-to-end fine-tuning 即可</li>
-</ul>
-<h3 id="消融实验"><a href="#消融实验" class="headerlink" title="消融实验"></a>消融实验</h3><p><img src="https://s2.loli.net/2022/01/07/D2Lu74BF6hAElST.png" alt="bert4.png"></p>
-<blockquote>
-<p>分析了 NSP、双向网络结构等对效果的影响</p>
-</blockquote>
-<h3 id="效果对比"><a href="#效果对比" class="headerlink" title="效果对比"></a>效果对比</h3><p><img src="https://s2.loli.net/2022/01/07/BKo3uPk64agwhbI.png" alt="bert2.png"></p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1591,7 +1579,7 @@
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">76</span>
+          <span class="site-state-item-count">77</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
