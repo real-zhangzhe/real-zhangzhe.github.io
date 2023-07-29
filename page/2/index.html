@@ -152,6 +152,129 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2023/04/15/Ultra-Fast-Structure-aware-Deep-Lane-Detection/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/04/15/Ultra-Fast-Structure-aware-Deep-Lane-Detection/" class="post-title-link" itemprop="url">Ultra Fast Structure-aware Deep Lane Detection</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-04-15 11:10:31 / Modified: 11:43:57" itemprop="dateCreated datePublished" datetime="2023-04-15T11:10:31+08:00">2023-04-15</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Autopilot/" itemprop="url" rel="index"><span itemprop="name">Autopilot</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2023/04/15/Ultra-Fast-Structure-aware-Deep-Lane-Detection/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2023/04/15/Ultra-Fast-Structure-aware-Deep-Lane-Detection/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="URL"><a href="#URL" class="headerlink" title="URL"></a>URL</h2><ul>
+<li><p>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2004.11757.pdf">https://arxiv.org/pdf/2004.11757.pdf</a></p>
+</li>
+<li><p>code: <a target="_blank" rel="noopener" href="https://github.com/cfzd/Ultra-Fast-Lane-Detection">https://github.com/cfzd/Ultra-Fast-Lane-Detection</a></p>
+</li>
+</ul>
+<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
+<li><p>本文提出一种新的车道线检测范式，可以在极低的计算复杂度下精准预测车道线位置。</p>
+</li>
+<li><p>与常见的使用语义分割算法实现车道线检测的范式不同，本文提出的车道线检测范式是将图片 ROI 区域分割成若干像素块，使用分类的方法判断像素块是否包含车道线。</p>
+</li>
+</ul>
+<h2 id="Algorithm"><a href="#Algorithm" class="headerlink" title="Algorithm"></a>Algorithm</h2><h3 id="算法思想"><a href="#算法思想" class="headerlink" title="算法思想"></a>算法思想</h3><p><img src="https://s2.loli.net/2023/04/15/DZCGcId3mWU7hYH.png" alt="ufld.png"></p>
+<ul>
+<li><p>将 ROI 区域（通常是一张图片的下半部分，上半部分是天空不包含车道线）分成若干 <strong>稀疏的行和稠密的列</strong>，论文给出的行数是 <code>18 行 200 列</code>。</p>
+</li>
+<li><p>模型预测每个小格子是否包含车道线，以及包含的车道线属于哪一个车道线实例（主流 benchmark 要求模型预测相邻的 4 条车道线：| |车| |）。</p>
+</li>
+<li><p>对于 <code>CULane</code> 数据集，模型输出 <strong>shape == (N, 4, 18, 201)</strong>，分别表示 18 行 200 列每个格子是否包含车道线（所以是 201 分类），以及包含的车道线的实例编号。</p>
+</li>
+<li><p>加入了一个普通分割辅助任务头加速训练，推理时丢弃，不影响速度。</p>
+</li>
+<li><p>另外除了分类交叉熵损失函数之外，本文加入了两个车道线相关的先验损失函数：</p>
+<ul>
+<li><p>基于车道线连续属性：每条车道线的第 i 行和第 i + 1 行应该具有相近的位置。</p>
+</li>
+<li><p>基于车道线相对笔直属性：每条车道线点第 i 行和第 i + 1 行的连线应该和第 i + 1 行与第 i + 2 行的连线共线。</p>
+</li>
+</ul>
+</li>
+</ul>
+<h3 id="部署优化"><a href="#部署优化" class="headerlink" title="部署优化"></a>部署优化</h3><ul>
+<li>网络末尾使用的高维 FC 层对部署模型加速不利，使用 conv + pixelshuffle（depth to space） 可有效解决。</li>
+</ul>
+<h2 id="Thought"><a href="#Thought" class="headerlink" title="Thought"></a>Thought</h2><ul>
+<li><p>辅助训练输出头是分割任务的标配</p>
+</li>
+<li><p>结构先验损失函数貌似是个故事，作者开源代码中这两个 loss 的权重都是 0</p>
+</li>
+<li><p>范式很好，可经过部署优化后上车</p>
+</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2023/04/09/tetris/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1857,132 +1980,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2022/10/16/%E7%9B%B8%E6%9C%BA%E5%86%85%E5%8F%82%E4%B8%8E%E5%A4%96%E5%8F%82/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2022/10/16/%E7%9B%B8%E6%9C%BA%E5%86%85%E5%8F%82%E4%B8%8E%E5%A4%96%E5%8F%82/" class="post-title-link" itemprop="url">相机内参与外参</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2022-10-16 07:14:16" itemprop="dateCreated datePublished" datetime="2022-10-16T07:14:16+08:00">2022-10-16</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-04-19 11:44:08" itemprop="dateModified" datetime="2023-04-19T11:44:08+08:00">2023-04-19</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/3D/" itemprop="url" rel="index"><span itemprop="name">3D</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2022/10/16/%E7%9B%B8%E6%9C%BA%E5%86%85%E5%8F%82%E4%B8%8E%E5%A4%96%E5%8F%82/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2022/10/16/%E7%9B%B8%E6%9C%BA%E5%86%85%E5%8F%82%E4%B8%8E%E5%A4%96%E5%8F%82/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="三种成像相关坐标系"><a href="#三种成像相关坐标系" class="headerlink" title="三种成像相关坐标系"></a>三种成像相关坐标系</h2><ul>
-<li><strong>像素坐标系</strong>：一种 <strong>2D</strong> 坐标，以图片左上角为原点，横轴（宽度方向）向右为 <code>x</code> 轴正方向，纵轴（高度方向）向下为 <code>y</code> 轴正方向，<strong>单位是像素</strong></li>
-<li><strong>相机坐标系</strong>：一种 <strong>3D</strong> 坐标，以相机光心为原点，垂直相机平面远离相机方向为 <code>z</code> 轴正方向，垂直于 <code>z</code> 轴且平行于相机平面，水平向右为 <code>x</code> 轴正方向，竖直向下为 <code>y</code> 轴正方向，<strong>单位是米</strong></li>
-<li><strong>世界坐标系</strong>：一种 <strong>3D</strong> 坐标，一种人为定义的，且<code>x</code>, <code>y</code>, <code>z</code> 轴两两垂直的坐标系，<strong>单位是米</strong></li>
-</ul>
-<h2 id="相机内参"><a href="#相机内参" class="headerlink" title="相机内参"></a>相机内参</h2><ul>
-<li><strong>相机内参可以实现像素坐标系与相机坐标系之间相互转换，通常使用一个 3 * 3 矩阵表示</strong></li>
-</ul>
-<p><img src="https://s2.loli.net/2022/10/16/r12RLPAFzvGaTQx.jpg" alt="camera_1.jpg"></p>
-<p><img src="https://s2.loli.net/2022/10/16/3A1gJYWHIbwsPcq.jpg" alt="camera_2.jpg"></p>
-<ul>
-<li><p>根据小孔成像和相似三角形原理，可以得出相机坐标系与成像坐标系点的对应关系：$\frac{Z}{f}=\frac{X}{x}=\frac{Y}{y}$ </p>
-<p>  其中：$(X,Y,Z)$ 为相机坐标系下的点的坐标， $(x, y)$ 为投影到成像平面上的点的坐标， $f$ 表示焦距。</p>
-</li>
-<li><p>再根据成像坐标系到像素坐标系的对应关系：<br>  $<br>  \begin{matrix}<br>  u=\alpha \cdot x + c_x \\<br>  v = \beta \cdot y + c_y<br>  \end{matrix}<br>  $</p>
-<p>  其中：</p>
-<ul>
-<li>$\alpha,\beta$ 分别表示 $x, y$ 方向上成像宽度到像素宽度的投影</li>
-<li>由于成像坐标系原点为成像中心，像素坐标系原点为像素左上角，所以需要加上原点的偏移， $c_x,c_y$ 分别表示 $x, y$ 方向上原点的偏移。</li>
-</ul>
-</li>
-<li><p>所以，相机坐标系 $(X,Y,Z)$ 与像素坐标系 $(u, v)$ 可通过相机内参相互转换：<br>  $<br>  Z \begin{bmatrix} u \\ v \\ 1 \end{bmatrix} = \begin{bmatrix} f_x &amp; 0 &amp; c_x \\ 0 &amp; f_y &amp; c_y \\ 0 &amp; 0 &amp; 1 \end{bmatrix} \begin{bmatrix}X\\ Y\\ Z \end{bmatrix}<br>  $</p>
-<p>  其中： $f_x=\alpha \cdot f,\ f_y=\beta \cdot f,\ Z$ 表示相机坐标系下的深度</p>
-</li>
-<li><p><strong>$\begin{bmatrix} f_x &amp; 0 &amp; c_x \\ 0 &amp; f_y &amp; c_y \\ 0 &amp; 0 &amp; 1 \end{bmatrix}$ 被称为相机内参 $K$</strong></p>
-</li>
-</ul>
-<h2 id="相机外参"><a href="#相机外参" class="headerlink" title="相机外参"></a>相机外参</h2><ul>
-<li><p><strong>相机外参可以实现相机坐标系与世界坐标系之间相互转换（刚体变换），通常用一个 3 <em> 3 的旋转矩阵 $R$ 和一个 3 </em> 1 的平移矩阵 $T$ 表示</strong>：<br>  $<br>  \begin{bmatrix} X_c\\ Y_c \\ Z_c \end{bmatrix}=\begin{bmatrix} R_{11} &amp; R_{12} &amp; R_{13} \\ R_{21} &amp; R_{22} &amp; R_{23} \\ R_{31} &amp; R_{32} &amp; R_{33} \end{bmatrix} \begin{bmatrix} X_w\\ Y_w \\ Z_w \end{bmatrix} + \begin{bmatrix} T_{1} \\ T_{2} \\ T_{3} \end{bmatrix}<br>  $</p>
-<p>  其中： $(X_c,Y_c,Z_c)$ 表示相机坐标系下的点， $(X_w,Y_w,Z_w)$ 表示世界坐标系下的点</p>
-</li>
-<li><p>齐次化之后，得到一个 <code>4 * 4</code> 的矩阵：<br>  $<br>  \begin{bmatrix} X_c\\ Y_c \\ Z_c \\ 1\end{bmatrix}=\begin{bmatrix} R_{11} &amp; R_{12} &amp; R_{13} &amp; T_1 \\ R_{21} &amp; R_{22} &amp; R_{23} &amp; T_2 \\ R_{31} &amp; R_{32} &amp; R_{33} &amp; T_3 \\ 0 &amp; 0 &amp; 0 &amp; 1\end{bmatrix} \begin{bmatrix} X_w\\ Y_w \\ Z_w \\ 1\end{bmatrix}<br>  $</p>
-</li>
-</ul>
-<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><ul>
-<li>$相机内参 \times 相机坐标系 = 相机坐标系下深度 \cdot 像素坐标系$</li>
-<li>$相机外参 \times 世界坐标系 = 相机坐标系$</li>
-<li>$相机内参 \times 相机外参 \times 世界坐标系 = 相机坐标系系下深度 \cdot 像素坐标系$</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -2051,7 +2048,7 @@
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">78</span>
+          <span class="site-state-item-count">79</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -2064,7 +2061,7 @@
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">42</span>
+        <span class="site-state-item-count">43</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
