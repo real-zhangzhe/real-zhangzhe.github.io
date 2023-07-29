@@ -152,6 +152,178 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2022/09/30/Lift-Splat-Shoot-Encoding-Images-from-Arbitrary-Camera-Rigs-by-Implicitly-Unprojecting-to-3D/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2022/09/30/Lift-Splat-Shoot-Encoding-Images-from-Arbitrary-Camera-Rigs-by-Implicitly-Unprojecting-to-3D/" class="post-title-link" itemprop="url">Lift, Splat, Shoot: Encoding Images from Arbitrary Camera Rigs by Implicitly Unprojecting to 3D</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2022-09-30 15:06:32" itemprop="dateCreated datePublished" datetime="2022-09-30T15:06:32+08:00">2022-09-30</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2022-10-16 21:43:43" itemprop="dateModified" datetime="2022-10-16T21:43:43+08:00">2022-10-16</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/BEV/" itemprop="url" rel="index"><span itemprop="name">BEV</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2022/09/30/Lift-Splat-Shoot-Encoding-Images-from-Arbitrary-Camera-Rigs-by-Implicitly-Unprojecting-to-3D/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2022/09/30/Lift-Splat-Shoot-Encoding-Images-from-Arbitrary-Camera-Rigs-by-Implicitly-Unprojecting-to-3D/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="URL"><a href="#URL" class="headerlink" title="URL"></a>URL</h2><ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2008.05711.pdf">https://arxiv.org/pdf/2008.05711.pdf</a></li>
+<li>code: <a target="_blank" rel="noopener" href="https://github.com/real-zhangzhe/lift-splat-shoot">https://github.com/real-zhangzhe/lift-splat-shoot</a> (fork from official implementation, adding comments and predictions)</li>
+</ul>
+<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
+<li>本文是 <code>BEV (bird eye view)</code> 的开山之作，通过隐式 <code>2D</code> 深度估计和像素坐标到世界坐标转换，将多张（6张）车周环视图拼接得到一张鸟瞰图。</li>
+<li>具体实现请看代码，代码中有非常详细的注释。</li>
+</ul>
+<h2 id="Algorithm"><a href="#Algorithm" class="headerlink" title="Algorithm"></a>Algorithm</h2><p><img src="https://s2.loli.net/2022/10/16/Rfay7qBZSU2QkHx.jpg" alt="eval000007_000.jpg"></p>
+<blockquote>
+<p>在 inference 过程中，下半部分的 6 张环视图为输入，上半部分的鸟瞰图为输出（地图和本算法无关）。</p>
+</blockquote>
+<h3 id="Dataset"><a href="#Dataset" class="headerlink" title="Dataset"></a>Dataset</h3><ul>
+<li>本文使用自动驾驶数据集 <code>nuScense</code><ul>
+<li>官网：<a target="_blank" rel="noopener" href="https://www.nuscenes.org/">https://www.nuscenes.org/</a></li>
+<li>数据集介绍论文：<a target="_blank" rel="noopener" href="https://arxiv.org/pdf/1903.11027.pdf">https://arxiv.org/pdf/1903.11027.pdf</a></li>
+</ul>
+</li>
+</ul>
+<p><img src="https://s2.loli.net/2022/10/16/TlHkahvsFCtEXL6.png" alt="LSS1.png"></p>
+<ul>
+<li><p>输入的 6 张图来自上图的 6 个绿色 camera</p>
+</li>
+<li><p>世界坐标系如图 <code>IMU</code> 所示原点定为 <strong>车后轴中心</strong>，<code>x</code> 轴正方向为车辆前进方向， <code>y</code> 轴正方向为面向车辆前进方向的左手边，<code>z</code> 轴正方向为竖直向上。</p>
+</li>
+</ul>
+<h3 id="相关知识"><a href="#相关知识" class="headerlink" title="相关知识"></a>相关知识</h3><ul>
+<li><p>相机内外参：参考 <a target="_blank" rel="noopener" href="https://zhangzhe.space/2022/10/16/%E7%9B%B8%E6%9C%BA%E5%86%85%E5%8F%82%E4%B8%8E%E5%A4%96%E5%8F%82/">相机内参与外参</a></p>
+</li>
+<li><p>体素：</p>
+<ul>
+<li>立体像素</li>
+<li>在本文中，一个体素表示 <strong>x 方向上 0.5m，y 方向上 0.5m，z 方向上 20m 的立方体区域</strong></li>
+<li>体素为鸟瞰视角中可区分的最小单元</li>
+</ul>
+</li>
+</ul>
+<h3 id="算法细节"><a href="#算法细节" class="headerlink" title="算法细节"></a>算法细节</h3><blockquote>
+<p>特别细节的看代码</p>
+</blockquote>
+<h4 id="1-特征提取"><a href="#1-特征提取" class="headerlink" title="1. 特征提取"></a>1. 特征提取</h4><ul>
+<li>使用 <code>EfficientNet</code> 进行 <strong><code>2D</code> 特征提取 + 隐式深度估计</strong><ul>
+<li><strong>输入</strong>：<code>shape = [4, 6, 3, 128, 352]</code>，分别表示：<code>[batch, cameras, channel, height, width]</code></li>
+<li><strong>输出</strong>：<code>shape = [24, 64, 41, 8, 22]</code>，分别表示：<code>[batch * cameras, features, depth, height, width]</code><ul>
+<li>使用 <code>64</code> 维向量编码深度（不是直接预测深度，所以被称为隐式深度估计）</li>
+<li>深度从 <code>4m ~ 45m</code>，编码精度为 <code>1m</code>，所以有 <code>41</code> 种离散深度，相机坐标系下深度估计的目的是：<strong>从像素坐标转化为世界坐标</strong></li>
+<li>长宽各下采样 <code>16</code> 倍，减小计算量</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h4 id="2-像素坐标和相机坐标系下深度到世界坐标的映射"><a href="#2-像素坐标和相机坐标系下深度到世界坐标的映射" class="headerlink" title="2. 像素坐标和相机坐标系下深度到世界坐标的映射"></a>2. 像素坐标和相机坐标系下深度到世界坐标的映射</h4><ul>
+<li>使用如下参数将像素坐标和相机坐标系下深度映射到世界坐标<ul>
+<li>相机内参</li>
+<li>相机外参<ul>
+<li>旋转</li>
+<li>平移</li>
+</ul>
+</li>
+<li>像素坐标系内变换参数（缩放 + 裁剪（平移））<ul>
+<li>原图(900, 1600) -&gt; 模型输入图(128, 352) -&gt; 模型预测图(8, 22)</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>体素池化：将属于同一个体素的深度估计向量求和</li>
+<li><strong>输入</strong>：<ul>
+<li>深度估计：<code>shape = [24, 64, 41, 8, 22]</code></li>
+<li>相机和缩放参数</li>
+</ul>
+</li>
+<li><strong>输出</strong>：<code>shape = [4, 64, 200, 200]</code><ul>
+<li><code>200 * 200</code> 个体素</li>
+<li>每个体素用 <code>64</code> 维向量编码</li>
+</ul>
+</li>
+</ul>
+<h4 id="3-体素编码降维"><a href="#3-体素编码降维" class="headerlink" title="3. 体素编码降维"></a>3. 体素编码降维</h4><ul>
+<li><strong>输入</strong>：<code>shape = [4, 64, 200, 200]</code></li>
+<li><strong>输出</strong>：<code>shape = [4, 1, 200, 200]</code>，<strong>BEV 图</strong></li>
+</ul>
+<h2 id="Thought"><a href="#Thought" class="headerlink" title="Thought"></a>Thought</h2><ul>
+<li>代码中 <strong>像素坐标和相机坐标系下深度到世界坐标的映射</strong> 部分比较难懂，需要较强的相机成像原理 / 图像 <code>2D</code> 转 <code>3D</code> 背景才能看懂</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2022/09/29/Swin-Transformer-Hierarchical-Vision-Transformer-using-Shifted-Windows/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1488,164 +1660,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2022/08/13/%E7%AC%AC%E4%B8%80%E7%AB%A0-%E7%BB%8F%E6%B5%8E%E5%AD%A6%E5%8D%81%E5%A4%A7%E5%8E%9F%E7%90%86/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2022/08/13/%E7%AC%AC%E4%B8%80%E7%AB%A0-%E7%BB%8F%E6%B5%8E%E5%AD%A6%E5%8D%81%E5%A4%A7%E5%8E%9F%E7%90%86/" class="post-title-link" itemprop="url">第一章 经济学十大原理</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2022-08-13 12:19:40" itemprop="dateCreated datePublished" datetime="2022-08-13T12:19:40+08:00">2022-08-13</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2022-09-30 14:56:09" itemprop="dateModified" datetime="2022-09-30T14:56:09+08:00">2022-09-30</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E7%BB%8F%E6%B5%8E%E5%AD%A6%E5%8E%9F%E7%90%86/" itemprop="url" rel="index"><span itemprop="name">经济学原理</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2022/08/13/%E7%AC%AC%E4%B8%80%E7%AB%A0-%E7%BB%8F%E6%B5%8E%E5%AD%A6%E5%8D%81%E5%A4%A7%E5%8E%9F%E7%90%86/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2022/08/13/%E7%AC%AC%E4%B8%80%E7%AB%A0-%E7%BB%8F%E6%B5%8E%E5%AD%A6%E5%8D%81%E5%A4%A7%E5%8E%9F%E7%90%86/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="基本概念"><a href="#基本概念" class="headerlink" title="基本概念"></a>基本概念</h2><ul>
-<li><p><strong>稀缺性</strong>：社会资源是有限的。</p>
-</li>
-<li><p><strong>经济学</strong>：研究社会如何管理自己的稀缺资源。</p>
-</li>
-</ul>
-<h2 id="十大原理"><a href="#十大原理" class="headerlink" title="十大原理"></a>十大原理</h2><h3 id="1-人们面临权衡取舍"><a href="#1-人们面临权衡取舍" class="headerlink" title="1. 人们面临权衡取舍"></a>1. 人们面临权衡取舍</h3><ul>
-<li><p><strong>效率</strong>：社会能从其稀缺资源中得到最大利益的特性。</p>
-</li>
-<li><p><strong>平等</strong>：经济成员在社会成员中平均分配的特性。</p>
-</li>
-</ul>
-<p>在某种程度上，<strong>效率</strong> 与 <strong>平等</strong> 是互斥的，平等会损害社会效率。</p>
-<h3 id="2-某种东西的成本是为了得到它所放弃的东西"><a href="#2-某种东西的成本是为了得到它所放弃的东西" class="headerlink" title="2. 某种东西的成本是为了得到它所放弃的东西"></a>2. 某种东西的成本是为了得到它所放弃的东西</h3><ul>
-<li><strong>机会成本</strong>：为了得到某种东西必须放弃的东西。</li>
-</ul>
-<p>例如：上大学的 <strong>机会成本</strong> 不只是学费、生活费，还有四年时光。</p>
-<h3 id="3-理性人考虑边际量"><a href="#3-理性人考虑边际量" class="headerlink" title="3. 理性人考虑边际量"></a>3. 理性人考虑边际量</h3><ul>
-<li><p><strong>理性人</strong>：系统而有目的地尽最大努力实现其目标的人。</p>
-</li>
-<li><p><strong>边际变动</strong>：对行动计划的微小增量调整。</p>
-</li>
-</ul>
-<p>简单理解就是需要更关注变化量而不是价值本身。例如：航空公司一趟航行的总成本均摊到每个座位上是 500 美元，如果起飞前还有十个座位，那么以 100 美元 / 座位的价格卖出也是合理的，原因是：此时增加的飞行成本远低于卖出价格。</p>
-<h3 id="4-人们会对激励做出反应"><a href="#4-人们会对激励做出反应" class="headerlink" title="4. 人们会对激励做出反应"></a>4. 人们会对激励做出反应</h3><ul>
-<li><strong>激励</strong>：引起一个人做出行动的某种东西。</li>
-</ul>
-<h3 id="5-贸易可以使每个人的状况都变得更好"><a href="#5-贸易可以使每个人的状况都变得更好" class="headerlink" title="5. 贸易可以使每个人的状况都变得更好"></a>5. 贸易可以使每个人的状况都变得更好</h3><h3 id="6-市场通常是组织经济活动的一种好方法"><a href="#6-市场通常是组织经济活动的一种好方法" class="headerlink" title="6. 市场通常是组织经济活动的一种好方法"></a>6. 市场通常是组织经济活动的一种好方法</h3><ul>
-<li><strong>市场经济</strong>：当许多企业和家庭在物品和服务市场上相互交易时，通过他们的分散决策配置资源的经济。也就是亚当斯密口中的 “看不见的手”。</li>
-</ul>
-<h3 id="7-政府有时可以改善市场结果"><a href="#7-政府有时可以改善市场结果" class="headerlink" title="7. 政府有时可以改善市场结果"></a>7. 政府有时可以改善市场结果</h3><ul>
-<li><p><strong>产权</strong>：个人拥有并控制稀缺资源的能力。</p>
-</li>
-<li><p><strong>市场失灵</strong>：市场本身不能有效配置资源的情况。</p>
-</li>
-<li><p><strong>外部性</strong>：一个人的行为对旁观者的福利产生了影响。例如：环境污染。</p>
-</li>
-<li><p><strong>市场势力</strong>：单个经济活动者（或某个经济活动小群体）对市场价格有显著影响到能力。例如：垄断。</p>
-</li>
-</ul>
-<p>政府在经济中的作用包括：实施产权制度；在市场失灵时重新配置资源。</p>
-<h3 id="8-一国的生活水平取决于它生产物品和服务的能力"><a href="#8-一国的生活水平取决于它生产物品和服务的能力" class="headerlink" title="8. 一国的生活水平取决于它生产物品和服务的能力"></a>8. 一国的生活水平取决于它生产物品和服务的能力</h3><ul>
-<li><strong>生产率</strong>：每单位劳动投入所生产的物品和服务数量。</li>
-</ul>
-<h3 id="9-当政府发行了过多货币时，物价上升"><a href="#9-当政府发行了过多货币时，物价上升" class="headerlink" title="9. 当政府发行了过多货币时，物价上升"></a>9. 当政府发行了过多货币时，物价上升</h3><ul>
-<li><strong>通货膨胀</strong>：经济中物价总水平的上升。</li>
-</ul>
-<h3 id="10-社会面临通货膨胀与失业之间的短期权衡取舍"><a href="#10-社会面临通货膨胀与失业之间的短期权衡取舍" class="headerlink" title="10. 社会面临通货膨胀与失业之间的短期权衡取舍"></a>10. 社会面临通货膨胀与失业之间的短期权衡取舍</h3><ul>
-<li><strong>经济周期</strong>：就业和生产等经济活动的波动。</li>
-</ul>
-<h2 id="分类"><a href="#分类" class="headerlink" title="分类"></a>分类</h2><ul>
-<li>人们如何做出决策<ol>
-<li>人们面临权衡取舍</li>
-<li>某种东西的成本是为了得到它所放弃的东西</li>
-<li>理性人考虑边际量</li>
-<li>人们会对激励做出反应</li>
-</ol>
-</li>
-<li>人们如何相互影响<ol>
-<li>贸易可以使每个人的状况都变得更好</li>
-<li>市场通常是组织经济活动的一种好方法</li>
-<li>政府有时可以改善市场结果</li>
-</ol>
-</li>
-<li>整体经济如何运行<ol>
-<li>一国的生活水平取决于它生产物品和服务的能力</li>
-<li>当政府发行了过多货币时，物价上升</li>
-<li>社会面临通货膨胀与失业之间的短期权衡取舍</li>
-</ol>
-</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1714,7 +1728,7 @@
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">77</span>
+          <span class="site-state-item-count">78</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
