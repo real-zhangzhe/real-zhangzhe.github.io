@@ -309,7 +309,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2022-10-16 21:43:43" itemprop="dateModified" datetime="2022-10-16T21:43:43+08:00">2022-10-16</time>
+                <time title="Modified: 2023-07-30 09:03:41" itemprop="dateModified" datetime="2023-07-30T09:03:41+08:00">2023-07-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -386,7 +386,7 @@
 <h3 id="算法细节"><a href="#算法细节" class="headerlink" title="算法细节"></a>算法细节</h3><blockquote>
 <p>特别细节的看代码</p>
 </blockquote>
-<h4 id="1-特征提取"><a href="#1-特征提取" class="headerlink" title="1. 特征提取"></a>1. 特征提取</h4><ul>
+<h4 id="1-特征提取（Lift）"><a href="#1-特征提取（Lift）" class="headerlink" title="1. 特征提取（Lift）"></a>1. 特征提取（Lift）</h4><ul>
 <li>使用 <code>EfficientNet</code> 进行 <strong><code>2D</code> 特征提取 + 隐式深度估计</strong><ul>
 <li><strong>输入</strong>：<code>shape = [4, 6, 3, 128, 352]</code>，分别表示：<code>[batch, cameras, channel, height, width]</code></li>
 <li><strong>输出</strong>：<code>shape = [24, 64, 41, 8, 22]</code>，分别表示：<code>[batch * cameras, features, depth, height, width]</code><ul>
@@ -398,7 +398,7 @@
 </ul>
 </li>
 </ul>
-<h4 id="2-像素坐标和相机坐标系下深度到世界坐标的映射"><a href="#2-像素坐标和相机坐标系下深度到世界坐标的映射" class="headerlink" title="2. 像素坐标和相机坐标系下深度到世界坐标的映射"></a>2. 像素坐标和相机坐标系下深度到世界坐标的映射</h4><ul>
+<h4 id="2-像素坐标和相机坐标系下深度到世界坐标的映射（Splat）"><a href="#2-像素坐标和相机坐标系下深度到世界坐标的映射（Splat）" class="headerlink" title="2. 像素坐标和相机坐标系下深度到世界坐标的映射（Splat）"></a>2. 像素坐标和相机坐标系下深度到世界坐标的映射（Splat）</h4><ul>
 <li>使用如下参数将像素坐标和相机坐标系下深度映射到世界坐标<ul>
 <li>相机内参</li>
 <li>相机外参<ul>
@@ -415,18 +415,32 @@
 <li>体素池化：将属于同一个体素的深度估计向量求和</li>
 <li><strong>输入</strong>：<ul>
 <li>深度估计：<code>shape = [24, 64, 41, 8, 22]</code></li>
-<li>相机和缩放参数</li>
+<li>相机内外参和缩放参数</li>
 </ul>
 </li>
 <li><strong>输出</strong>：<code>shape = [4, 64, 200, 200]</code><ul>
-<li><code>200 * 200</code> 个体素</li>
+<li><code>200 * 200</code> 个体素<ul>
+<li>X 方向上 [-50m, 50m) 0.5m 为一个 bin，200 个 bin</li>
+<li>Z 方向上 [-50m, 50m) 0.5m 为一个 bin，200 个 bin</li>
+<li>Y 方向不分 bin</li>
+</ul>
+</li>
 <li>每个体素用 <code>64</code> 维向量编码</li>
 </ul>
 </li>
+<li>本质是：<ol>
+<li>构造一个 [24 <em> 41 </em> 8 * 22, 3] 的查找表，输入为 backbone 输出特征图的每一个 pixel，输出为这个 pixel 对应的世界坐标（这个查找表可由相机内外参和图像缩放系数计算得到）</li>
+<li>将离散的世界坐标点合并，合并规则是属于同一个体素的坐标点则合并</li>
+</ol>
+</li>
 </ul>
-<h4 id="3-体素编码降维"><a href="#3-体素编码降维" class="headerlink" title="3. 体素编码降维"></a>3. 体素编码降维</h4><ul>
+<h4 id="3-体素编码降维（Shoot）"><a href="#3-体素编码降维（Shoot）" class="headerlink" title="3. 体素编码降维（Shoot）"></a>3. 体素编码降维（Shoot）</h4><ul>
 <li><strong>输入</strong>：<code>shape = [4, 64, 200, 200]</code></li>
 <li><strong>输出</strong>：<code>shape = [4, 1, 200, 200]</code>，<strong>BEV 图</strong></li>
+</ul>
+<h4 id="4-训练-loss"><a href="#4-训练-loss" class="headerlink" title="4. 训练 loss"></a>4. 训练 loss</h4><p><del>非常简单粗暴</del></p>
+<ul>
+<li>将 GT bbox3d 同样映射到 BEV 空间 [4, 1, 200, 200]，然后做 pixel-wise loss（分割 loss）</li>
 </ul>
 <h2 id="Thought"><a href="#Thought" class="headerlink" title="Thought"></a>Thought</h2><ul>
 <li>代码中 <strong>像素坐标和相机坐标系下深度到世界坐标的映射</strong> 部分比较难懂，需要较强的相机成像原理 / 图像 <code>2D</code> 转 <code>3D</code> 背景才能看懂</li>

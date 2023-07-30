@@ -30,7 +30,7 @@
 <meta property="og:image" content="https://s2.loli.net/2022/10/16/Rfay7qBZSU2QkHx.jpg">
 <meta property="og:image" content="https://s2.loli.net/2022/10/16/TlHkahvsFCtEXL6.png">
 <meta property="article:published_time" content="2022-09-30T07:06:32.000Z">
-<meta property="article:modified_time" content="2022-10-16T13:43:43.236Z">
+<meta property="article:modified_time" content="2023-07-30T01:03:41.540Z">
 <meta property="article:author" content="Zhangzhe">
 <meta property="article:tag" content="3D">
 <meta property="article:tag" content="BEV">
@@ -192,7 +192,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2022-10-16 21:43:43" itemprop="dateModified" datetime="2022-10-16T21:43:43+08:00">2022-10-16</time>
+                <time title="Modified: 2023-07-30 09:03:41" itemprop="dateModified" datetime="2023-07-30T09:03:41+08:00">2023-07-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -269,7 +269,7 @@
 <h3 id="算法细节"><a href="#算法细节" class="headerlink" title="算法细节"></a>算法细节</h3><blockquote>
 <p>特别细节的看代码</p>
 </blockquote>
-<h4 id="1-特征提取"><a href="#1-特征提取" class="headerlink" title="1. 特征提取"></a>1. 特征提取</h4><ul>
+<h4 id="1-特征提取（Lift）"><a href="#1-特征提取（Lift）" class="headerlink" title="1. 特征提取（Lift）"></a>1. 特征提取（Lift）</h4><ul>
 <li>使用 <code>EfficientNet</code> 进行 <strong><code>2D</code> 特征提取 + 隐式深度估计</strong><ul>
 <li><strong>输入</strong>：<code>shape = [4, 6, 3, 128, 352]</code>，分别表示：<code>[batch, cameras, channel, height, width]</code></li>
 <li><strong>输出</strong>：<code>shape = [24, 64, 41, 8, 22]</code>，分别表示：<code>[batch * cameras, features, depth, height, width]</code><ul>
@@ -281,7 +281,7 @@
 </ul>
 </li>
 </ul>
-<h4 id="2-像素坐标和相机坐标系下深度到世界坐标的映射"><a href="#2-像素坐标和相机坐标系下深度到世界坐标的映射" class="headerlink" title="2. 像素坐标和相机坐标系下深度到世界坐标的映射"></a>2. 像素坐标和相机坐标系下深度到世界坐标的映射</h4><ul>
+<h4 id="2-像素坐标和相机坐标系下深度到世界坐标的映射（Splat）"><a href="#2-像素坐标和相机坐标系下深度到世界坐标的映射（Splat）" class="headerlink" title="2. 像素坐标和相机坐标系下深度到世界坐标的映射（Splat）"></a>2. 像素坐标和相机坐标系下深度到世界坐标的映射（Splat）</h4><ul>
 <li>使用如下参数将像素坐标和相机坐标系下深度映射到世界坐标<ul>
 <li>相机内参</li>
 <li>相机外参<ul>
@@ -298,18 +298,32 @@
 <li>体素池化：将属于同一个体素的深度估计向量求和</li>
 <li><strong>输入</strong>：<ul>
 <li>深度估计：<code>shape = [24, 64, 41, 8, 22]</code></li>
-<li>相机和缩放参数</li>
+<li>相机内外参和缩放参数</li>
 </ul>
 </li>
 <li><strong>输出</strong>：<code>shape = [4, 64, 200, 200]</code><ul>
-<li><code>200 * 200</code> 个体素</li>
+<li><code>200 * 200</code> 个体素<ul>
+<li>X 方向上 [-50m, 50m) 0.5m 为一个 bin，200 个 bin</li>
+<li>Z 方向上 [-50m, 50m) 0.5m 为一个 bin，200 个 bin</li>
+<li>Y 方向不分 bin</li>
+</ul>
+</li>
 <li>每个体素用 <code>64</code> 维向量编码</li>
 </ul>
 </li>
+<li>本质是：<ol>
+<li>构造一个 [24 <em> 41 </em> 8 * 22, 3] 的查找表，输入为 backbone 输出特征图的每一个 pixel，输出为这个 pixel 对应的世界坐标（这个查找表可由相机内外参和图像缩放系数计算得到）</li>
+<li>将离散的世界坐标点合并，合并规则是属于同一个体素的坐标点则合并</li>
+</ol>
+</li>
 </ul>
-<h4 id="3-体素编码降维"><a href="#3-体素编码降维" class="headerlink" title="3. 体素编码降维"></a>3. 体素编码降维</h4><ul>
+<h4 id="3-体素编码降维（Shoot）"><a href="#3-体素编码降维（Shoot）" class="headerlink" title="3. 体素编码降维（Shoot）"></a>3. 体素编码降维（Shoot）</h4><ul>
 <li><strong>输入</strong>：<code>shape = [4, 64, 200, 200]</code></li>
 <li><strong>输出</strong>：<code>shape = [4, 1, 200, 200]</code>，<strong>BEV 图</strong></li>
+</ul>
+<h4 id="4-训练-loss"><a href="#4-训练-loss" class="headerlink" title="4. 训练 loss"></a>4. 训练 loss</h4><p><del>非常简单粗暴</del></p>
+<ul>
+<li>将 GT bbox3d 同样映射到 BEV 空间 [4, 1, 200, 200]，然后做 pixel-wise loss（分割 loss）</li>
 </ul>
 <h2 id="Thought"><a href="#Thought" class="headerlink" title="Thought"></a>Thought</h2><ul>
 <li>代码中 <strong>像素坐标和相机坐标系下深度到世界坐标的映射</strong> 部分比较难懂，需要较强的相机成像原理 / 图像 <code>2D</code> 转 <code>3D</code> 背景才能看懂</li>
@@ -400,7 +414,7 @@
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
-          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#URL"><span class="nav-number">1.</span> <span class="nav-text">URL</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#TL-DR"><span class="nav-number">2.</span> <span class="nav-text">TL;DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Algorithm"><span class="nav-number">3.</span> <span class="nav-text">Algorithm</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Dataset"><span class="nav-number">3.1.</span> <span class="nav-text">Dataset</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%9B%B8%E5%85%B3%E7%9F%A5%E8%AF%86"><span class="nav-number">3.2.</span> <span class="nav-text">相关知识</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AE%97%E6%B3%95%E7%BB%86%E8%8A%82"><span class="nav-number">3.3.</span> <span class="nav-text">算法细节</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#1-%E7%89%B9%E5%BE%81%E6%8F%90%E5%8F%96"><span class="nav-number">3.3.1.</span> <span class="nav-text">1. 特征提取</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-%E5%83%8F%E7%B4%A0%E5%9D%90%E6%A0%87%E5%92%8C%E7%9B%B8%E6%9C%BA%E5%9D%90%E6%A0%87%E7%B3%BB%E4%B8%8B%E6%B7%B1%E5%BA%A6%E5%88%B0%E4%B8%96%E7%95%8C%E5%9D%90%E6%A0%87%E7%9A%84%E6%98%A0%E5%B0%84"><span class="nav-number">3.3.2.</span> <span class="nav-text">2. 像素坐标和相机坐标系下深度到世界坐标的映射</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-%E4%BD%93%E7%B4%A0%E7%BC%96%E7%A0%81%E9%99%8D%E7%BB%B4"><span class="nav-number">3.3.3.</span> <span class="nav-text">3. 体素编码降维</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Thought"><span class="nav-number">4.</span> <span class="nav-text">Thought</span></a></li></ol></div>
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#URL"><span class="nav-number">1.</span> <span class="nav-text">URL</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#TL-DR"><span class="nav-number">2.</span> <span class="nav-text">TL;DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Algorithm"><span class="nav-number">3.</span> <span class="nav-text">Algorithm</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Dataset"><span class="nav-number">3.1.</span> <span class="nav-text">Dataset</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%9B%B8%E5%85%B3%E7%9F%A5%E8%AF%86"><span class="nav-number">3.2.</span> <span class="nav-text">相关知识</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AE%97%E6%B3%95%E7%BB%86%E8%8A%82"><span class="nav-number">3.3.</span> <span class="nav-text">算法细节</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#1-%E7%89%B9%E5%BE%81%E6%8F%90%E5%8F%96%EF%BC%88Lift%EF%BC%89"><span class="nav-number">3.3.1.</span> <span class="nav-text">1. 特征提取（Lift）</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-%E5%83%8F%E7%B4%A0%E5%9D%90%E6%A0%87%E5%92%8C%E7%9B%B8%E6%9C%BA%E5%9D%90%E6%A0%87%E7%B3%BB%E4%B8%8B%E6%B7%B1%E5%BA%A6%E5%88%B0%E4%B8%96%E7%95%8C%E5%9D%90%E6%A0%87%E7%9A%84%E6%98%A0%E5%B0%84%EF%BC%88Splat%EF%BC%89"><span class="nav-number">3.3.2.</span> <span class="nav-text">2. 像素坐标和相机坐标系下深度到世界坐标的映射（Splat）</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-%E4%BD%93%E7%B4%A0%E7%BC%96%E7%A0%81%E9%99%8D%E7%BB%B4%EF%BC%88Shoot%EF%BC%89"><span class="nav-number">3.3.3.</span> <span class="nav-text">3. 体素编码降维（Shoot）</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#4-%E8%AE%AD%E7%BB%83-loss"><span class="nav-number">3.3.4.</span> <span class="nav-text">4. 训练 loss</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Thought"><span class="nav-number">4.</span> <span class="nav-text">Thought</span></a></li></ol></div>
       </div>
       <!--/noindex-->
 
