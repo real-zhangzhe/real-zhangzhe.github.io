@@ -152,6 +152,131 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2023/08/06/BEVDet-High-Performance-Multi-Camera-3D-Object-Detection-in-Bird-Eye-View/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/08/06/BEVDet-High-Performance-Multi-Camera-3D-Object-Detection-in-Bird-Eye-View/" class="post-title-link" itemprop="url">BEVDet: High-Performance Multi-Camera 3D Object Detection in Bird-Eye-View</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-08-06 09:57:25 / Modified: 14:55:06" itemprop="dateCreated datePublished" datetime="2023-08-06T09:57:25+08:00">2023-08-06</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/BEV/" itemprop="url" rel="index"><span itemprop="name">BEV</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2023/08/06/BEVDet-High-Performance-Multi-Camera-3D-Object-Detection-in-Bird-Eye-View/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2023/08/06/BEVDet-High-Performance-Multi-Camera-3D-Object-Detection-in-Bird-Eye-View/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="URL"><a href="#URL" class="headerlink" title="URL"></a>URL</h2><ul>
+<li><p>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2112.11790.pdf">https://arxiv.org/pdf/2112.11790.pdf</a></p>
+</li>
+<li><p>code: <a target="_blank" rel="noopener" href="https://github.com/HuangJunJie2017/BEVDet">https://github.com/HuangJunJie2017/BEVDet</a></p>
+</li>
+</ul>
+<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
+<li><p>本文介绍了一种 <code>BEV</code> 视角下的 <code>3D</code> 障碍物检测算法，该算法的输入是由多张（6张）图片组成的车身环视视角，输出为车身周围障碍物的 <code>3D bbox</code></p>
+</li>
+<li><p>与 <code>LSS（lift-splat-shoot）</code> 算法较为相似，但任务不同，<code>LSS</code> 想要解决的是 <code>BEV</code> 视角下的分割问题，<code>BEVDet</code> 想要解决的是 <code>3D</code> 障碍物检测问题</p>
+</li>
+<li><p>与 <code>FCOS3D</code> 等单目 <code>3D</code> 障碍物检测的任务类型相似，区别在于：单目 <code>3D</code> 障碍物检测对每个视角做 <code>3D</code> 障碍物检测后，需要使用后处理融合跨视角的物体，<code>BEVDet</code> 可以将跨视角融合问题内嵌到模型中（<code>BEV</code>）</p>
+</li>
+</ul>
+<h2 id="Algorithm"><a href="#Algorithm" class="headerlink" title="Algorithm"></a>Algorithm</h2><h3 id="总体结构"><a href="#总体结构" class="headerlink" title="总体结构"></a>总体结构</h3><p><img src="https://s2.loli.net/2023/08/06/pEmYIytkViZeRrv.png" alt="BevDet.png"></p>
+<p>由上图可以看出，模型主要由四个部分组成，分别是：</p>
+<ul>
+<li><strong><code>Image-view Encoder</code></strong>：图像特征提取（<code>backbone + neck</code>），6个视角分别做特征提取，不做视角间特征融合</li>
+<li><strong><code>View Transformer</code></strong>：视角变换（同时也实现了图像间信息融合），从图像视角转换为 <code>BEV</code> 视角，使用的方法和 <code>LSS</code> 方法一样，输出为 <code>BEV feature</code></li>
+<li><strong><code>BEV Encoder</code></strong>：对 <code>BEV feature</code> 用一个较小的 <code>BEV backbone</code> 做特征提取</li>
+<li><strong><code>Head</code></strong>：任务头，预测 <code>3D bbox</code> 等，本文使用了 <code>CenterPoint Head</code></li>
+</ul>
+<h3 id="算法流程的伪代码表示"><a href="#算法流程的伪代码表示" class="headerlink" title="算法流程的伪代码表示"></a>算法流程的伪代码表示</h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 定义输入，shape: (8, 6, 256, 704, 3) [batch, camera, H, W, C]</span></span><br><span class="line">input_images = get_input_images()</span><br><span class="line"></span><br><span class="line"><span class="comment"># 图像视图编码器，输出shape: (8, 6, 16, 44, 256) [batch, camera, H//16, W//16, C]</span></span><br><span class="line">image_view_features = image_view_encoder(input_images)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 视图变换器，输出shape: (8, 64, 128, 128) [batch, C, Bev_H, Bev_W]</span></span><br><span class="line">transformed_features = view_transformer(image_view_features)</span><br><span class="line"></span><br><span class="line"><span class="comment"># BEV编码器，输出shape: (8, 256, 64, 64) [batch, C, Bev_H//2, Bev_W//2]</span></span><br><span class="line">encoded_bev_features = bev_encoder(transformed_features)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 任务特定头部进行3D物体检测，输出shape: (8, num_objects, object_info)</span></span><br><span class="line">detection_results = task_specific_head(encoded_bev_features)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 返回3D物体检测结果</span></span><br><span class="line"><span class="keyword">return</span> detection_results</span><br></pre></td></tr></table></figure>
+<h3 id="数据增广方法"><a href="#数据增广方法" class="headerlink" title="数据增广方法"></a>数据增广方法</h3><ul>
+<li><p><strong>独立图片空间数据增广</strong>：图片的翻转、裁剪和旋转可以用 <code>3x3</code> 矩阵表示，在 <code>View Transformer</code> 的时候需要做对应逆变换，即 <em>同时更改图片和 View Transformer 过程</em></p>
+</li>
+<li><p><strong>BEV视角下的数据增广</strong>：在BEV空间的学习中，数据量少于图像视图空间，因为每个样本包含多个摄像机图像，所以更容易过拟合；该增广方法遵循常见的 <code>LiDAR</code> 方法，采用了 <code>2D</code> 空间中的常见数据增广操作，如翻转、缩放和旋转，需要对应修改目标 <code>3D bbox</code>，即 <em>同时更改 BEV Feature 和 3D bbox GT</em></p>
+</li>
+</ul>
+<h3 id="Scale-NMS"><a href="#Scale-NMS" class="headerlink" title="Scale-NMS"></a><code>Scale-NMS</code></h3><ul>
+<li>由于 <code>BEV</code> 空间中不同类别的空间分布与图像视图空间中的分布非常不同，所以作者提出了 <code>Scale-NMS</code>，在执行经典的 <code>NMS</code> 算法之前根据每个对象的类别来缩放每个对象的大小，可显著提高了对小面积类别（如行人和交通锥）的预测性能</li>
+</ul>
+<h2 id="Thought"><a href="#Thought" class="headerlink" title="Thought"></a>Thought</h2><ul>
+<li><p>从模型结构和数据增广方式看 <code>BEVDet</code> 本质是一个二阶段算法：</p>
+<ul>
+<li><p><code>image Encode + View Transformer</code>：环视图像编码到 <code>BEV</code> 空间</p>
+</li>
+<li><p><code>BEV Encoder + Task Head</code>：<code>BEV</code> 空间下的 <code>3D</code> 障碍物检测</p>
+</li>
+</ul>
+</li>
+<li><p>但第一阶段输出的 <code>BEV Feature</code> 没有用 <code>LiDAR</code> 点云监督就有点怪….（后续的改进算法加了）</p>
+</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2023/07/29/MOTR-End-to-End-Multiple-Object-Tracking-with-Transformer/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1312,157 +1437,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2023/04/17/FCOS-A-Simple-and-Strong-Anchor-free-Object-Detector/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/04/17/FCOS-A-Simple-and-Strong-Anchor-free-Object-Detector/" class="post-title-link" itemprop="url">FCOS: A Simple and Strong Anchor-free Object Detector</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-04-17 10:29:57" itemprop="dateCreated datePublished" datetime="2023-04-17T10:29:57+08:00">2023-04-17</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-04-19 12:51:30" itemprop="dateModified" datetime="2023-04-19T12:51:30+08:00">2023-04-19</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Object-Detection/" itemprop="url" rel="index"><span itemprop="name">Object Detection</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2023/04/17/FCOS-A-Simple-and-Strong-Anchor-free-Object-Detector/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2023/04/17/FCOS-A-Simple-and-Strong-Anchor-free-Object-Detector/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="URL"><a href="#URL" class="headerlink" title="URL"></a>URL</h2><ul>
-<li><p>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2006.09214.pdf">https://arxiv.org/pdf/2006.09214.pdf</a></p>
-</li>
-<li><p>code: <a target="_blank" rel="noopener" href="https://github.com/open-mmlab/mmdetection/blob/main/mmdet/models/dense_heads/fcos_head.py">https://github.com/open-mmlab/mmdetection/blob/main/mmdet/models/dense_heads/fcos_head.py</a></p>
-</li>
-</ul>
-<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
-<li><p><code>Faster RCNN</code> 系列、<code>SSD</code>、<code>YOLOv2~v5</code>（注意 <code>YOLOv1</code> 不包括在内）都是基于 <code>Anchor</code> 进行预测的。</p>
-</li>
-<li><p>本文提出一种 Anchor Free 的 one stage 目标检测方法，整个模型结构非常轻量，效果强大。</p>
-</li>
-<li><p>由于没有了 anchor，所以 fcos 可方便拓展到其他任务。</p>
-</li>
-</ul>
-<h2 id="Algorithm"><a href="#Algorithm" class="headerlink" title="Algorithm"></a>Algorithm</h2><h3 id="网络结构"><a href="#网络结构" class="headerlink" title="网络结构"></a>网络结构</h3><p><img src="https://s2.loli.net/2023/04/17/PqfYI2Ka5zEULT1.png" alt="fcos.png"></p>
-<ul>
-<li><p><code>backbone + FPN</code> 输出了 5 种尺度的 <code>feature map</code> 用于预测，由于是全卷积网络，所以 <strong>5 个输出头共享一份参数</strong>，<strong>对于每个尺度的 <code>feature map</code> 上的每一个位置</strong> 预测包括类别（N，Cls，H，W）、框的位置（N，4，H，W）和一个中心置信度（N，1，H，W）。</p>
-</li>
-<li><p>由于共享输出头，所以本文作者 <strong>为每个输出头增加了不共享的 scale 参数，scale.shape == (num_of_level, 1)</strong></p>
-</li>
-</ul>
-<p><img src="https://s2.loli.net/2023/04/17/zuh6ilv4jT1xOyp.png" alt="fcos_2.png"></p>
-<ul>
-<li>其中位置参数模型预测的是如上图所示的（l，t，b，r），即相对于 feature map 上的点到 GT 的上下左右偏移量。</li>
-</ul>
-<h3 id="centerness"><a href="#centerness" class="headerlink" title="centerness"></a>centerness</h3><ul>
-<li><p>$centerness=\sqrt{\frac{min(l^\star,r^\star)}{max(l^\star,r^\star)}\times \frac{min(t^\star,b^\star)}{max(t^\star,b^\star)}}$ ，即 <code>GT bbox</code> 内的点越靠近中心越大，越远离中心越小，取值范围 <code>[0, 1]</code>，可视化 <code>centerness</code> 热力图如上图所示。</p>
-</li>
-<li><p>最终预测时，score 阈值过滤的是 <code>centerness * score</code>。</p>
-</li>
-</ul>
-<h3 id="损失函数"><a href="#损失函数" class="headerlink" title="损失函数"></a>损失函数</h3><p>$L(\{p_{x,y}\},\{t_{x,y}\})=\frac{1}{N_{pos}}\sum_{x,y}L_{cls}(p_{x,y},c^\star_{x,y})+\frac{\lambda}{N_{pos}}\sum_{x,y}\mathbb{I}_{c_{x,y}^\star&gt;0}L_{reg}(t_{x,y},t^\star_{x,y})+\frac{\gamma}{N_{pos}}\sum_{x,y}\mathbb{I}_{c_{x,y}^\star&gt;0}L_{ctr}(s_{x,y},s^\star_{x,y})$</p>
-<ul>
-<li>其中 $p_{x,y}$ 表示在特征图点（x,y）处预测的每个类别的 score</li>
-<li>$c^\star_{x,y}$ 表示在特征图点（x,y）处的真实类别（<strong>负样本类别为 0</strong>）</li>
-<li>$t_{x,y}$ 表示在特征图点（x,y）处预测的目标边界信息</li>
-<li>$s_{x,y}$ 表示在特征图点处预测的centerness</li>
-<li>$L_{cls}$ 使用 <code>focal loss</code> 以平衡正负样本</li>
-<li>$L_{reg}$ 使用 <code>GIOU loss</code>，<strong>且只对正样本计算</strong></li>
-<li>$L_{ctr}$ 使用 <code>focal loss</code>，<strong>且只对正样本计算</strong></li>
-</ul>
-<h3 id="正样本选择策略"><a href="#正样本选择策略" class="headerlink" title="正样本选择策略"></a>正样本选择策略</h3><ul>
-<li><p>与 <code>anchor base</code> 方法不同，<code>fcos</code> 对正样本的选择较为苛刻，<strong>仅当 feature map 上的某个点落入 gt bbox 中心区域（sub-box）时才被当做正样本</strong> 。</p>
-</li>
-<li><p><code>sub-box</code> 的定义： $(c_x-rs,c_y-rs,c_x+rs,c_y+rs)$ ，其中 $(c_x,c_y)$ 表示 <code>gt bbox</code> 中心点在原始图上的坐标；<code>s</code> 表示 <code>stride</code> 即当前 <code>feature map</code> 相较于原图下采样倍数；<code>r</code> 表示 <code>radius</code> 半径超参数，在 <code>coco</code> 数据集上取 <code>1.5</code>。</p>
-</li>
-<li><p>除了正样本之外，其他样本的 <code>cls</code> 类别都被置为 <code>0（background）</code>，负样本只计算 <code>cls loss</code>，不计算 <code>reg loss</code> 和 <code>centerness loss</code>（也没法计算，有框才能计算）。</p>
-</li>
-</ul>
-<h3 id="Ambiguous-sample"><a href="#Ambiguous-sample" class="headerlink" title="Ambiguous sample"></a>Ambiguous sample</h3><ul>
-<li><p><code>anchor free</code> 的检测方法绕不开一个天然的问题：如果一个 <code>feature map</code> 的特征点（x,y）同时是两个 <code>GT bbox</code> 的正例，应该如何预测，毕竟 <code>fcos</code> 每个特征点只预测一个框。</p>
-</li>
-<li><p>本文缓解该问题的方法是：<strong>使用 FPN box 尺度分配 + center sampling</strong>。</p>
-<ul>
-<li><p><code>FPN bbox</code> 尺度分配是一个常用的解决 <code>Ambiguity</code> 问题的方法，越大的 <code>feature map</code> 负责检测越小的框。（将 <code>Ambiguity</code> 出现的概率从 <code>23.16%</code> 降低到 <code>7.24%</code>）</p>
-</li>
-<li><p><code>center sampling</code>：即上面提到的 sub-box 采样方法，<strong>radius = 1.5</strong>。（将 <code>Ambiguity</code> 出现的概率从 <code>7.24%</code> 降低到 <code>2.66%</code>）</p>
-</li>
-</ul>
-</li>
-</ul>
-<h2 id="Thought"><a href="#Thought" class="headerlink" title="Thought"></a>Thought</h2><ul>
-<li><code>FCOS</code> 是一种很简单高效的 <code>2D anchor free</code> 物体检测算法，迁移性强，启发了后面的 <code>FCOS3D</code> 单目 <code>3D</code> 检测。</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1531,7 +1505,7 @@
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">79</span>
+          <span class="site-state-item-count">80</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
