@@ -152,6 +152,282 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2021/09/04/LS-Net-Learning-to-Solve-Nonlinear-Least-Squares-for-Monocular-Stereo/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2021/09/04/LS-Net-Learning-to-Solve-Nonlinear-Least-Squares-for-Monocular-Stereo/" class="post-title-link" itemprop="url">LS-Net: Learning to Solve Nonlinear Least Squares for Monocular Stereo</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2021-09-04 10:50:11" itemprop="dateCreated datePublished" datetime="2021-09-04T10:50:11+08:00">2021-09-04</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2022-09-30 14:56:09" itemprop="dateModified" datetime="2022-09-30T14:56:09+08:00">2022-09-30</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Monocular-Stereo/" itemprop="url" rel="index"><span itemprop="name">Monocular Stereo</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2021/09/04/LS-Net-Learning-to-Solve-Nonlinear-Least-Squares-for-Monocular-Stereo/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2021/09/04/LS-Net-Learning-to-Solve-Nonlinear-Least-Squares-for-Monocular-Stereo/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="URL"><a href="#URL" class="headerlink" title="URL"></a>URL</h2><p><a target="_blank" rel="noopener" href="https://arxiv.org/pdf/1809.02966.pdf">https://arxiv.org/pdf/1809.02966.pdf</a></p>
+<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
+<li><p>提出一种端到端的可训练的优化方法，通过近似 Hessian 优化方法，解决非线性最小二乘法问题</p>
+</li>
+<li><p>从训练数据中隐式的学习正则化与先验信息</p>
+</li>
+<li><p>第一个将可学习的优化器用于单目视觉光度误差估计任务中</p>
+</li>
+</ul>
+<h2 id="Algorithm"><a href="#Algorithm" class="headerlink" title="Algorithm"></a>Algorithm</h2><h3 id="背景知识"><a href="#背景知识" class="headerlink" title="背景知识"></a>背景知识</h3><h4 id="非线性最小二乘法求解"><a href="#非线性最小二乘法求解" class="headerlink" title="非线性最小二乘法求解"></a>非线性最小二乘法求解</h4><ul>
+<li>最小二乘法问题： $E = \frac{1}{2}\sum_{j} r_j^2(x),\ \ \ \ \ r_j(x)$ 表示 x 第 j 项的 L1 误差</li>
+<li>常用方法： <code>Gauss-Newton (GN)</code>、<code>Levenberg-Marquadt (LM)</code></li>
+<li>求解过程：<ul>
+<li>对误差进行一阶估计： $r(x_i+\Delta x_i)=r(x_i)+J_i\Delta x_i,\ \ \ J_i = \frac{dr}{dx}|_{x=x_i}$ ，J 是雅各比矩阵</li>
+<li>最优变化量： $\Delta x_i=\arg_{\Delta x_i}\min \frac{1}{2}||r_i+J_i\Delta x_i||^2$</li>
+<li><code>GN</code> 法获得最优变化量： $J_i^TJ_i\Delta x_i = - J_i^Tr_i$ ，如果 $J_i^TJ_i$ 可逆，则最优变化量 $\Delta x_i=-(J_i^TJ_i)^{-1}J_i^Tr_i$</li>
+<li><code>LM</code> 法获得最优变化量（在 <code>GN</code> 的基础上加入超参数—— 阻尼系数 $\lambda$）： $\Delta x_i=-(J_i^TJ_i + \lambda \ diag(J_i^TJ_i))^{-1}J_i^Tr_i$</li>
+<li>本方法：基于 <code>GN</code> 加入了更多的可学习参数，使用梯度下降优化</li>
+</ul>
+</li>
+</ul>
+<h3 id="任务描述"><a href="#任务描述" class="headerlink" title="任务描述"></a>任务描述</h3><ul>
+<li>输入一段图像序列，输出深度估计（depth）与姿态估计（pose），为了估计较大范围的深度，所以网络实际估计深度的倒数： $z = \frac{1}{d}$</li>
+<li>所以本任务优化目标函数： $E(x) = \frac{1}{2}||r(x)||^2,\ \ \ x=(z, p)$</li>
+</ul>
+<h3 id="网络结构"><a href="#网络结构" class="headerlink" title="网络结构"></a>网络结构</h3><p>网络结构包含 <code>bootstrap network</code>、<code>iterative network</code>、<code>refinement network</code></p>
+<ul>
+<li><code>bootstrap network</code>： 生成低分辨率（ $\frac{H}{4},  \frac{W}{4}$ ）的粗糙估计（一个简单的包含下采样的CNN）</li>
+<li><code>iterative network</code>：重复迭代与细化，本文使用 <code>LSTM</code> （非线性最小二乘法优化也用于此处）</li>
+<li><code>refinement network</code>：上采样（双线性插值法）</li>
+</ul>
+<p><img src="https://i.loli.net/2021/09/04/5e6iPRSXl8KJ3fN.png" alt="lsnet_1.png"></p>
+<h3 id="iterative-network-优化过程"><a href="#iterative-network-优化过程" class="headerlink" title="iterative network 优化过程"></a>iterative network 优化过程</h3><p><img src="https://i.loli.net/2021/09/04/yQCSHnlvmGNgJpb.png" alt="lsnet_2.png"></p>
+<blockquote>
+<ul>
+<li>其中 $f_{\theta_0}$ 表示 <code>bootstrap network</code>， $f_{\theta}$ 表示 <code>Convolutional LSTM Cell</code></li>
+</ul>
+</blockquote>
+<ul>
+<li>由于 <code>J</code> 具体空间局部性，所以这里使用的 LSTM 是 <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/1506.04214.pdf">Convolutional LSTM</a></li>
+<li>$\begin{bmatrix} \Delta x_i\\ h_{i+1} \end{bmatrix} = LSTM_{cell}(\Phi(J_i,r_i),h_i,x_i;\theta),\ \ \ x_{i+1} = x_i + \Delta x_i$ ，这里的 $x_i$ 并不是真的输入到 LSTM 中，如 <code>Algorithm 1</code> 所示， $x_i$ 用来产生 $J_i$ 从而产生 $\Phi(J_i, r_i)$</li>
+<li>其中雅各比矩阵的变形 $\Phi(J_i,r_i) = [J^TJ,r]$ <ul>
+<li>理论上 $\Phi(J_i,r_i) = [(J^TJ)^{-1}J,r]$ ，但由于求逆会引入较大的计算量，并且不会产生额外的信息量，所以简化  $\Phi(J_i,r_i) = [J^TJ,r]$</li>
+<li>由于雅各比矩阵是稀疏的，所以使用了下图的方法对 $J^TJ$ 进行了压缩</li>
+</ul>
+</li>
+</ul>
+<p><img src="https://i.loli.net/2021/09/04/vkr3fanDbpqHyhP.png" alt="lsnet_3.png"></p>
+<h4 id="损失函数"><a href="#损失函数" class="headerlink" title="损失函数"></a>损失函数</h4><ul>
+<li>depth 与 pose 的 L1 误差的加权和</li>
+</ul>
+<h2 id="Thoughts"><a href="#Thoughts" class="headerlink" title="Thoughts"></a>Thoughts</h2><ul>
+<li><p>本文的创新点在于 <code>Convolutional LSTM</code> 中输入的不是 $x_i$ ，而是压缩后的二阶雅各比矩阵，用来拟合 $\Delta x_i$ ，可以通过近似 <code>GN</code> 法，产生超一阶优化的效果</p>
+</li>
+<li><p><code>GN</code> ： $\Delta x_i=-(J_i^TJ_i)^{-1}J_i^Tr_i$ ，本文： $\Delta x_i=LSTM(J_i^TJ_i,r_i)$ ，即把 $[(J_i^TJ_i)^{-1}J_i,r_i] —&gt; [J_i^TJ_i,r_i]$ 并加入了 <code>LSTM</code> 梯度下降优化</p>
+</li>
+<li><p>本文的网络没有官方开源，也找不到民间实现，所以对网络的细节不是特别明白</p>
+</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2021/09/04/Modeling-Task-Relationships-in-Multi-task-Learning-with-Multi-gate-Mixture-of-Experts/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2021/09/04/Modeling-Task-Relationships-in-Multi-task-Learning-with-Multi-gate-Mixture-of-Experts/" class="post-title-link" itemprop="url">Modeling Task Relationships in Multi-task Learning with Multi-gate Mixture-of-Experts</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2021-09-04 10:48:15" itemprop="dateCreated datePublished" datetime="2021-09-04T10:48:15+08:00">2021-09-04</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2022-09-30 14:56:09" itemprop="dateModified" datetime="2022-09-30T14:56:09+08:00">2022-09-30</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Multi-Task/" itemprop="url" rel="index"><span itemprop="name">Multi-Task</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2021/09/04/Modeling-Task-Relationships-in-Multi-task-Learning-with-Multi-gate-Mixture-of-Experts/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2021/09/04/Modeling-Task-Relationships-in-Multi-task-Learning-with-Multi-gate-Mixture-of-Experts/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="URL"><a href="#URL" class="headerlink" title="URL"></a>URL</h2><p><a target="_blank" rel="noopener" href="https://dl.acm.org/doi/pdf/10.1145/3219819.3220007">https://dl.acm.org/doi/pdf/10.1145/3219819.3220007</a></p>
+<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
+<li>本文提出一种多任务神经网络结构，称为 <code>Multi-gate Mixture-of-Experts</code> 简称 <code>MMOE</code></li>
+<li>与传统多任务网络共享 bottom 相比，该结构可以在 <strong>任务相关性较弱</strong> 的情况下有较好的鲁棒性</li>
+<li><code>MMOE</code> 中的 <code>Multi-gate</code> 本质就是一种 <code>Softmax Attention</code>，针对不同的任务给出不同的专家组合</li>
+</ul>
+<h2 id="Algorithm"><a href="#Algorithm" class="headerlink" title="Algorithm"></a>Algorithm</h2><h3 id="总体网络结构"><a href="#总体网络结构" class="headerlink" title="总体网络结构"></a>总体网络结构</h3><p><img src="https://i.loli.net/2021/09/04/gypkFlf5NuEGYcd.png" alt="mmoe1.png"></p>
+<blockquote>
+<p>其中 <code>A</code> 和 <code>B</code> 分别表示两个 <strong>任务</strong>，<code>Tower</code> 表示与任务相关的金字塔头部，<code>Expert</code> 表示专家 bottom network，<code>Gate</code> 表示任务相关的权重生成网络</p>
+</blockquote>
+<ul>
+<li><p>上图 a 表示 <strong>Bottom Shared Architecture</strong>: 传统共享 bottom network 的多任务结构，共享 bottom network (Backbone) 进行特征提取，将提取到的特征分别送入任务相关头部，缺点是如果任务 <code>A</code> 和 <code>B</code> 之间的相关性较弱，那么共用一个 <code>Backbone</code> 是危险的</p>
+</li>
+<li><p>上图 b 表示 <strong>One-gate Mixture-of-Experts Architecture</strong>，有多个 <code>Expert</code> 做 <code>Backbone</code> 进行不同维度的特征提取，只有一个 <code>Gate network</code> 用于给每个任务生成 <code>Expert 权重</code></p>
+</li>
+<li><p>上图 c 表示 <strong>Multi-gate Mixture-of-Experts Architecture</strong>，有多个 <code>Expert</code> 做 <code>Backbone</code> 进行不同维度的特征提取，每个任务有单独的 <code>Gate network</code> 生成唯一的 <code>Expert 权重</code></p>
+</li>
+</ul>
+<h3 id="数学定义"><a href="#数学定义" class="headerlink" title="数学定义"></a>数学定义</h3><ul>
+<li><p><strong>Bottom Shared</strong></p>
+<p>$y_k = h^k(f(x))$ </p>
+<p>其中 $k$ 表示 <strong>任务数</strong>，$f()$ 表示 <strong>shared bottom</strong>，$h^k$ 表示 <strong>第 k 个任务的 Tower</strong></p>
+</li>
+<li><p><strong>OMOE</strong></p>
+<p>$y_k=h^k(\sum_{i=1}^n g(x)_i f_i(x))$， where $\sum_{i=1}^n g(x)_i=1,\ \ g(x) \in \mathbb R^n$</p>
+<p>其中 $n$ 表示 <strong>专家数</strong>，$g$ 表示 <strong>Gate network</strong>（由于 $g(x)$ 要经过 Softmax，使得 logits -&gt; prob，所以 $\sum_{i=1}^n g(x)_i=1$）</p>
+</li>
+</ul>
+<ul>
+<li><p><strong>MMOE</strong></p>
+<p>$y_k=h^k(\sum_{i=1}^n g^k(x)_i f_i(x))$， where $\sum_{i=1}^n g^k(x)_i=1$</p>
+<p>$g^k(x)=softmax(W_{gk}x)$，其中 $x \in \mathbb R^d,\ \ W_{gk} \in \mathbb R^{n\times d}, \ so \ \ g^k(x) \in \mathbb R^n$</p>
+<p>与 <strong>OMOE</strong> 不同之处在于： <strong>每个任务有单独的 Gate network，不共享</strong></p>
+</li>
+</ul>
+<h2 id="Thoughts"><a href="#Thoughts" class="headerlink" title="Thoughts"></a>Thoughts</h2><ul>
+<li>是有效的优化，针对任务相关性差的多任务场景，确实能有效涨点</li>
+<li>本质是一种参数的堆砌，没看到很创新的点</li>
+<li>除了堆参数之外，还有一个很致命的问题，每个 <code>Gate</code> 以及 <code>Expert</code> 都是独立的，实际实现过程中只能使用 <code>for loop</code> 依次计算，效率很低，速度很慢</li>
+</ul>
+<h2 id="Experiments"><a href="#Experiments" class="headerlink" title="Experiments"></a>Experiments</h2><p><img src="https://i.loli.net/2021/09/05/L6h2CguMyVDIniR.png" alt="mmoe2.png"></p>
+<p><img src="https://i.loli.net/2021/09/05/dOiNrG9KfhuBJTE.png" alt="mmoe3.png"></p>
+<p><img src="https://i.loli.net/2021/09/05/xzndFmupMPBqVcg.png" alt="mmoe4.png"></p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2021/09/04/Activate-or-Not-Learning-Customized-Activation/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1227,313 +1503,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2021/08/22/Deep-Learning-with-Low-Precision-by-Half-wave-Gaussian-Quantization/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2021/08/22/Deep-Learning-with-Low-Precision-by-Half-wave-Gaussian-Quantization/" class="post-title-link" itemprop="url">Deep Learning with Low Precision by Half-wave Gaussian Quantization</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2021-08-22 22:43:42" itemprop="dateCreated datePublished" datetime="2021-08-22T22:43:42+08:00">2021-08-22</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2022-09-30 14:56:09" itemprop="dateModified" datetime="2022-09-30T14:56:09+08:00">2022-09-30</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Network-Quantization/" itemprop="url" rel="index"><span itemprop="name">Network Quantization</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2021/08/22/Deep-Learning-with-Low-Precision-by-Half-wave-Gaussian-Quantization/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2021/08/22/Deep-Learning-with-Low-Precision-by-Half-wave-Gaussian-Quantization/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="URL"><a href="#URL" class="headerlink" title="URL"></a>URL</h2><p><a target="_blank" rel="noopener" href="https://openaccess.thecvf.com/content_cvpr_2017/papers/Cai_Deep_Learning_With_CVPR_2017_paper.pdf">https://openaccess.thecvf.com/content_cvpr_2017/papers/Cai_Deep_Learning_With_CVPR_2017_paper.pdf</a></p>
-<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
-<li>量化网络的反向传播通常使用STE，造成前后向结果与梯度不匹配，所以通常掉点严重</li>
-<li>前向过程中：HWGQ网络使用半波高斯分布量化函数Q代替sign函数</li>
-<li>反向过程中：HWGQ网络使用ReLU及其变体代替HardTanh来近似前向量化过程的梯度</li>
-</ul>
-<h2 id="Algorithm"><a href="#Algorithm" class="headerlink" title="Algorithm"></a>Algorithm</h2><ul>
-<li><p>weight binarization</p>
-<p>  $I \times W \approx \alpha (I \oplus B)$</p>
-<p>  其中， $B$ 表示二值化权重， $I$ 表示输入， $\alpha \in \mathbb{R^+}$ 表示缩放系数， $\oplus$ 表示无系数卷积</p>
-</li>
-<li><p>常用 activations 量化</p>
-<ul>
-<li>常用二值化特征量化函数：sign(x) = 1 if x &gt;=0 else -1</li>
-<li>常用二值量化函数的梯度：hardTanh(x) = 1 if abs(x) &lt;= 1 else 0</li>
-</ul>
-</li>
-<li><p>HWGQ activations 量化</p>
-<ul>
-<li><p><strong>前向过程：</strong></p>
-<p>  $Q(x) = \begin{cases} q_i, \ \ \ \ if\ \  x\in (t_i, t_{i+1}] \\ 0, \ \ \ \ \ if \ \ x\le 0 \end{cases}$</p>
-<p>  $q_{i+1} - q_i = \Delta,\ \ \ \ \forall i$</p>
-<p>  当 $\Delta$ 为一个常数的时候， $q_i$ 为均匀分布，但 $t_i$ 不是均匀分布</p>
-<p>  其中超参数 $Q^{\star}(x) = arg\min_Q E_x[(Q(x) - x)^2]  = arg\min_Q \int p(x) (Q(x) - x)^2 dx$，其中 $p(x)$ 表示半波高斯分布的概率密度</p>
-<ul>
-<li>看了<a target="_blank" rel="noopener" href="https://github.com/zhaoweicai/hwgq">源码</a>发现：<ul>
-<li>当 f_bits=2 时， $q = \{0.538, 1.076, 1.614\},\ \ \ t=\{-\infty, 0.807, 1.345, +\infty\}$ </li>
-<li>当 f_bits=1 时， $q = \{0.453, 1.51\},\ \ \ t=\{-\infty, 0.97, +\infty\} $ </li>
-</ul>
-</li>
-</ul>
-</li>
-<li><p><strong>反向过程：</strong></p>
-<ul>
-<li><p>反向过程有三种方式，分别为：</p>
-<ul>
-<li><p>ReLU</p>
-<p>  $\tilde Q(x) = \begin{cases}1,\ \ \ \ if\ \ x &gt; 0\\0,\ \ \ \ otherwise  \end{cases}$</p>
-</li>
-<li><p>Clipped ReLU</p>
-<p>  $\tilde Q(x) = \begin{cases}q_m,\ \ \ \  x&gt;q_m\\1,\ \ \ \  \ if\ \ x \in (0, q_m]\\0,\ \ \ \  \ otherwise  \end{cases}$</p>
-<p>  源码中，f_bits=2时， $q_m = 1.614$ ，f_bits=1时， $q_m = 1.515$ </p>
-</li>
-<li><p>Log-tailed ReLU</p>
-<p>  $\tilde Q(x) = \begin{cases}\frac{1}{x-\tau},\ \ \ \  x&gt;q_m\\1,\ \ \ \  \ if\ \ x \in (0, q_m]\\0,\ \ \ \  \ otherwise  \end{cases}$</p>
-</li>
-</ul>
-</li>
-<li><p><strong>实际发现Clipped ReLU效果最好，复杂度低</strong></p>
-</li>
-</ul>
-</li>
-</ul>
-</li>
-</ul>
-<h2 id="Thoughts"><a href="#Thoughts" class="headerlink" title="Thoughts"></a>Thoughts</h2><ul>
-<li><p>算法想法很本质，目的是减小STE带来的前向与反向的不一致</p>
-</li>
-<li><p>没与DoReFa-Net的效果对比，当比特数较多的时候，round()与使用半波高斯近似那个更好？</p>
-</li>
-</ul>
-<h3 id="图表"><a href="#图表" class="headerlink" title="图表"></a>图表</h3><p><img src="https://i.loli.net/2021/08/22/aKVfTNSkxZHdbcg.png" alt="deep1.png"><br><img src="https://i.loli.net/2021/08/22/tXKGQ8OjJ6TuLBy.png" alt="deep2.png"><br><img src="https://i.loli.net/2021/08/22/VZDAbtIh2w4U1xz.png" alt="deep3.png"></p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2021/08/22/Two-Step-Quantization-for-Low-bit-Neural-Networks/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2021/08/22/Two-Step-Quantization-for-Low-bit-Neural-Networks/" class="post-title-link" itemprop="url">Two-Step Quantization for Low-bit Neural Networks</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2021-08-22 22:09:27" itemprop="dateCreated datePublished" datetime="2021-08-22T22:09:27+08:00">2021-08-22</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2022-09-30 14:56:09" itemprop="dateModified" datetime="2022-09-30T14:56:09+08:00">2022-09-30</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Network-Quantization/" itemprop="url" rel="index"><span itemprop="name">Network Quantization</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2021/08/22/Two-Step-Quantization-for-Low-bit-Neural-Networks/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2021/08/22/Two-Step-Quantization-for-Low-bit-Neural-Networks/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="URL"><a href="#URL" class="headerlink" title="URL"></a>URL</h2><p><a target="_blank" rel="noopener" href="http://openaccess.thecvf.com/content_cvpr_2018/papers/Wang_Two-Step_Quantization_for_CVPR_2018_paper.pdf">http://openaccess.thecvf.com/content_cvpr_2018/papers/Wang_Two-Step_Quantization_for_CVPR_2018_paper.pdf</a></p>
-<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
-<li>对于 weight 的量化与对 activation 的量化如果同时学习，模型收敛比较困难，所以分成 <strong>code learning</strong> 和 <strong>transformation function learning</strong> 两个过程进行</li>
-<li><strong>code learning</strong> ：先保持 weight 全精度，量化 activation </li>
-<li><strong>transformation function learning</strong>：量化 weight，学习 $A_{l-1} \to A_l$ 的映射</li>
-<li>最终结果：2-bits activations + 3 值 weights 的 TSQ 只比官方全精度模型准确率低0.5个百分点</li>
-</ul>
-<h2 id="Algorithm"><a href="#Algorithm" class="headerlink" title="Algorithm"></a>Algorithm</h2><h3 id="传统量化网络"><a href="#传统量化网络" class="headerlink" title="传统量化网络"></a>传统量化网络</h3><ul>
-<li><p>优化过程</p>
-<p>  $minimize_{\{W_l\}}\ \ \ \mathcal L(Z_L, y)$</p>
-<p>  $subject\ to \ \  \ \ \ \ \ \ \ \ \ \hat W_l = Q_W(W_l)$</p>
-<p>  $\ \ \ \ \ \ \  \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \hat {Z_l} = \hat W_l \hat A_{l-1}$</p>
-<p>  $\ \ \ \ \ \ \  \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ A_l = \psi (Z_l)$</p>
-<p>  $\ \ \ \ \ \ \  \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \hat A_l = Q_n(A),\ \ \ for l=1,2,…,L$</p>
-</li>
-<li><p>难收敛的原因</p>
-<ul>
-<li>由于对 $Q_W()$ ， $\mu\frac{\partial L}{\partial W}$ 难以直接更新到 $\hat W$ ，导致 $W$ 更新缓慢</li>
-<li>$Q_A()$ 的 STE 会引起梯度高方差</li>
-</ul>
-</li>
-</ul>
-<h3 id="Two-Step-Quantization-TSQ"><a href="#Two-Step-Quantization-TSQ" class="headerlink" title="Two-Step Quantization (TSQ)"></a>Two-Step Quantization (TSQ)</h3><ul>
-<li><p>step 1：<strong>code learning</strong></p>
-<p>  基于 <a target="_blank" rel="noopener" href="https://discourse.brainpp.cn/t/topic/36907">HWGQ</a>，不同点是：</p>
-<ul>
-<li>weights 保持全精度</li>
-<li><p>引入超参数：稀疏阈值 $\epsilon \ge 0$ ，<a target="_blank" rel="noopener" href="https://github.com/wps712/Two-Step-Quantization-AlexNet/blob/master/relu2b_layer.cpp">开源代码</a>中 $\epsilon = 0.32, \delta = 0.6487$</p>
-<p>$ Q_{\epsilon}(x)=\left\{\begin{array}{ll}{q_{i}^{\prime}} &amp; {x \in\left(t_{i}^{\prime}, t_{i+1}^{\prime}\right]} \\ {0} &amp; {x \leq \epsilon}\end{array}\right.$</p>
-</li>
-<li><p>引入超参数的目的是使得网络更关注于 <strong>high activations</strong></p>
-</li>
-</ul>
-</li>
-<li><p>step 2：<strong>transformation function learning</strong></p>
-<p>我对这个步骤的理解是：<strong>使用全精度weights网络蒸馏low-bits weights网络</strong></p>
-<p>  $\begin{aligned} \underset{\Lambda, \hat{W}}{\operatorname{minimize}} \left|Y-Q_{\epsilon}(\Lambda \hat{W} X)\right|_{F}^{2} = \operatorname{minimize}_{\left\{\alpha_{i}\right\},\left\{\hat{w}_{i}^{T}\right\}} \sum_{i}\left|y_{i}^{T}-Q_{\epsilon}\left(\alpha_{i} \hat{w}_{i}^{T} X\right)\right|_{2}^{2} \end{aligned}$</p>
-<p>其中： $\alpha_i$ 表示每个卷积核的缩放因子，$X$与 $Y$ 分别表示 $\hat A_{l-1}$ 与 $\hat A_l$  ，<strong>用全精度weights得到的量化activations网络蒸馏量化weights量化activations网络</strong></p>
-<p>引入辅助变量 $z$ 对 transformation function learning 进行分解：</p>
-<p>  $\underset{\alpha, w, z}{\operatorname{minimize}} \quad\left|y-Q_{\epsilon}(z)\right|_{2}^{2}+\lambda\left|z-\alpha X^{T} \hat{w}\right|_{2}^{2}$</p>
-<ul>
-<li><p><strong>Solving $\alpha$ and $\hat{w}$ with $z$ fixed：</strong></p>
-<p>  $\underset{\alpha, \hat{w}}{\operatorname{minimize}} \quad J(\alpha, \hat{w})=\left|z-\alpha X^{T} \hat{w}\right|_{2}^{2}$</p>
-<p>  $J(\alpha, \hat{w})=z^{T} z-2 \alpha z^{T} X^{T} \hat{w}+\alpha^{2} \hat{w}^{T} X X^{T} \hat{w}$</p>
-<p>  $\alpha^{*}=\frac{z^{T} X^{T} \hat{w}}{\hat{w}^{T} X X^{T} \hat{w}}$</p>
-<p>  $\hat{w}^{*}=\underset{\hat{w}}{\operatorname{argmax}} \frac{\left(z^{T} X^{T} \hat{w}\right)^{2}}{\hat{w}^{T} X X^{T} \hat{w}}$</p>
-</li>
-<li><p><strong>Solving $z$ with $\alpha$ and $\hat{w}$ fixed:</strong></p>
-<p>  $\underset{z_{i}}{\operatorname{minimize}} \quad\left(y_{i}-Q_{\epsilon}\left(z_{i}\right)\right)^{2}+\lambda\left(z_{i}-v_{i}\right)^{2}$</p>
-<p>  ${c}{z_{i}^{(0)}=\min \left(0, v_{i}\right)}$</p>
-<p>  ${z_{i}^{(1)}=\min \left(M, \max \left(0, \frac{\lambda v_{i}+y_{i}}{1+\lambda}\right)\right.}$</p>
-<p>  ${z_{i}^{(2)}=\max \left(M, v_{i}\right)}$</p>
-<ul>
-<li><p><strong>使用 Optimal TernaryWeights Approximation (OTWA) 初始化 $\alpha$ 和 $\hat W$</strong></p>
-<p>  $\min_{\alpha, \hat{w}} \  {|w-\alpha \hat{w}|_{2}^{2}}\ \ \ \ \ \ subject\ to\ \ \  \  \alpha&gt;0, \ \ \ \  {\hat{w} \in\{-1,0,+1\}^{m}}$</p>
-<p>  $\alpha^{*} =\frac{w^{T} \hat{w}}{\hat{w}^{T} \hat{w}}$</p>
-<p>  $\hat{w}^{*} =\underset{\hat{w}}{\operatorname{argmax}} \frac{\left(w^{T} \hat{w}\right)^{2}}{\hat{w}^{T} \hat{w}}$</p>
-<p>  $\hat{w}_{j}=\left\{\begin{array}{ll}{\operatorname{sign}\left(w_{j}\right)} &amp; {\operatorname{abs}\left(w_{j}\right) \text { in top } r \text { of } a b s(w)} \\ {0} &amp; {\text { others }}\end{array}\right.$</p>
-</li>
-<li><p>$\alpha$ 与$\hat{w}$ 初始值的计算过程 (OTWA)</p>
-<p> <img src="https://i.loli.net/2021/08/22/QRL6KVGO19FjNBv.png" alt="初始值的计算过程"></p>
-</li>
-</ul>
-</li>
-</ul>
-</li>
-</ul>
-<h2 id="Thoughts"><a href="#Thoughts" class="headerlink" title="Thoughts"></a>Thoughts</h2><ul>
-<li>对 weights 的量化与 activations 的量化拆分是一个容易想到的简化量化问题的方法</li>
-<li>把对 weights 的量化转换成一种自蒸馏的方法，与 <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/1612.00212.pdf">量化位宽 decay</a> 有相似之处</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1602,20 +1571,20 @@
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">84</span>
+          <span class="site-state-item-count">86</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">25</span>
+        <span class="site-state-item-count">27</span>
         <span class="site-state-item-name">categories</span></a>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">43</span>
+        <span class="site-state-item-count">45</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -1642,7 +1611,7 @@
 <div class="copyright">
   
   &copy; 
-  <span itemprop="copyrightYear">2023</span>
+  <span itemprop="copyrightYear">2024</span>
   <span class="with-love">
     <i class="fa fa-heart"></i>
   </span>
