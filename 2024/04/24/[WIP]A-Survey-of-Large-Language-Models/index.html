@@ -34,7 +34,7 @@
 <meta property="og:image" content="https://s2.loli.net/2024/05/07/r386TGoA2cNUdh9.png">
 <meta property="og:image" content="https://s2.loli.net/2024/05/08/gGScu4r6nFqaseZ.png">
 <meta property="article:published_time" content="2024-04-24T05:24:21.000Z">
-<meta property="article:modified_time" content="2024-05-13T05:36:01.797Z">
+<meta property="article:modified_time" content="2024-05-14T05:11:06.915Z">
 <meta property="article:author" content="Zhangzhe">
 <meta property="article:tag" content="LLM">
 <meta name="twitter:card" content="summary">
@@ -194,7 +194,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-05-13 13:36:01" itemprop="dateModified" datetime="2024-05-13T13:36:01+08:00">2024-05-13</time>
+                <time title="Modified: 2024-05-14 13:11:06" itemprop="dateModified" datetime="2024-05-14T13:11:06+08:00">2024-05-14</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -618,6 +618,7 @@
 </ol>
 </li>
 <li><p><strong>数据处理</strong></p>
+<p> 一个好用的数据处理代码库是 <code>Data-Juicer</code></p>
 <ol>
 <li><p>质量过滤</p>
 <p> 为删除语料库中的低质量数据，通过有两种方式：<strong>基于分类器的方法</strong> 和 <strong>基于启发式的方法</strong></p>
@@ -671,7 +672,58 @@
 </li>
 </ol>
 </li>
-<li><p>分词</p>
+<li><p>分词（<code>Tokenization</code>）</p>
+<p> 分词也是数据预处理的关键步骤，它的目的是将原始文本分割成词序列，随后用作 <code>LLM</code> 的输入。常用的分词方式有以下三种：</p>
+<ol>
+<li><p><code>BPE (Byte-Pair Encoding tokenization)</code> 字节对编码，计算过程如下：</p>
+<ol>
+<li><p>首先将文本拆分成字母和分隔符，并统计每个字母或分隔符出现的频率。</p>
+</li>
+<li><p>计算任意两个字母/分隔符合并后出现的频率，找到最高频的字母/分隔符对合并，重新统计词频并更新词表。</p>
+</li>
+<li><p>重复第二步，直到词表大小满足要求。</p>
+<p>特点：</p>
+<ol>
+<li><p>简单高效</p>
+</li>
+<li><p>贪心算法，每一步都选择频数最大的相邻字符进行合并，这种做法可能不一定是全局最优、频数也不一定是最好的合并指标。</p>
+</li>
+<li><p>适合拉丁字母组成的语言，不适合汉字、日韩文字等。</p>
+</li>
+</ol>
+</li>
+</ol>
+</li>
+<li><p><code>WordPiece tokenization</code>，计算过程如下：</p>
+<ol>
+<li><p>首先将文本拆分成字母和分隔符。</p>
+</li>
+<li><p>不同于 <code>BPE</code> 选择合并后词频最大的词作为 <code>Subword</code>，<code>WordPiece</code> 基于语言模型似然概率的最大值生成新的 <code>Subword</code>，具体的<strong>基于语言模型似然概率</strong>的定义如下：</p>
+<ol>
+<li><p>$S=(t_1,t_2,…,t_n)$，句子 <code>S</code> 由 <code>n</code> 个子词组成。</p>
+</li>
+<li><p>则句子 <code>S</code> 的似然概率定义为：$log P(S)=\sum_{i=1}^n logP(t_i)$</p>
+</li>
+<li><p>其中 <code>P()</code> 表示一个训练好的语言概率模型。 </p>
+</li>
+</ol>
+</li>
+<li><p>找到合并后可以使得句子的似然概率最大的子词合并，更新词表，重复这个过程。</p>
+</li>
+</ol>
+</li>
+<li><p><code>Unigram LM</code>，计算过程如下：</p>
+<ol>
+<li><p><code>Unigram</code> 和 <code>BPE</code> 以及 <code>WordPiece</code> 有个很大的不同是：</p>
+<pre><code> 1. `BPE` 和 `WordPiece` 都是初始化小词表逐步变大直到满足词表大小要求。
+
+ 1. `Unigram LM` 是初始化大词表逐步删词直到满足词表大小要求。
+</code></pre></li>
+<li><p><code>Unigram LM</code> 删词的根据和 <code>WordPiece</code> 一致，都是<strong>基于语言模型似然概率</strong></p>
+</li>
+</ol>
+</li>
+</ol>
 </li>
 </ol>
 </li>
@@ -869,6 +921,59 @@
   
 
   
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
 
   
 
