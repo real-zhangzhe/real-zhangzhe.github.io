@@ -152,7 +152,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/06/03/[WIP]T5-Exploring-the-Limits-of-Transfer-Learning-with-a-Unified-Text-to-Text-Transformer/">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/06/03/T5-Exploring-the-Limits-of-Transfer-Learning-with-a-Unified-Text-to-Text-Transformer/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
@@ -166,7 +166,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/2024/06/03/%5BWIP%5DT5-Exploring-the-Limits-of-Transfer-Learning-with-a-Unified-Text-to-Text-Transformer/" class="post-title-link" itemprop="url">T5: Exploring the Limits of Transfer Learning with a Unified Text-to-Text Transformer</a>
+            <a href="/2024/06/03/T5-Exploring-the-Limits-of-Transfer-Learning-with-a-Unified-Text-to-Text-Transformer/" class="post-title-link" itemprop="url">T5: Exploring the Limits of Transfer Learning with a Unified Text-to-Text Transformer</a>
         </h2>
 
         <div class="post-meta">
@@ -183,7 +183,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-06-12 10:12:10" itemprop="dateModified" datetime="2024-06-12T10:12:10+08:00">2024-06-12</time>
+                <time title="Modified: 2024-06-12 13:23:26" itemprop="dateModified" datetime="2024-06-12T13:23:26+08:00">2024-06-12</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -204,8 +204,8 @@
       </span>
       <span class="post-meta-item-text">Valine: </span>
     
-    <a title="valine" href="/2024/06/03/%5BWIP%5DT5-Exploring-the-Limits-of-Transfer-Learning-with-a-Unified-Text-to-Text-Transformer/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2024/06/03/%5BWIP%5DT5-Exploring-the-Limits-of-Transfer-Learning-with-a-Unified-Text-to-Text-Transformer/" itemprop="commentCount"></span>
+    <a title="valine" href="/2024/06/03/T5-Exploring-the-Limits-of-Transfer-Learning-with-a-Unified-Text-to-Text-Transformer/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2024/06/03/T5-Exploring-the-Limits-of-Transfer-Learning-with-a-Unified-Text-to-Text-Transformer/" itemprop="commentCount"></span>
     </a>
   </span>
   
@@ -234,14 +234,14 @@
 <li><code>prompt</code> 的作用是在输入之前加上对任务的描述</li>
 <li>比如 <code>english_to_franch(&quot;Hello, world!&quot;) API</code> 会被 <code>prompt</code> 为 <code>&quot;translate English to French: Hello, world!&quot;</code> 纯文本输入到模型</li>
 </ul>
-<h4 id="1-tokenize"><a href="#1-tokenize" class="headerlink" title="1. tokenize"></a>1. tokenize</h4><ul>
+<h4 id="1-encoder-input-tokenize"><a href="#1-encoder-input-tokenize" class="headerlink" title="1. encoder input tokenize"></a>1. encoder input tokenize</h4><ul>
 <li><code>T5</code> 使用的分词算法是 <code>unigram</code>，词表可以在 <a target="_blank" rel="noopener" href="https://huggingface.co/google-t5/t5-base/blob/main/tokenizer.json">https://huggingface.co/google-t5/t5-base/blob/main/tokenizer.json</a> 这里找到</li>
 <li><code>&quot;translate English to French: Hello, world!&quot;</code> 会被 <code>tokenize</code> 为：<code>[13959, 1566, 12, 2379, 10, 8774, 6, 296, 55, 1]</code></li>
 </ul>
-<h4 id="2-token-embedding"><a href="#2-token-embedding" class="headerlink" title="2. token embedding"></a>2. token embedding</h4><ul>
-<li>和 <code>GPT</code> 系列没有区别，需要把 <code>token id</code> 查表变成 <code>token embedding</code></li>
+<h4 id="2-encoder-input-token-embedding"><a href="#2-encoder-input-token-embedding" class="headerlink" title="2. encoder input token embedding"></a>2. encoder input token embedding</h4><ul>
+<li>和 <code>GPT</code> 系列没有区别，需要把 <code>encoder input token id</code> 查表变成 <code>token embedding</code></li>
 </ul>
-<h4 id="3-position-encoding"><a href="#3-position-encoding" class="headerlink" title="3. position encoding"></a>3. position encoding</h4><ul>
+<h4 id="3-encoder-input-position-encoding"><a href="#3-encoder-input-position-encoding" class="headerlink" title="3. encoder input position encoding"></a>3. encoder input position encoding</h4><ul>
 <li>与 <code>GPT</code> 系列使用可学习的 <code>position embedding</code> 不同，<code>T5</code> 使用的是 <code>position encoding</code></li>
 <li>且使用的是相对位置编码，而不是绝对位置编码</li>
 <li>与 <code>GPT</code> 系列只在模型 <code>casual decoder</code> 第一层输入加入 <code>position embedding</code> 不同，<code>T5</code> 的 <code>position encoding</code> 是在 <code>encoder</code> 以及 <code>decoder</code> 的每一层都是使用了</li>
@@ -264,8 +264,15 @@
 </li>
 </ul>
 </li>
+<li><strong><code>encoder</code> 最终输出一个 <code>shape = (batch, input_token_len, encoder_dim)</code> 的 <code>encoder hidden state</code></strong></li>
 </ul>
-<h4 id="5-decoder"><a href="#5-decoder" class="headerlink" title="5. decoder"></a>5. decoder</h4><ul>
+<h4 id="5-decoder-input-token-embedding-and-position-encoding"><a href="#5-decoder-input-token-embedding-and-position-encoding" class="headerlink" title="5. decoder input token embedding and position encoding"></a>5. decoder input token embedding and position encoding</h4><ul>
+<li>与 <code>GPT</code> 系列不同之处在于 <code>T5</code> 在 <code>decoder</code> 阶段需要 <code>decoder input</code></li>
+<li>通常情况下 <code>decoder input</code> 是 <code>&lt;BOS&gt;</code> 或 <code>&lt;S&gt;</code> 等特殊标记，<code>token</code> 长度仅仅为 <code>1</code>，用于表示序列开始</li>
+<li><code>decoder input token embedding</code> 和 <code>position encoding</code> 过程和 <code>encoder input token embedding</code> 和 <code>position encoding</code> 并无区别</li>
+<li><strong><code>token embedding</code> + <code>position encoding</code> 得到 <code>decoder hidden state</code>，其 <code>shape = (batch, 1, decoder_dim)</code></strong> </li>
+</ul>
+<h4 id="6-decoder"><a href="#6-decoder" class="headerlink" title="6. decoder"></a>6. decoder</h4><ul>
 <li><code>decoder</code> 一共 <code>12</code> 层，每一层包括如下顺序结构为：<ul>
 <li><code>self attention block</code><ul>
 <li><code>layer norm</code></li>
@@ -287,6 +294,19 @@
 </li>
 </ul>
 </li>
+<li>其中 <code>self attention</code> 的输入是 <code>decoder hidden state</code>（<strong>注意不是 <code>encoder hidden state</code></strong>）</li>
+<li><code>decoder hidden state</code> 和 <code>encoder hidden state</code> 输入到 <code>cross attention</code>中，<code>Cross attention</code> 和 <code>Self attention</code> 实际上只有一个区别：<ul>
+<li><strong><code>self attention</code> 的 <code>query / key / value</code> 都由同一个 <code>hidden state</code> 得到，因此称为 <code>self</code></strong></li>
+<li><strong><code>cross attention</code> 的 <code>key / value</code> 由同一个 <code>hidden state</code> 得到，<code>query</code> 由另一个 <code>hidden state</code> 得到，因此称为 <code>cross</code></strong></li>
+<li><strong>在 <code>encoder-decoder</code> 架构的 <code>transformer</code> 中，<code>decoder</code> 中的 <code>cross attention</code> 的 <code>key / value</code> 通常由 <code>encoder output hidden state</code> 得到，<code>query</code> 通常由 <code>decoder hidden state</code> 得到</strong></li>
+</ul>
+</li>
+<li>重复跑完 <code>12</code> 层，最终输出 <code>shape = (batch, 1, decoder_dim)</code> 的 <code>decoder output hidden state</code></li>
+</ul>
+<h4 id="7-decoder-output-hidden-state-to-token"><a href="#7-decoder-output-hidden-state-to-token" class="headerlink" title="7. decoder output hidden state to token"></a>7. decoder output hidden state to token</h4><ul>
+<li>需要将 <code>docoder output hidden state</code> 用一层 <code>MLP</code> 转化到 <code>vocabulary</code> 空间，找到最可能的一个 <code>token</code></li>
+<li>此 <code>token</code> 对应的单词即为模型最终输出的第一个词。</li>
+<li>如果这个词是词表中的结束符，则停止输出。如果不是，则用此词替代前一个词，重复上述的 <strong>5. decoder input token embedding and position encoding</strong> 和 <strong>6. decoder</strong> 和 <strong>7. decoder output hidden state to token</strong> 过程，直到达到最长输出长度限制或出现停止符。</li>
 </ul>
 
       
