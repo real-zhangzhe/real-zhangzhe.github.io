@@ -152,6 +152,275 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2023/08/06/BEVDet-High-Performance-Multi-Camera-3D-Object-Detection-in-Bird-Eye-View/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/08/06/BEVDet-High-Performance-Multi-Camera-3D-Object-Detection-in-Bird-Eye-View/" class="post-title-link" itemprop="url">BEVDet: High-Performance Multi-Camera 3D Object Detection in Bird-Eye-View</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-08-06 09:57:25 / Modified: 15:00:27" itemprop="dateCreated datePublished" datetime="2023-08-06T09:57:25+08:00">2023-08-06</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/BEV/" itemprop="url" rel="index"><span itemprop="name">BEV</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2023/08/06/BEVDet-High-Performance-Multi-Camera-3D-Object-Detection-in-Bird-Eye-View/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2023/08/06/BEVDet-High-Performance-Multi-Camera-3D-Object-Detection-in-Bird-Eye-View/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="URL"><a href="#URL" class="headerlink" title="URL"></a>URL</h2><ul>
+<li><p>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2112.11790.pdf">https://arxiv.org/pdf/2112.11790.pdf</a></p>
+</li>
+<li><p>code: <a target="_blank" rel="noopener" href="https://github.com/HuangJunJie2017/BEVDet">https://github.com/HuangJunJie2017/BEVDet</a></p>
+</li>
+</ul>
+<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
+<li><p>本文介绍了一种 <code>BEV</code> 视角下的 <code>3D</code> 障碍物检测算法，该算法的输入是由多张（6张）图片组成的车身环视视角，输出为车身周围障碍物的 <code>3D bbox</code></p>
+</li>
+<li><p>与 <code>LSS（lift-splat-shoot）</code> 算法较为相似，但任务不同，<code>LSS</code> 想要解决的是 <code>BEV</code> 视角下的分割问题，<code>BEVDet</code> 想要解决的是 <code>3D</code> 障碍物检测问题</p>
+</li>
+<li><p>与 <code>FCOS3D</code> 等单目 <code>3D</code> 障碍物检测的任务类型相似，区别在于：单目 <code>3D</code> 障碍物检测对每个视角做 <code>3D</code> 障碍物检测后，需要使用后处理融合跨视角的物体，<code>BEVDet</code> 可以将跨视角融合问题内嵌到模型中（<code>BEV</code>）</p>
+</li>
+</ul>
+<h2 id="Algorithm"><a href="#Algorithm" class="headerlink" title="Algorithm"></a>Algorithm</h2><h3 id="总体结构"><a href="#总体结构" class="headerlink" title="总体结构"></a>总体结构</h3><p><img src="https://s2.loli.net/2023/08/06/pEmYIytkViZeRrv.png" alt="BevDet.png"></p>
+<p>由上图可以看出，模型主要由四个部分组成，分别是：</p>
+<ul>
+<li><strong><code>Image-view Encoder</code></strong>：图像特征提取（<code>backbone + neck</code>），6个视角分别做特征提取，不做视角间特征融合</li>
+<li><strong><code>View Transformer</code></strong>：视角变换（同时也实现了图像间信息融合），从图像视角转换为 <code>BEV</code> 视角，使用的方法和 <code>LSS</code> 方法一样，输出为 <code>BEV feature</code></li>
+<li><strong><code>BEV Encoder</code></strong>：对 <code>BEV feature</code> 用一个较小的 <code>BEV backbone</code> 做特征提取</li>
+<li><strong><code>Head</code></strong>：任务头，预测 <code>3D bbox</code> 等，本文使用了 <code>CenterPoint Head</code></li>
+</ul>
+<h3 id="算法流程的伪代码表示"><a href="#算法流程的伪代码表示" class="headerlink" title="算法流程的伪代码表示"></a>算法流程的伪代码表示</h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 定义输入，shape: (8, 6, 256, 704, 3) [batch, camera, H, W, C]</span></span><br><span class="line">input_images = get_input_images()</span><br><span class="line"></span><br><span class="line"><span class="comment"># 图像视图编码器，输出shape: (8, 6, 16, 44, 256) [batch, camera, H//16, W//16, C]</span></span><br><span class="line">image_view_features = image_view_encoder(input_images)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 视图变换器，输出shape: (8, 64, 128, 128) [batch, C, Bev_H, Bev_W]</span></span><br><span class="line">transformed_features = view_transformer(image_view_features)</span><br><span class="line"></span><br><span class="line"><span class="comment"># BEV编码器，输出shape: (8, 256, 64, 64) [batch, C, Bev_H//2, Bev_W//2]</span></span><br><span class="line">encoded_bev_features = bev_encoder(transformed_features)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 任务特定头部进行3D物体检测，输出shape: (8, num_objects, object_info)</span></span><br><span class="line">detection_results = task_specific_head(encoded_bev_features)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 返回3D物体检测结果</span></span><br><span class="line"><span class="keyword">return</span> detection_results</span><br></pre></td></tr></table></figure>
+<h3 id="数据增广方法"><a href="#数据增广方法" class="headerlink" title="数据增广方法"></a>数据增广方法</h3><ul>
+<li><p><strong>独立图片空间数据增广</strong>：图片的翻转、裁剪和旋转可以用 <code>3x3</code> 矩阵表示，在 <code>View Transformer</code> 的时候需要做对应逆变换，即 <em>同时更改图片和 View Transformer 过程</em></p>
+</li>
+<li><p><strong>BEV视角下的数据增广</strong>：在BEV空间的学习中，数据量少于图像视图空间，因为每个样本包含多个摄像机图像，所以更容易过拟合；该增广方法遵循常见的 <code>LiDAR</code> 方法，采用了 <code>2D</code> 空间中的常见数据增广操作，如翻转、缩放和旋转，需要对应修改目标 <code>3D bbox</code>，即 <em>同时更改 BEV Feature 和 3D bbox GT</em></p>
+</li>
+</ul>
+<h3 id="Scale-NMS"><a href="#Scale-NMS" class="headerlink" title="Scale-NMS"></a><code>Scale-NMS</code></h3><ul>
+<li>由于 <code>BEV</code> 空间中不同类别的空间分布与图像视图空间中的分布非常不同，所以作者提出了 <code>Scale-NMS</code>，在执行经典的 <code>NMS</code> 算法之前根据每个对象的类别来缩放每个对象的大小，可显著提高了对小面积类别（如行人和交通锥）的预测性能</li>
+</ul>
+<h2 id="Thought"><a href="#Thought" class="headerlink" title="Thought"></a>Thought</h2><ul>
+<li><p>从模型结构和数据增广方式看 <code>BEVDet</code> 本质是一个二阶段算法：</p>
+<ul>
+<li><p><code>image Encode + View Transformer</code>：环视图像编码到 <code>BEV</code> 空间</p>
+</li>
+<li><p><code>BEV Encoder + Task Head</code>：<code>BEV</code> 空间下的 <code>3D</code> 障碍物检测</p>
+</li>
+</ul>
+</li>
+<li><p>但第一阶段输出的 <code>BEV Feature</code> 没有用 <code>LiDAR</code> 点云监督就有点怪….（后续的改进算法加了）</p>
+</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2023/07/29/MOTR-End-to-End-Multiple-Object-Tracking-with-Transformer/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/07/29/MOTR-End-to-End-Multiple-Object-Tracking-with-Transformer/" class="post-title-link" itemprop="url">MOTR: End-to-End Multiple-Object Tracking with Transformer</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-07-29 19:12:12 / Modified: 21:45:25" itemprop="dateCreated datePublished" datetime="2023-07-29T19:12:12+08:00">2023-07-29</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Transformer/" itemprop="url" rel="index"><span itemprop="name">Transformer</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2023/07/29/MOTR-End-to-End-Multiple-Object-Tracking-with-Transformer/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2023/07/29/MOTR-End-to-End-Multiple-Object-Tracking-with-Transformer/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="URL"><a href="#URL" class="headerlink" title="URL"></a>URL</h2><ul>
+<li><p>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2105.03247.pdf">https://arxiv.org/pdf/2105.03247.pdf</a></p>
+</li>
+<li><p>code: <a target="_blank" rel="noopener" href="https://github.com/megvii-research/MOTR">https://github.com/megvii-research/MOTR</a></p>
+</li>
+</ul>
+<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
+<li><p>提出了一个完全端到端的多目标跟踪框架</p>
+</li>
+<li><p>将多目标跟踪问题形式化为一组序列预测问题</p>
+</li>
+<li><p>引入了跟踪感知的标签分配</p>
+</li>
+<li><p>提出了用于时间建模的集体平均损失和时间聚合网络方法</p>
+</li>
+</ul>
+<h2 id="Algorithm"><a href="#Algorithm" class="headerlink" title="Algorithm"></a>Algorithm</h2><h3 id="MOTR-整体流程"><a href="#MOTR-整体流程" class="headerlink" title="MOTR 整体流程"></a>MOTR 整体流程</h3><p><img src="https://s2.loli.net/2023/07/29/d6goYqmnSGXVOW8.png" alt="MOTR.png"></p>
+<ol>
+<li><p><strong>特征提取</strong>：用 <code>CNN backbone</code> 提取连续帧中每一帧的特征（上图中的 <code>Enc</code>）</p>
+</li>
+<li><p><strong>查询生成</strong>：用 <code>Deformable Transformer</code> 对第一步提取的特征进行查询（上图中的 <code>Dec</code>）</p>
+<ul>
+<li><p>对于视频第一帧，只解码 <code>object detection query</code> （上图中的 $q_d$ ）得到 <code>hidden state</code></p>
+</li>
+<li><p>对于非第一帧，将 <code>object detection query</code> （上图中的 $q_d$ ）和上一帧的 <code>tracking query</code> （上图中的 $q_{tr}$ ）先 <code>concat</code> 再进行解码得到 <code>hidden state</code></p>
+</li>
+</ul>
+</li>
+<li><p><strong>预测结果生成</strong>：用一个简单的结构将上一步得到的 <code>hidden state</code> 映射到任务空间，预测结果包含 <code>object detection results</code> 和 <code>tracking results</code></p>
+</li>
+<li><p><strong>得到下一帧的 tracking query</strong>：用 <code>QIM (Query Interaction Module, 查询交互模块)</code> 将上一步得到的预测结果映射为下一帧的 <code>tracking query</code></p>
+</li>
+<li><p><strong>计算损失 / 输出预测结果</strong>：对于训练，计算集体平均损失（<code>CAL, Collective Average Loss</code>）;对于预测，直接输出第 3 步得到的结果</p>
+</li>
+</ol>
+<ul>
+<li>描述 <code>MOTR</code> 过程的伪代码</li>
+</ul>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">process_frame</span>(<span class="params">frame, detect_queries, track_queries=<span class="literal">None</span>, ground_truths=<span class="literal">None</span></span>):</span></span><br><span class="line">    <span class="comment"># 使用CNN提取帧特征</span></span><br><span class="line">    <span class="comment"># frame shape: (height, width, channels)</span></span><br><span class="line">    frame_features = extract_frame_features(frame)  <span class="comment"># Shape: (height, width, channels)</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> track_queries <span class="keyword">is</span> <span class="literal">None</span>:</span><br><span class="line">        <span class="comment"># 使用Deformable DETR解码器生成隐藏状态</span></span><br><span class="line">        <span class="comment"># detect_queries shape: (num_queries, query_dim)</span></span><br><span class="line">        <span class="comment"># frame_features shape: (height, width, channels)</span></span><br><span class="line">        hidden_states = deformable_detr_decoder(detect_queries, frame_features)  <span class="comment"># Shape: (num_queries, hidden_dim)</span></span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        queries = concatenate(track_queries, detect_queries)  <span class="comment"># Shape: (num_queries + num_tracks, query_dim)</span></span><br><span class="line">        hidden_states = deformable_detr_decoder(queries, frame_features)  <span class="comment"># Shape: (num_queries + num_tracks, hidden_dim)</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># 生成预测</span></span><br><span class="line">    <span class="comment"># hidden_states shape: (num_queries, hidden_dim)</span></span><br><span class="line">    predictions = predict(hidden_states)  <span class="comment"># Shape: (num_queries + num_tracks, num_classes + 4)</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># 使用Query Interaction Module (QIM)生成下一帧的跟踪查询</span></span><br><span class="line">    <span class="comment"># hidden_states shape: (num_queries, hidden_dim)</span></span><br><span class="line">    track_queries = qim(hidden_states)  <span class="comment"># Shape: (num_tracks, query_dim)</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> ground_truths <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span>:</span><br><span class="line">        <span class="comment"># 使用Collective Average Loss (CAL)进行训练</span></span><br><span class="line">        <span class="comment"># predictions shape: (num_queries, num_classes + 4)</span></span><br><span class="line">        <span class="comment"># ground_truths shape: (num_objects, num_classes + 4)</span></span><br><span class="line">        loss = cal(predictions, ground_truths)</span><br><span class="line">        backpropagate(loss)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> predictions, track_queries  <span class="comment"># Shape: (num_queries + num_tracks, num_classes + 4), (num_tracks, query_dim)</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">process_video</span>(<span class="params">video, ground_truths=<span class="literal">None</span></span>):</span></span><br><span class="line">    <span class="comment"># 初始化检测查询</span></span><br><span class="line">    <span class="comment"># 返回形状：(num_queries, query_dim)</span></span><br><span class="line">    detect_queries = initialize_detect_queries()  </span><br><span class="line">    track_queries = <span class="literal">None</span>  <span class="comment"># Shape: (num_tracks, query_dim)</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> frame <span class="keyword">in</span> video:</span><br><span class="line">        predictions, track_queries = process_frame(frame, detect_queries, track_queries, ground_truths)</span><br><span class="line">        <span class="keyword">if</span> ground_truths <span class="keyword">is</span> <span class="literal">None</span>:</span><br><span class="line">            <span class="keyword">yield</span> predictions</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<h3 id="查询交互模块"><a href="#查询交互模块" class="headerlink" title="查询交互模块"></a>查询交互模块</h3><ul>
+<li><p>查询交互模块 <code>Query Interaction Module (QIM)</code> 是 <code>MOTR</code> 中的一个关键组件，它负责处理物体的进入和退出，以及增强长期的时间关系建模</p>
+</li>
+<li><p><code>QIM</code> 的输入是当前帧预测的 <code>detection result</code> 和 <code>tracking result</code>，输出是下一帧的 <code>tacking query</code></p>
+</li>
+<li><p>通俗来说，<code>QIM</code> 是根据当前帧预测的结果，给出下一帧的 “提问”</p>
+</li>
+<li><p><code>QIM</code> 过程的伪代码</p>
+</li>
+</ul>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">query_interaction_module</span>(<span class="params">hidden_states, scores, tau_en, tau_ex, M</span>):</span></span><br><span class="line">    <span class="comment"># hidden_states shape: (num_queries, hidden_dim)</span></span><br><span class="line">    <span class="comment"># scores shape: (num_queries, num_classes)</span></span><br><span class="line">    <span class="comment"># tau_en, tau_ex: entrance and exit thresholds</span></span><br><span class="line">    <span class="comment"># M: number of consecutive frames for exit threshold</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># Object Entrance</span></span><br><span class="line">    entrance_mask = scores.<span class="built_in">max</span>(dim=<span class="number">1</span>) &gt; tau_en  <span class="comment"># Shape: (num_queries,)</span></span><br><span class="line">    hidden_states = hidden_states[entrance_mask]  <span class="comment"># Shape: (num_entrance_queries, hidden_dim)</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># Temporal Aggregation Network (TAN)，主要目的是融合时序信息，本文是用了一个 Multi-Head Self-Attention 实现</span></span><br><span class="line">    hidden_states = temporal_aggregation_network(hidden_states)  <span class="comment"># Shape: (num_entrance_queries, hidden_dim)</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># Object Exit</span></span><br><span class="line">    exit_mask = scores.<span class="built_in">max</span>(dim=<span class="number">1</span>) &lt; tau_ex  <span class="comment"># Shape: (num_entrance_queries,)</span></span><br><span class="line">    exit_mask = exit_mask.rolling(window=M).<span class="built_in">sum</span>() &gt; <span class="number">0</span>  <span class="comment"># Shape: (num_entrance_queries,)</span></span><br><span class="line">    hidden_states = hidden_states[~exit_mask]  <span class="comment"># Shape: (num_track_queries, hidden_dim)</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> hidden_states  <span class="comment"># Shape: (num_track_queries, hidden_dim)</span></span><br></pre></td></tr></table></figure>
+<h3 id="集体平均损失"><a href="#集体平均损失" class="headerlink" title="集体平均损失"></a>集体平均损失</h3><ul>
+<li><p>集体平均损失（Collective Average Loss，CAL）是 <code>MOTR</code> 算法中用于训练的损失函数。不同于传统的逐帧计算损失，<code>CAL</code> 收集整个视频剪辑的所有预测，然后基于整个视频剪辑计算总体损失</p>
+</li>
+<li><p>集体平均损失的代码描述</p>
+</li>
+</ul>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">collective_average_loss</span>(<span class="params">predictions, ground_truths, matching_results</span>):</span></span><br><span class="line">    total_loss = <span class="number">0</span></span><br><span class="line">    total_objects = <span class="number">0</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="built_in">len</span>(predictions)):</span><br><span class="line">        pred_tracked = predictions[i][<span class="string">&#x27;tracked&#x27;</span>]</span><br><span class="line">        pred_detected = predictions[i][<span class="string">&#x27;detected&#x27;</span>]</span><br><span class="line">        gt_tracked = ground_truths[i][<span class="string">&#x27;tracked&#x27;</span>]</span><br><span class="line">        gt_detected = ground_truths[i][<span class="string">&#x27;detected&#x27;</span>]</span><br><span class="line">        match_tracked = matching_results[i][<span class="string">&#x27;tracked&#x27;</span>]</span><br><span class="line">        match_detected = matching_results[i][<span class="string">&#x27;detected&#x27;</span>]</span><br><span class="line"></span><br><span class="line">        total_loss += single_frame_loss(pred_tracked, match_tracked, gt_tracked)</span><br><span class="line">        total_loss += single_frame_loss(pred_detected, match_detected, gt_detected)</span><br><span class="line"></span><br><span class="line">        total_objects += <span class="built_in">len</span>(gt_tracked) + <span class="built_in">len</span>(gt_detected)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> total_loss / total_objects</span><br></pre></td></tr></table></figure>
+<h2 id="Thought"><a href="#Thought" class="headerlink" title="Thought"></a>Thought</h2><ul>
+<li><p>以一种非常优雅的方式解决了端到端多目标追踪的任务，打破了之前 <code>NN detection + Hard logic code tracking</code> 的 <code>tracking</code> 范式</p>
+</li>
+<li><p>这种非黑盒的（显式监督 <code>detecion bbox</code>）复杂任务端到端训练，启发了后续的许多更复杂的端到端任务，例如 <code>UniAD</code></p>
+</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2023/07/29/Deformable-DETR-Deformable-Transformers-for-End-to-end-Object-Detection/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1174,280 +1443,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2023/04/17/FCOS-A-Simple-and-Strong-Anchor-free-Object-Detector/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/04/17/FCOS-A-Simple-and-Strong-Anchor-free-Object-Detector/" class="post-title-link" itemprop="url">FCOS: A Simple and Strong Anchor-free Object Detector</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-04-17 10:29:57" itemprop="dateCreated datePublished" datetime="2023-04-17T10:29:57+08:00">2023-04-17</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-04-19 12:51:30" itemprop="dateModified" datetime="2023-04-19T12:51:30+08:00">2023-04-19</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Object-Detection/" itemprop="url" rel="index"><span itemprop="name">Object Detection</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2023/04/17/FCOS-A-Simple-and-Strong-Anchor-free-Object-Detector/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2023/04/17/FCOS-A-Simple-and-Strong-Anchor-free-Object-Detector/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="URL"><a href="#URL" class="headerlink" title="URL"></a>URL</h2><ul>
-<li><p>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2006.09214.pdf">https://arxiv.org/pdf/2006.09214.pdf</a></p>
-</li>
-<li><p>code: <a target="_blank" rel="noopener" href="https://github.com/open-mmlab/mmdetection/blob/main/mmdet/models/dense_heads/fcos_head.py">https://github.com/open-mmlab/mmdetection/blob/main/mmdet/models/dense_heads/fcos_head.py</a></p>
-</li>
-</ul>
-<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
-<li><p><code>Faster RCNN</code> 系列、<code>SSD</code>、<code>YOLOv2~v5</code>（注意 <code>YOLOv1</code> 不包括在内）都是基于 <code>Anchor</code> 进行预测的。</p>
-</li>
-<li><p>本文提出一种 Anchor Free 的 one stage 目标检测方法，整个模型结构非常轻量，效果强大。</p>
-</li>
-<li><p>由于没有了 anchor，所以 fcos 可方便拓展到其他任务。</p>
-</li>
-</ul>
-<h2 id="Algorithm"><a href="#Algorithm" class="headerlink" title="Algorithm"></a>Algorithm</h2><h3 id="网络结构"><a href="#网络结构" class="headerlink" title="网络结构"></a>网络结构</h3><p><img src="https://s2.loli.net/2023/04/17/PqfYI2Ka5zEULT1.png" alt="fcos.png"></p>
-<ul>
-<li><p><code>backbone + FPN</code> 输出了 5 种尺度的 <code>feature map</code> 用于预测，由于是全卷积网络，所以 <strong>5 个输出头共享一份参数</strong>，<strong>对于每个尺度的 <code>feature map</code> 上的每一个位置</strong> 预测包括类别（N，Cls，H，W）、框的位置（N，4，H，W）和一个中心置信度（N，1，H，W）。</p>
-</li>
-<li><p>由于共享输出头，所以本文作者 <strong>为每个输出头增加了不共享的 scale 参数，scale.shape == (num_of_level, 1)</strong></p>
-</li>
-</ul>
-<p><img src="https://s2.loli.net/2023/04/17/zuh6ilv4jT1xOyp.png" alt="fcos_2.png"></p>
-<ul>
-<li>其中位置参数模型预测的是如上图所示的（l，t，b，r），即相对于 feature map 上的点到 GT 的上下左右偏移量。</li>
-</ul>
-<h3 id="centerness"><a href="#centerness" class="headerlink" title="centerness"></a>centerness</h3><ul>
-<li><p>$centerness=\sqrt{\frac{min(l^\star,r^\star)}{max(l^\star,r^\star)}\times \frac{min(t^\star,b^\star)}{max(t^\star,b^\star)}}$ ，即 <code>GT bbox</code> 内的点越靠近中心越大，越远离中心越小，取值范围 <code>[0, 1]</code>，可视化 <code>centerness</code> 热力图如上图所示。</p>
-</li>
-<li><p>最终预测时，score 阈值过滤的是 <code>centerness * score</code>。</p>
-</li>
-</ul>
-<h3 id="损失函数"><a href="#损失函数" class="headerlink" title="损失函数"></a>损失函数</h3><p>$L(\{p_{x,y}\},\{t_{x,y}\})=\frac{1}{N_{pos}}\sum_{x,y}L_{cls}(p_{x,y},c^\star_{x,y})+\frac{\lambda}{N_{pos}}\sum_{x,y}\mathbb{I}_{c_{x,y}^\star&gt;0}L_{reg}(t_{x,y},t^\star_{x,y})+\frac{\gamma}{N_{pos}}\sum_{x,y}\mathbb{I}_{c_{x,y}^\star&gt;0}L_{ctr}(s_{x,y},s^\star_{x,y})$</p>
-<ul>
-<li>其中 $p_{x,y}$ 表示在特征图点（x,y）处预测的每个类别的 score</li>
-<li>$c^\star_{x,y}$ 表示在特征图点（x,y）处的真实类别（<strong>负样本类别为 0</strong>）</li>
-<li>$t_{x,y}$ 表示在特征图点（x,y）处预测的目标边界信息</li>
-<li>$s_{x,y}$ 表示在特征图点处预测的centerness</li>
-<li>$L_{cls}$ 使用 <code>focal loss</code> 以平衡正负样本</li>
-<li>$L_{reg}$ 使用 <code>GIOU loss</code>，<strong>且只对正样本计算</strong></li>
-<li>$L_{ctr}$ 使用 <code>focal loss</code>，<strong>且只对正样本计算</strong></li>
-</ul>
-<h3 id="正样本选择策略"><a href="#正样本选择策略" class="headerlink" title="正样本选择策略"></a>正样本选择策略</h3><ul>
-<li><p>与 <code>anchor base</code> 方法不同，<code>fcos</code> 对正样本的选择较为苛刻，<strong>仅当 feature map 上的某个点落入 gt bbox 中心区域（sub-box）时才被当做正样本</strong> 。</p>
-</li>
-<li><p><code>sub-box</code> 的定义： $(c_x-rs,c_y-rs,c_x+rs,c_y+rs)$ ，其中 $(c_x,c_y)$ 表示 <code>gt bbox</code> 中心点在原始图上的坐标；<code>s</code> 表示 <code>stride</code> 即当前 <code>feature map</code> 相较于原图下采样倍数；<code>r</code> 表示 <code>radius</code> 半径超参数，在 <code>coco</code> 数据集上取 <code>1.5</code>。</p>
-</li>
-<li><p>除了正样本之外，其他样本的 <code>cls</code> 类别都被置为 <code>0（background）</code>，负样本只计算 <code>cls loss</code>，不计算 <code>reg loss</code> 和 <code>centerness loss</code>（也没法计算，有框才能计算）。</p>
-</li>
-</ul>
-<h3 id="Ambiguous-sample"><a href="#Ambiguous-sample" class="headerlink" title="Ambiguous sample"></a>Ambiguous sample</h3><ul>
-<li><p><code>anchor free</code> 的检测方法绕不开一个天然的问题：如果一个 <code>feature map</code> 的特征点（x,y）同时是两个 <code>GT bbox</code> 的正例，应该如何预测，毕竟 <code>fcos</code> 每个特征点只预测一个框。</p>
-</li>
-<li><p>本文缓解该问题的方法是：<strong>使用 FPN box 尺度分配 + center sampling</strong>。</p>
-<ul>
-<li><p><code>FPN bbox</code> 尺度分配是一个常用的解决 <code>Ambiguity</code> 问题的方法，越大的 <code>feature map</code> 负责检测越小的框。（将 <code>Ambiguity</code> 出现的概率从 <code>23.16%</code> 降低到 <code>7.24%</code>）</p>
-</li>
-<li><p><code>center sampling</code>：即上面提到的 sub-box 采样方法，<strong>radius = 1.5</strong>。（将 <code>Ambiguity</code> 出现的概率从 <code>7.24%</code> 降低到 <code>2.66%</code>）</p>
-</li>
-</ul>
-</li>
-</ul>
-<h2 id="Thought"><a href="#Thought" class="headerlink" title="Thought"></a>Thought</h2><ul>
-<li><code>FCOS</code> 是一种很简单高效的 <code>2D anchor free</code> 物体检测算法，迁移性强，启发了后面的 <code>FCOS3D</code> 单目 <code>3D</code> 检测。</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2023/04/15/Ultra-Fast-Structure-aware-Deep-Lane-Detection/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/04/15/Ultra-Fast-Structure-aware-Deep-Lane-Detection/" class="post-title-link" itemprop="url">Ultra Fast Structure-aware Deep Lane Detection</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-              
-
-              <time title="Created: 2023-04-15 11:10:31 / Modified: 11:43:57" itemprop="dateCreated datePublished" datetime="2023-04-15T11:10:31+08:00">2023-04-15</time>
-            </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Autopilot/" itemprop="url" rel="index"><span itemprop="name">Autopilot</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2023/04/15/Ultra-Fast-Structure-aware-Deep-Lane-Detection/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2023/04/15/Ultra-Fast-Structure-aware-Deep-Lane-Detection/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="URL"><a href="#URL" class="headerlink" title="URL"></a>URL</h2><ul>
-<li><p>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2004.11757.pdf">https://arxiv.org/pdf/2004.11757.pdf</a></p>
-</li>
-<li><p>code: <a target="_blank" rel="noopener" href="https://github.com/cfzd/Ultra-Fast-Lane-Detection">https://github.com/cfzd/Ultra-Fast-Lane-Detection</a></p>
-</li>
-</ul>
-<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
-<li><p>本文提出一种新的车道线检测范式，可以在极低的计算复杂度下精准预测车道线位置。</p>
-</li>
-<li><p>与常见的使用语义分割算法实现车道线检测的范式不同，本文提出的车道线检测范式是将图片 ROI 区域分割成若干像素块，使用分类的方法判断像素块是否包含车道线。</p>
-</li>
-</ul>
-<h2 id="Algorithm"><a href="#Algorithm" class="headerlink" title="Algorithm"></a>Algorithm</h2><h3 id="算法思想"><a href="#算法思想" class="headerlink" title="算法思想"></a>算法思想</h3><p><img src="https://s2.loli.net/2023/04/15/DZCGcId3mWU7hYH.png" alt="ufld.png"></p>
-<ul>
-<li><p>将 ROI 区域（通常是一张图片的下半部分，上半部分是天空不包含车道线）分成若干 <strong>稀疏的行和稠密的列</strong>，论文给出的行数是 <code>18 行 200 列</code>。</p>
-</li>
-<li><p>模型预测每个小格子是否包含车道线，以及包含的车道线属于哪一个车道线实例（主流 benchmark 要求模型预测相邻的 4 条车道线：| |车| |）。</p>
-</li>
-<li><p>对于 <code>CULane</code> 数据集，模型输出 <strong>shape == (N, 4, 18, 201)</strong>，分别表示 18 行 200 列每个格子是否包含车道线（所以是 201 分类），以及包含的车道线的实例编号。</p>
-</li>
-<li><p>加入了一个普通分割辅助任务头加速训练，推理时丢弃，不影响速度。</p>
-</li>
-<li><p>另外除了分类交叉熵损失函数之外，本文加入了两个车道线相关的先验损失函数：</p>
-<ul>
-<li><p>基于车道线连续属性：每条车道线的第 i 行和第 i + 1 行应该具有相近的位置。</p>
-</li>
-<li><p>基于车道线相对笔直属性：每条车道线点第 i 行和第 i + 1 行的连线应该和第 i + 1 行与第 i + 2 行的连线共线。</p>
-</li>
-</ul>
-</li>
-</ul>
-<h3 id="部署优化"><a href="#部署优化" class="headerlink" title="部署优化"></a>部署优化</h3><ul>
-<li>网络末尾使用的高维 FC 层对部署模型加速不利，使用 conv + pixelshuffle（depth to space） 可有效解决。</li>
-</ul>
-<h2 id="Thought"><a href="#Thought" class="headerlink" title="Thought"></a>Thought</h2><ul>
-<li><p>辅助训练输出头是分割任务的标配</p>
-</li>
-<li><p>结构先验损失函数貌似是个故事，作者开源代码中这两个 loss 的权重都是 0</p>
-</li>
-<li><p>范式很好，可经过部署优化后上车</p>
-</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1516,20 +1511,20 @@
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">88</span>
+          <span class="site-state-item-count">90</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">29</span>
+        <span class="site-state-item-count">30</span>
         <span class="site-state-item-name">categories</span></a>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">47</span>
+        <span class="site-state-item-count">48</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -1610,6 +1605,19 @@
 
 
 
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme    : 'forest',
+      logLevel : 3,
+      flowchart: { curve     : 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
+</script>
 
 
   
