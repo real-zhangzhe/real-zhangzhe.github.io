@@ -152,7 +152,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/06/17/[WIP]HiPPO-Recurrent-Memory-with-Optimal-Polynomial-Projections/">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/06/17/HiPPO-Recurrent-Memory-with-Optimal-Polynomial-Projections/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
@@ -166,7 +166,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/2024/06/17/%5BWIP%5DHiPPO-Recurrent-Memory-with-Optimal-Polynomial-Projections/" class="post-title-link" itemprop="url">HiPPO: Recurrent Memory with Optimal Polynomial Projections</a>
+            <a href="/2024/06/17/HiPPO-Recurrent-Memory-with-Optimal-Polynomial-Projections/" class="post-title-link" itemprop="url">HiPPO: Recurrent Memory with Optimal Polynomial Projections</a>
         </h2>
 
         <div class="post-meta">
@@ -183,7 +183,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-06-24 14:07:55" itemprop="dateModified" datetime="2024-06-24T14:07:55+08:00">2024-06-24</time>
+                <time title="Modified: 2024-06-25 13:07:13" itemprop="dateModified" datetime="2024-06-25T13:07:13+08:00">2024-06-25</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -204,8 +204,8 @@
       </span>
       <span class="post-meta-item-text">Valine: </span>
     
-    <a title="valine" href="/2024/06/17/%5BWIP%5DHiPPO-Recurrent-Memory-with-Optimal-Polynomial-Projections/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2024/06/17/%5BWIP%5DHiPPO-Recurrent-Memory-with-Optimal-Polynomial-Projections/" itemprop="commentCount"></span>
+    <a title="valine" href="/2024/06/17/HiPPO-Recurrent-Memory-with-Optimal-Polynomial-Projections/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2024/06/17/HiPPO-Recurrent-Memory-with-Optimal-Polynomial-Projections/" itemprop="commentCount"></span>
     </a>
   </span>
   
@@ -224,7 +224,48 @@
 <li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2008.07669">https://arxiv.org/pdf/2008.07669</a></li>
 <li>code: <a target="_blank" rel="noopener" href="https://github.com/HazyResearch/hippo-code">https://github.com/HazyResearch/hippo-code</a></li>
 </ul>
-<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><pre class="mermaid">graph TD
+<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
+<li><p><code>HiPPO</code> 全称是 <code>High-order Polynomial Projection Operators</code>，是 <code>SSM (State Space Model)</code> 的开山之作，作者延续 <code>SSM</code> 思路，后续做出了可以和 <code>Transformer</code> 结构掰手腕的 <code>Mamba</code></p>
+</li>
+<li><p><code>HiPPO</code> 的目标是用一个有限维的向量来储存这一段 <code>u(t)</code> 的信息，实现方式是将 <code>u(t)</code> 通过 <code>Legendre</code> (勒让德)多项式展开，用有限维的向量存储勒让德多项式系数，且这些 <strong>向量的值通过求解勒让德多项式得出，不在训练过程中通过梯度下降更新</strong></p>
+</li>
+<li><p><code>HiPPO</code> 可以给 <code>RNN</code> 提供一种记忆表示方法，因此一个实际的用处是使用 <code>HiPPO</code> 作为 <code>RNN</code> 的记忆存储算子</p>
+</li>
+</ul>
+<h2 id="Algorithm"><a href="#Algorithm" class="headerlink" title="Algorithm"></a>Algorithm</h2><ul>
+<li><p>勒让德多项式本身是定义在连续函数上的，但实际使用中需要记忆的内容是离散的，因此需要离散化过程</p>
+</li>
+<li><p><code>HiPPO</code> 的记忆更新公式是 $m(t+1) = Am(t)+Bu(t)$，其中 <code>A</code> 和 <code>B</code> 是 <code>HiPPO</code> 参数，<code>m(t)</code> 表示记忆向量，<code>u(t)</code> 表示更新向量，<code>m(t+1)</code> 表示更新后的记忆向量</p>
+<ul>
+<li>$A\in\mathbb R^{N\times N}$</li>
+<li>$B\in\mathbb R^{N\times 1}$</li>
+<li><code>N</code> 表示记忆单元的参数尺度，类似于 <code>Transformer</code> 的 <code>hidden size</code>，越大记忆能力越强</li>
+</ul>
+</li>
+<li><p><code>HiPPO</code> 有 <code>LegT (Translated Legendre Measure)</code> 和 <code>LegS (Scaled Legendre Measure)</code> 两种度量方法，二者都使用上述记忆更新公式，只是 <code>A</code> 和 <code>B</code> 参数不同</p>
+<ul>
+<li><p><code>LegT</code> 使用 <strong>翻译</strong> 任务的勒让德多项式，本质是一个滑动窗口，只记忆当前时刻前 $\theta$ 窗口内容，$\theta$ 为超参数</p>
+<ul>
+<li>$A_{nk}=\frac{1}{\theta}<br>\begin{cases}<br>(-1)^{n-k}(2n+1) &amp; if &amp; n\ge k\\<br>2n+1 &amp; if &amp; n &lt; k<br>\end{cases}$</li>
+<li>$B_n=\frac{1}{\theta}(2n+1)(-1)^n$</li>
+</ul>
+</li>
+<li><p><code>LegS</code> 使用 <strong>缩放</strong> 的勒让德多项式，记忆全部时刻的序列内容</p>
+<ul>
+<li>$A_{nk}=\frac{1}{\theta}<br>\begin{cases}<br>(2n+1)^{\frac{1}{2}}(2k+1)^{\frac{1}{2}} &amp; if &amp; n\gt k\\<br>n+1 &amp; if &amp; n = k\\<br>0 &amp; if &amp; n &lt; k<br>\end{cases}$</li>
+<li>$B_n=(2n+1)^{\frac{1}{2}}$</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>以 <code>Permute Mnist</code> 分类任务的例子讲解 <code>HiPPO</code> 如何作为 <code>RNN</code> 的单元参与计算，以及<code>HiPPO</code> 的记忆单元如何更新</p>
+</li>
+<li><p><code>Permute Mnist</code> 任务是将 <code>28x28</code> 的 <code>Mnist</code> 图像的每一类按照同一种 <code>pattern</code> 进行 <code>shuffle</code>，训练并分类</p>
+</li>
+<li><p>下图为使用 <code>HiPPO</code> 作为记忆单元的 <code>RNN</code> 网络解决 <code>Permute Mnist</code> 任务的计算过程，<code>input_t</code> 是每次顺序输入图片的一个像素值，是一个时间步总长为 <code>28 * 28 = 784</code> 的 <code>RNN</code> 网络，最后一个 <code>hidden state</code> 输出映射到 <code>class dim</code> 上进行分类</p>
+</li>
+</ul>
+<pre class="mermaid">graph TD
     subgraph input;
     input_t([input_t]);
     h_t;
@@ -250,15 +291,17 @@
     m_t+1-->|512|Concat_2;
     input_t-->|1|Concat_2[Concat]-->|513|W_hxm-->|512|Tanh-->|512|hidden([hidden]);
     Concat_2-->|513|W_gxm-->|512|gate([gate]);
-    h_t-->|512|Alpha_Blending-->|512|h_t+1([h_t+1]);
+    h_t-->|512|Alpha_Blending-->|512|h_t+1([h_t+1])-->|512|until_last_h{until_last_h};
     hidden-->|512|Alpha_Blending;
     gate-->|512|Alpha_Blending;
     subgraph output;
-    h_t+1;
+    until_last_h-->|512|map_to_class_dim-->|10|classification_result([classification_result]);
     end;</pre>
 
-
-<!-- ![hippo_1.png](https://s2.loli.net/2024/06/24/HaSVkgxZTbes4NL.png) -->
+<h2 id="Thought"><a href="#Thought" class="headerlink" title="Thought"></a>Thought</h2><ul>
+<li><code>LegT</code> 和 <code>LegS</code> 的参数计算过程需要较强的数学功底才能完全理</li>
+<li>如果只把 <code>A</code> 和 <code>B</code> 当做不需要梯度下降更新的神经网络记忆力更新参数，那么实际上并不复杂</li>
+</ul>
 
       
     </div>
