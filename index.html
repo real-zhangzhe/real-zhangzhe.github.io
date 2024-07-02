@@ -634,7 +634,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-07-01 13:26:58" itemprop="dateModified" datetime="2024-07-01T13:26:58+08:00">2024-07-01</time>
+                <time title="Modified: 2024-07-02 09:51:09" itemprop="dateModified" datetime="2024-07-02T09:51:09+08:00">2024-07-02</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1291,6 +1291,58 @@
 </ul>
 </li>
 <li><p><strong>RMSNorm</strong></p>
+<ul>
+<li><p>假设输入 <code>shape</code> 为 <code>N, C, L</code> 分别表示 <code>batch / feature_dim / seq_length</code></p>
+</li>
+<li><p>$RMS(x_c)=\sqrt{\frac{1}{C}\sum_{n=1}^N\sum_{l=1}^Lx_{nl}^2}\\RMSNorm(x_c)=\frac{x_c}{RMS(x_c)}*k+b$</p>
+</li>
+<li><p>其中，<code>k / b</code> 都是可学习的 <code>per channel</code> 向量</p>
+</li>
+<li><p>和 <code>LayerNorm</code> 相比 <code>RMSNorm</code> 有如下优势：</p>
+<ol>
+<li>更小的计算开销：<code>RMSNorm</code> 不需要计算输入数据的均值，因此减少了计算量，使得模型训练更加高效。</li>
+<li>训练速度更快：由于减少了计算量，<code>RMSNorm</code> 在训练过程中的速度通常比 <code>LayerNorm</code> 更快。</li>
+<li>性能相当或更好：尽管 <code>RMSNorm</code> 的计算更简单，但它在保持与 <code>LayerNorm</code> 相当性能的同时，甚至可能在某些情况下提供更好的性能。</li>
+<li>保留重要的不变性：<code>RMSNorm</code> 保留了输入数据的均方根比例不变性，这有助于模型在面对不同尺度的输入数据时保持一致的性能。</li>
+<li>隐式学习率适应：<code>RMSNorm</code> 通过归一化输入数据的 <code>RMS</code>，为模型提供了一种隐式的学习率适应能力，有助于模型在训练过程中更好地调整参数。</li>
+</ol>
+</li>
+</ul>
+</li>
+<li><p><strong>DeepNorm</strong></p>
+<ul>
+<li><p><code>DeepNorm</code> 可以看做是一种增强型 <code>LayerNorm</code>，对 <code>LayerNorm</code> 改动较小，但效果惊人，<code>DeepNorm</code> 用在 <code>Post-LN</code> 架构上替代传统 <code>LayerNorm</code> 运算，可稳定训练，可训练深度超过 1,000 层的 <code>Transformer</code></p>
+</li>
+<li><p><code>DeepNorm</code> 对 <code>LayerNorm</code> 的改动如下：</p>
+<p>  $LayerNorm (x + f(x)) \rightarrow LayerNorm(x*\alpha + f(x))$</p>
+<p>  <img src="https://s2.loli.net/2024/07/02/kc8Q19t3amuS42z.png" alt="LLM_survey_10.png"></p>
+</li>
+</ul>
+</li>
+</ol>
+</li>
+<li><p><strong>归一化位置</strong></p>
+<ol>
+<li><p><strong>Pre-LN</strong></p>
+<ul>
+<li><p><code>Pre-LN</code> 是一种 <code>Transformer</code> 架构，计算公式是:</p>
+<p>  $x=x+MHA(LayerNorm(x))\\x=x+FFN(LayerNorm(x))\\x = LayerNorm(x)$</p>
+</li>
+</ul>
+</li>
+<li><p><strong>Post-LN</strong></p>
+<ul>
+<li><p><code>Post-LN</code> 是另外一种 <code>Transformer</code> 架构，计算公式是：</p>
+<p>  $x=LayerNorm(x+MHA(x))\\x=LayerNorm(x+FFN(x))$</p>
+</li>
+</ul>
+</li>
+<li><p><strong>Sandwich-LN</strong></p>
+<ul>
+<li><p><code>Sandwich-LN</code> 是 <code>Pre-LN</code> 的改进，公式为：</p>
+<p>  $x=x+LayerNorm(MHA(LayerNorm(x)))\\x=x+LayerNorm(FFN(LayerNorm(x)))\\x = LayerNorm(x)$</p>
+</li>
+</ul>
 </li>
 </ol>
 </li>
