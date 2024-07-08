@@ -39,7 +39,7 @@
 <meta property="og:image" content="https://s2.loli.net/2024/07/02/pWcYQraIxdyeZDF.png">
 <meta property="og:image" content="https://s2.loli.net/2024/07/02/kc8Q19t3amuS42z.png">
 <meta property="article:published_time" content="2024-04-24T05:24:21.000Z">
-<meta property="article:modified_time" content="2024-07-02T05:03:32.718Z">
+<meta property="article:modified_time" content="2024-07-08T05:45:43.224Z">
 <meta property="article:author" content="Zhangzhe">
 <meta property="article:tag" content="Paper Reading">
 <meta property="article:tag" content="Survey">
@@ -201,7 +201,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-07-02 13:03:32" itemprop="dateModified" datetime="2024-07-02T13:03:32+08:00">2024-07-02</time>
+                <time title="Modified: 2024-07-08 13:45:43" itemprop="dateModified" datetime="2024-07-08T13:45:43+08:00">2024-07-08</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -939,18 +939,72 @@
 <li><p><strong>位置编码</strong></p>
 <ol>
 <li><p><strong>绝对位置编码</strong></p>
-<ul>
+<ol>
 <li><p>用在传统 <code>Transformer</code> 上，有两种：</p>
 <ol>
-<li><p>位置编码（<code>position encoding</code>）：使用正弦得到位置编码</p>
-</li>
-<li><p>可学习位置编码（<code>position embedding</code>）：使用可学习的 <code>embedding</code> 编码</p>
-</li>
-</ol>
+<li><p>位置编码（<code>position encoding</code>）：使用正弦得到位置编码<br> $PE(j, 2i)=sin(\frac{p_j}{10000^{\frac{2i}{d_{model}}}})\\PE(j, 2i+1)=cos(\frac{p_j}{10000^{\frac{2i}{d_{model}}}})$</p>
+<ul>
+<li>其中<ul>
+<li>$PE(j,2i)/PE(j,2i+1)$ 分别表示位置 $p_j$ 对应的位置编码向量的第 $2i/2i+1$ 位置的值</li>
+<li>$p_j$ 表示第 $j$ 个位置</li>
+<li>$d_{model}$ 表示向量维度</li>
+</ul>
 </li>
 </ul>
 </li>
+<li><p>可学习位置编码（<code>position embedding</code>）：使用可学习的 <code>embedding</code> 编码</p>
+ <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">position_embedding = nn.Embedding(max_seq_length, d_model)</span><br></pre></td></tr></table></figure></li>
+</ol>
+</li>
+<li>绝对位置编码 <code>position embedding</code> 通常会 <code>element-wise</code> 加到输出 <code>token embedding</code> 作为 <code>Transformer</code> 输入，即：<br>$x_i=x_i + p_i$<br>$x_i$ 表示 <code>token embedding</code>，$p_i$ 表示 <code>position embedding</code></li>
+</ol>
+</li>
 <li><p><strong>相对位置编码</strong></p>
+<ol>
+<li><p>从计算方法来说，相对位置编码和绝对位置编码其实差别不大</p>
+<ol>
+<li><p><strong>相同点</strong>：通常也是使用位置编码（<code>position encoding</code>）和可学习位置编码（<code>position embedding</code>）两种方法</p>
+</li>
+<li><p><strong>不同点</strong>：以一个 <code>seq_len = 3</code> 的序列为例</p>
+<ol>
+<li>绝对位置编码：结果是一个 <code>3 x dim_model</code> 的位置编码向量</li>
+<li>相对位置编码：<ol>
+<li>需要先构造相对位置矩阵：<br>$\begin{bmatrix}0&amp;-1&amp;-2\\1&amp;0&amp;-1\\2&amp;1&amp;0\end{bmatrix}$</li>
+<li>将相对位置矩阵使用上述两种方法中的一种进行向量化，输出一个 <code>3 x 3 x dim_model</code> 的相对位置编码</li>
+</ol>
+</li>
+</ol>
+</li>
+</ol>
+</li>
+<li>从使用方法来说，相对位置编码不再需要显式的将 <code>position embedding</code> 加上 <code>token embedding</code> 作为 <code>Transformer</code> 输入，而是将相对位置编码加到 <code>self-attention</code> 上：<br>$A_{ij}=W_qx_ix_j^TW_k^T+r_{i-j}$<br>其中，$A_{ij}$ 表示 <code>key</code> 和 <code>query</code> 的 <code>self-attention</code>，也就是说会直接把 <code>relative position embedding</code> 加到 <code>self-attention</code> 上，因此也被称为 <code>RelativePositionBias</code> （相当于 <code>self-attention</code> 的 <code>bias</code>）</li>
+</ol>
+</li>
+<li><p><strong>旋转位置编码 <code>RoPE</code></strong></p>
+<ol>
+<li>是一种不可学习的 <code>position encoding</code> 位置编码方式，编码本身是绝对位置编码，但通过 <code>self-attention</code> 之后，<code>key</code> 和 <code>query</code> 会产生相对位置关系</li>
+<li>计算过程：<ol>
+<li>首先以固定间隔角度计算旋转矩阵，矩阵中每个元素是复数形式，<code>shape = [max_seq_len, d_model]</code></li>
+<li>对计算 <code>self-attention</code> 之前的 <code>key / query</code> 分别进行 <strong>旋转</strong>（本质是和旋转矩阵做复数乘法，然后再转换到实数空间），此步骤不改变 <code>key / query</code> 的 <code>shape</code></li>
+<li>然后做标准的 <code>self-attention</code></li>
+</ol>
+</li>
+</ol>
+</li>
+<li><p>总结</p>
+<ol>
+<li><strong>绝对位置编码</strong>：<code>position embedding</code> 和 <code>token embedding</code> 的 <code>shape</code> 相同，作用在 <code>query / key / value</code> 生成之前</li>
+<li><strong>旋转位置编码</strong>：<code>position embedding</code> 和 <code>token embedding</code> 的 <code>shape</code> 相同，作用在 <code>self-attention</code> 之前，只作用在 <code>key / query</code> 上，不对 <code>value</code> 生效</li>
+<li><strong>相对位置编码</strong>：<code>position embedding</code> 和 <code>token embedding</code> 的 <code>shape</code> 不同，和 <code>attention map</code> 的 <code>shape</code> 相同，作用在 <code>self-attention</code> 生成的注意力矩阵上</li>
+</ol>
+</li>
+</ol>
+</li>
+<li><p><strong>Attention 方式</strong></p>
+<ol>
+<li><p><strong>full attention</strong><br>就是标准的 <code>self-attention</code></p>
+</li>
+<li><p><strong>sparse attention</strong></p>
 </li>
 </ol>
 </li>
