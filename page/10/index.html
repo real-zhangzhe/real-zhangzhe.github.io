@@ -152,6 +152,131 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2021/07/26/Linformer-Self-Attention-with-Linear-Complexity/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2021/07/26/Linformer-Self-Attention-with-Linear-Complexity/" class="post-title-link" itemprop="url">Linformer: Self-Attention with Linear Complexity</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2021-07-26 11:42:28" itemprop="dateCreated datePublished" datetime="2021-07-26T11:42:28+08:00">2021-07-26</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2022-09-30 14:56:09" itemprop="dateModified" datetime="2022-09-30T14:56:09+08:00">2022-09-30</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Transformer/" itemprop="url" rel="index"><span itemprop="name">Transformer</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2021/07/26/Linformer-Self-Attention-with-Linear-Complexity/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2021/07/26/Linformer-Self-Attention-with-Linear-Complexity/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="URL"><a href="#URL" class="headerlink" title="URL"></a>URL</h2><p><a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2006.04768.pdf">https://arxiv.org/pdf/2006.04768.pdf</a></p>
+<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
+<li><p>本方法—— <code>Linformer</code> 使用矩阵的低秩来降低原始 <code>Transformer</code> 的 <code>Multi-HEAD Attention</code> 计算的时空复杂度</p>
+</li>
+<li><p>不同 <code>Transformer</code> 结构的复杂度</p>
+</li>
+</ul>
+<p><img src="https://i.loli.net/2021/07/26/146DIsFr9tM7xhu.png" alt="linformer"> </p>
+<h2 id="Algorithm"><a href="#Algorithm" class="headerlink" title="Algorithm"></a>Algorithm</h2><h3 id="原始-Transformer-使用的-Multi-HEAD-Attention"><a href="#原始-Transformer-使用的-Multi-HEAD-Attention" class="headerlink" title="原始 Transformer 使用的 Multi-HEAD Attention"></a>原始 <code>Transformer</code> 使用的 <code>Multi-HEAD Attention</code></h3><p>$head_i = Attention(QW_i^Q,KW_i^K,VW_i^V)=softmax[\frac{QW_i^Q(KW_i^K)^T}{\sqrt d_k}]VW_i^V$</p>
+<p>其中： $K,Q,V \in \mathbb R^{n\times d_m} \ \ \ W_i^Q,W_i^K\in \mathbb R^{d_m\times d_k}$</p>
+<p>所以： $softmax[\frac{QW_i^Q(KW_i^K)^T}{\sqrt d_k}] \in \mathbb {R} ^{n\times n}$ ，<code>n</code> 表示序列长度，所以原始 <code>Transformer</code> 使用的 <code>Multi-HEAD Attention</code> 的时空复杂度为 $O(n^2)$</p>
+<h3 id="Linformer-对-Multi-HEAD-Attention-的修改"><a href="#Linformer-对-Multi-HEAD-Attention-的修改" class="headerlink" title="Linformer 对 Multi-HEAD Attention 的修改"></a><code>Linformer</code> 对 <code>Multi-HEAD Attention</code> 的修改</h3><ul>
+<li><p>将 $KW_i^K, VW_i^V\in  \mathbb R^{n\times d_k}$ 投影到  $E_iKW_i^K, F_iVW_i^V\in  \mathbb R^{k\times d_k}$ ，其中 <code>k</code> 是一个常数，时空复杂度变成了 $O(n)$ ，其中，<code>E、F</code> 都是可学习的投影矩阵， $E,F \in \mathbb R^{k\times n}$ </p>
+</li>
+<li><p>$\bar{head_i} = Attention(QW_i^Q,E_iKW_i^K, F_iVW_i^V)=softmax[\frac{QW_i^Q(E_iKW_i^K)^T}{\sqrt d_k}]F_iVW_i^V$</p>
+</li>
+<li><p>投影矩阵 <code>E、F</code> 可共享参数，分为：</p>
+<ul>
+<li>Headwise sharing： $E_i=E,\ \ F_i=F, \ \ for\ each\ layer$</li>
+<li>Key-value sharing： $E_i=E = F_i, \ \ for\ each\ layer$</li>
+<li>Layerwise sharing： $E, F, \ \ layer\ sharing$</li>
+</ul>
+</li>
+</ul>
+<h3 id="理论依据与结果"><a href="#理论依据与结果" class="headerlink" title="理论依据与结果"></a>理论依据与结果</h3><ul>
+<li>特征值的长尾分布</li>
+</ul>
+<p><img src="https://i.loli.net/2021/07/26/hLo1xU5BAzltsTq.png" alt="linformer2"> </p>
+<ul>
+<li>效果（与 BERT-base 对比）</li>
+</ul>
+<p><img src="https://i.loli.net/2021/07/26/UWvgRwk2LXuVzf8.png" alt="linformer3"> </p>
+<h2 id="Thoughts"><a href="#Thoughts" class="headerlink" title="Thoughts"></a>Thoughts</h2><ul>
+<li><p>文中提到不使用奇异值分解来得到低秩矩阵的原因是：奇异值分解会引入额外的计算量，并且无法共享参数</p>
+</li>
+<li><p>代码被打包为了 <code>linformer</code> 的 <code>pip</code> 包，可以在 <code>torch</code> 框架下直接使用</p>
+</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2021/07/21/Training-data-efficient-image-transformers-distillation-through-attention/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -462,7 +587,7 @@
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">92</span>
+          <span class="site-state-item-count">93</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -475,7 +600,7 @@
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">48</span>
+        <span class="site-state-item-count">49</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>

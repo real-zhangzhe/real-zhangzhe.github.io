@@ -152,6 +152,131 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/07/17/FlashAttention-Fast-and-Memory-Efficient-Exact-Attention-with-IO-Awareness/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2024/07/17/FlashAttention-Fast-and-Memory-Efficient-Exact-Attention-with-IO-Awareness/" class="post-title-link" itemprop="url">FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2024-07-17 08:48:11 / Modified: 09:59:02" itemprop="dateCreated datePublished" datetime="2024-07-17T08:48:11+08:00">2024-07-17</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Transformer/" itemprop="url" rel="index"><span itemprop="name">Transformer</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2024/07/17/FlashAttention-Fast-and-Memory-Efficient-Exact-Attention-with-IO-Awareness/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2024/07/17/FlashAttention-Fast-and-Memory-Efficient-Exact-Attention-with-IO-Awareness/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="URL"><a href="#URL" class="headerlink" title="URL"></a>URL</h2><ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2205.14135">https://arxiv.org/pdf/2205.14135</a></li>
+<li>code: <a target="_blank" rel="noopener" href="https://github.com/shreyansh26/FlashAttention-PyTorch/blob/master/flash_attention.py">https://github.com/shreyansh26/FlashAttention-PyTorch/blob/master/flash_attention.py</a></li>
+</ul>
+<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
+<li>标准 <code>Self-attention</code> $Attention(Q,K,V)=softmax({\frac{QK^T}{\sqrt d}})V$ 是 $\mathcal{O}(n^2)$ 时间复杂度的，随着大模型的发展，序列长度 <code>n</code> 越来越大，带来的时间复杂度和 <code>IO</code> 量越来越恐怖</li>
+<li><code>GPU</code> 或 <code>NPU</code> 等计算设备的 <code>SRAM</code> 空间有限，无法放下所有后续依赖的计算中间结果，而 <code>softmax</code> 运算又需要全局信息（无法直接简单 <code>tiling</code>），所以这里存在巨大的 <code>IO</code> 量（<code>HBM (high bandwidth memory)</code> 和 <code>SRAM</code> 之间）</li>
+<li>本文设计了一种 <code>tiling</code> 的 <code>forward</code> 局部计算 <code>self-attention</code> 的方法</li>
+<li>在 <code>forward</code> 中，<code>FlashAttention</code> 会计算并存储 <code>softmax</code> 操作的归一化因子。在 <code>backward</code> 中，利用这些归一化因子，重新计算所需的中间注意力矩阵，而不需要从 <code>HBM</code> 中读取存储的完整矩阵</li>
+<li>上述两点改进可以保证和标准 <code>self-attention</code> 计算结果（包括 <code>forward</code> 和 <code>backward</code>）完全一致的情况下，极大降低 <code>IO</code> 量</li>
+</ul>
+<h2 id="Algorithm"><a href="#Algorithm" class="headerlink" title="Algorithm"></a>Algorithm</h2><h3 id="1-Standard-attention-implementation"><a href="#1-Standard-attention-implementation" class="headerlink" title="1. Standard attention implementation"></a>1. Standard attention implementation</h3><p><img src="https://s2.loli.net/2024/07/17/v2wFgNH5Mt8cznu.png" alt="flash_1.png"></p>
+<ul>
+<li>这里之所以要频繁和 <code>HBM</code> 以 <code>block</code> 为单位交互是因为有一个限制是 $b\le M \le Nd$，即 <code>SRAM</code> 可存储的数据量在 <code>d</code> 和 <code>Nd</code> 之间</li>
+<li><code>IO</code> 总量：<ul>
+<li>读：$2N^2+3Nd$<ul>
+<li>读 <code>Q / K / V</code></li>
+<li>读 <code>S / P</code></li>
+</ul>
+</li>
+<li>写：$2N^2+Nd$<ul>
+<li>写 <code>S / P</code></li>
+<li>写 <code>O</code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h3 id="2-Flash-attention-forward-implementation"><a href="#2-Flash-attention-forward-implementation" class="headerlink" title="2. Flash attention forward implementation"></a>2. Flash attention forward implementation</h3><p><img src="https://s2.loli.net/2024/07/17/FZuDBUT6zcWvkli.png" alt="flash_2.png"></p>
+<ul>
+<li><code>IO</code> 总量：<ul>
+<li>读：$2Nd+2T_cNd$<ul>
+<li>读 <code>K / V</code> 一次</li>
+<li>读 <code>Q / O</code> $T_c$ 次</li>
+</ul>
+</li>
+<li>写：$T_cNd+2T_cN$<ul>
+<li>写 <code>O</code> $T_c$ 次</li>
+<li>写 <code>l / m</code> $T_c$ 次</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/07/12/GQA-Grouped-Query-Attention/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -2396,101 +2521,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2023/08/16/[WIP]BEVFormer-Learning-Bird%E2%80%99s-Eye-View-Representation-from-Multi-Camera-Images-via-Spatiotemporal-Transformers/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/08/16/%5BWIP%5DBEVFormer-Learning-Bird%E2%80%99s-Eye-View-Representation-from-Multi-Camera-Images-via-Spatiotemporal-Transformers/" class="post-title-link" itemprop="url">BEVFormer: Learning Bird’s-Eye-View Representation from Multi-Camera Images via Spatiotemporal Transformers</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-              
-
-              <time title="Created: 2023-08-16 12:02:58 / Modified: 12:44:11" itemprop="dateCreated datePublished" datetime="2023-08-16T12:02:58+08:00">2023-08-16</time>
-            </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/BEV/" itemprop="url" rel="index"><span itemprop="name">BEV</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2023/08/16/%5BWIP%5DBEVFormer-Learning-Bird%E2%80%99s-Eye-View-Representation-from-Multi-Camera-Images-via-Spatiotemporal-Transformers/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2023/08/16/%5BWIP%5DBEVFormer-Learning-Bird%E2%80%99s-Eye-View-Representation-from-Multi-Camera-Images-via-Spatiotemporal-Transformers/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="URL"><a href="#URL" class="headerlink" title="URL"></a>URL</h2><ul>
-<li><p>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2203.17270.pdf">https://arxiv.org/pdf/2203.17270.pdf</a></p>
-</li>
-<li><p>chinese paper: <a target="_blank" rel="noopener" href="https://drive.google.com/file/d/1dKnD6gUHhBXZ8gT733cIU_A7dHEEzNTP/view?pli=1">https://drive.google.com/file/d/1dKnD6gUHhBXZ8gT733cIU_A7dHEEzNTP/view?pli=1</a></p>
-</li>
-<li><p>code: <a target="_blank" rel="noopener" href="https://github.com/fundamentalvision/BEVFormer">https://github.com/fundamentalvision/BEVFormer</a></p>
-</li>
-</ul>
-<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
-<li><p>传统 <code>BEV</code> 算法中 <code>View Transform</code> 都是通过 <code>LSS</code> 实现 <code>Image View</code> 到 <code>BEV View</code> 的转变，这种视角转换方法依赖于图像视角的深度估计（显式或隐式）。</p>
-</li>
-<li><p>本文提出一种新的通过时空注意力机制实现的 <code>View Transform</code> 方法，在 <code>Neuscenes</code> 数据集上取得了不错的 <code>3D</code> 目标检测成绩（略差于 <code>BEVDet4D</code>）。</p>
-</li>
-</ul>
-<h2 id="Algorithm"><a href="#Algorithm" class="headerlink" title="Algorithm"></a>Algorithm</h2>
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -2559,7 +2589,7 @@
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">92</span>
+          <span class="site-state-item-count">93</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -2572,7 +2602,7 @@
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">48</span>
+        <span class="site-state-item-count">49</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
