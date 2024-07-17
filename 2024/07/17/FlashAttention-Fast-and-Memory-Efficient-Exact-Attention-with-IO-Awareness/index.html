@@ -30,7 +30,7 @@
 <meta property="og:image" content="https://s2.loli.net/2024/07/17/v2wFgNH5Mt8cznu.png">
 <meta property="og:image" content="https://s2.loli.net/2024/07/17/FZuDBUT6zcWvkli.png">
 <meta property="article:published_time" content="2024-07-17T00:48:11.000Z">
-<meta property="article:modified_time" content="2024-07-17T02:09:36.953Z">
+<meta property="article:modified_time" content="2024-07-17T05:39:36.542Z">
 <meta property="article:author" content="Zhangzhe">
 <meta property="article:tag" content="Paper Reading">
 <meta property="article:tag" content="Transformer">
@@ -187,7 +187,7 @@
               <span class="post-meta-item-text">Posted on</span>
               
 
-              <time title="Created: 2024-07-17 08:48:11 / Modified: 10:09:36" itemprop="dateCreated datePublished" datetime="2024-07-17T08:48:11+08:00">2024-07-17</time>
+              <time title="Created: 2024-07-17 08:48:11 / Modified: 13:39:36" itemprop="dateCreated datePublished" datetime="2024-07-17T08:48:11+08:00">2024-07-17</time>
             </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -233,7 +233,7 @@
 <li><code>GPU</code> 或 <code>NPU</code> 等计算设备的 <code>SRAM</code> 空间有限，无法放下所有后续依赖的计算中间结果，而 <code>softmax</code> 运算又需要全局信息（无法直接简单 <code>tiling</code>），所以这里存在巨大的 <code>IO</code> 量（<code>HBM (high bandwidth memory)</code> 和 <code>SRAM</code> 之间）</li>
 <li>本文设计了一种 <code>tiling</code> 的 <code>forward</code> 局部计算 <code>self-attention</code> 的方法</li>
 <li>在 <code>forward</code> 中，<code>FlashAttention</code> 会计算并存储 <code>softmax</code> 操作的归一化因子。在 <code>backward</code> 中，利用这些归一化因子，重新计算所需的中间注意力矩阵，而不需要从 <code>HBM</code> 中读取存储的完整矩阵</li>
-<li>上述两点改进可以保证和标准 <code>self-attention</code> 计算结果（包括 <code>forward</code> 和 <code>backward</code>）完全一致的情况下，极大降低 <code>IO</code> 量</li>
+<li>上述两点改进可以保证和标准 <code>self-attention</code> 计算结果（包括 <code>forward</code> 和 <code>backward</code>）完全一致的情况下，极大降低 <code>IO</code> 量（代价是计算量的小幅上涨）</li>
 </ul>
 <h2 id="Algorithm"><a href="#Algorithm" class="headerlink" title="Algorithm"></a>Algorithm</h2><h3 id="1-Standard-attention-implementation"><a href="#1-Standard-attention-implementation" class="headerlink" title="1. Standard attention implementation"></a>1. Standard attention implementation</h3><p><img src="https://s2.loli.net/2024/07/17/v2wFgNH5Mt8cznu.png" alt="flash_1.png"></p>
 <ul>
@@ -282,6 +282,15 @@
 <li>下限：$4Nd+8N$</li>
 </ul>
 </li>
+<li><code>Block size</code> 越大，总 <code>IO</code> 量越小</li>
+</ul>
+</li>
+</ul>
+<h3 id="3-详解-Flash-attention-过程"><a href="#3-详解-Flash-attention-过程" class="headerlink" title="3. 详解 Flash attention 过程"></a>3. 详解 <code>Flash attention</code> 过程</h3><ul>
+<li>标准 <code>softmax</code> 过程：$softmax(x_{ij})=\frac{e^{x_{ij}-max(x)}}{\sum_{i=0}^{N}\sum_{j=0}^{N}e^{x_{ij}-max(x)}}$，为了计算过程的数值稳定，需要对每个值减去序列最大值</li>
+<li><code>Flash attention</code> 中，会将 <code>QKV</code> 都在时序维度切分成若干块，然后在小块之间计算 <code>Attention</code>，直接计算是不等价的，因为需要全局信息，例如：<ul>
+<li>全局最大值 <code>m(x)</code></li>
+<li>指数累加和 <code>l(x)</code></li>
 </ul>
 </li>
 </ul>
@@ -369,7 +378,7 @@
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
-          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#URL"><span class="nav-number">1.</span> <span class="nav-text">URL</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#TL-DR"><span class="nav-number">2.</span> <span class="nav-text">TL;DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Algorithm"><span class="nav-number">3.</span> <span class="nav-text">Algorithm</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-Standard-attention-implementation"><span class="nav-number">3.1.</span> <span class="nav-text">1. Standard attention implementation</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-Flash-attention-forward-implementation"><span class="nav-number">3.2.</span> <span class="nav-text">2. Flash attention forward implementation</span></a></li></ol></li></ol></div>
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#URL"><span class="nav-number">1.</span> <span class="nav-text">URL</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#TL-DR"><span class="nav-number">2.</span> <span class="nav-text">TL;DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Algorithm"><span class="nav-number">3.</span> <span class="nav-text">Algorithm</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-Standard-attention-implementation"><span class="nav-number">3.1.</span> <span class="nav-text">1. Standard attention implementation</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-Flash-attention-forward-implementation"><span class="nav-number">3.2.</span> <span class="nav-text">2. Flash attention forward implementation</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-%E8%AF%A6%E8%A7%A3-Flash-attention-%E8%BF%87%E7%A8%8B"><span class="nav-number">3.3.</span> <span class="nav-text">3. 详解 Flash attention 过程</span></a></li></ol></li></ol></div>
       </div>
       <!--/noindex-->
 
