@@ -152,6 +152,135 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/07/18/FlashAttention-2-Faster-Attention-with-Better-Parallelism-and-Work-Partitioning/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2024/07/18/FlashAttention-2-Faster-Attention-with-Better-Parallelism-and-Work-Partitioning/" class="post-title-link" itemprop="url">FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2024-07-18 12:50:28 / Modified: 20:02:59" itemprop="dateCreated datePublished" datetime="2024-07-18T12:50:28+08:00">2024-07-18</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Transformer/" itemprop="url" rel="index"><span itemprop="name">Transformer</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2024/07/18/FlashAttention-2-Faster-Attention-with-Better-Parallelism-and-Work-Partitioning/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2024/07/18/FlashAttention-2-Faster-Attention-with-Better-Parallelism-and-Work-Partitioning/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="URL"><a href="#URL" class="headerlink" title="URL"></a>URL</h2><ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2307.08691">https://arxiv.org/pdf/2307.08691</a></li>
+<li>code: <a target="_blank" rel="noopener" href="https://github.com/kyegomez/FlashAttention20/blob/main/attention.py">https://github.com/kyegomez/FlashAttention20/blob/main/attention.py</a></li>
+</ul>
+<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
+<li><code>FlashAttention-2</code> 是 <code>FlashAttention</code> 一作对前一版的更新，基本思想不变，只优化了部分算法流程，可以比 <code>V1</code> 提速一倍</li>
+</ul>
+<h2 id="Algorithm"><a href="#Algorithm" class="headerlink" title="Algorithm"></a>Algorithm</h2><p><img src="https://s2.loli.net/2024/07/18/FkzaMcX5VhjnQWo.png" alt="flash_attention_2.png"></p>
+<ul>
+<li><p><code>Flash Attention 2</code> 前向过程主要优化了几个方面：</p>
+<ol>
+<li><code>Flash Attention v1</code> 中计算 <code>P_ij</code> 计算过程很绕，需要更新两次全局信息，<code>v2</code> 中进行了优化</li>
+<li><code>Flash Attention v1</code> 中内外层循环设置不合理，<code>v2</code> 对调了内外层循环，这样做的好处是：<ol>
+<li>不再需要重复读入写出 <code>O</code></li>
+<li><code>max_value</code> 信息变成一个计算中间变量，不再需要读入写出，<code>backward</code> 过程也无需依赖</li>
+</ol>
+</li>
+</ol>
+</li>
+<li><p><code>Flash Attention v2</code> 和 <code>Flash Attention v1</code> 的 <code>IO</code> 量对比</p>
+<ul>
+<li><code>v1</code>：<ul>
+<li>读：$2Nd+2T_cNd$</li>
+<li>写：$T_cNd+2T_cN$</li>
+</ul>
+</li>
+<li><code>v2</code>：<ul>
+<li>读：$Nd+2T_rNd$</li>
+<li>写：$Nd+N$</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br></pre></td><td class="code"><pre><span class="line">import torch</span><br><span class="line">import math</span><br><span class="line"></span><br><span class="line">BLOCK_SIZE = 1024</span><br><span class="line">NEG_INF = -1e10  # -infinity</span><br><span class="line">EPSILON = 1e-10</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">def flash_attention2_forward(Q, K, V):</span><br><span class="line">    batch, seq_len, dim = Q.shape</span><br><span class="line">    O = torch.zeros_like(Q, requires_grad=True, device=Q.device)</span><br><span class="line">    l = torch.zeros((batch, seq_len, 1), device=Q.device)  # 1 for broadcasting</span><br><span class="line">    m = torch.ones((batch, seq_len, 1), device=Q.device) * NEG_INF</span><br><span class="line"></span><br><span class="line">    Q = list(torch.split(Q, BLOCK_SIZE, dim=1))</span><br><span class="line">    K = list(torch.split(K, BLOCK_SIZE, dim=1))</span><br><span class="line">    V = list(torch.split(V, BLOCK_SIZE, dim=1))</span><br><span class="line">    O = list(torch.split(O, BLOCK_SIZE, dim=1))</span><br><span class="line">    l = list(torch.split(l, BLOCK_SIZE, dim=1))</span><br><span class="line">    m = list(torch.split(m, BLOCK_SIZE, dim=1))</span><br><span class="line"></span><br><span class="line">    Tr = len(Q)</span><br><span class="line">    Tc = len(K)</span><br><span class="line">    scale = 1 / math.sqrt(dim)</span><br><span class="line">    for i in range(Tr):</span><br><span class="line">        Qi_scaled = Q[i] * scale</span><br><span class="line">        for j in range(Tc):</span><br><span class="line">            S_ij = torch.einsum(&quot;bnd,bmd-&gt;bnm&quot;, Qi_scaled, K[j])</span><br><span class="line">            m_ij, _ = torch.max(S_ij, dim=-1, keepdim=True)</span><br><span class="line">            mi_new = torch.maximum(m_ij, m[i])</span><br><span class="line">            P_ij = torch.exp(S_ij - mi_new)</span><br><span class="line">            P_ijV_j = torch.einsum(&quot;bnm,bmd-&gt;bnd&quot;, P_ij, V[j])</span><br><span class="line">            exp_row_max_diff = torch.exp(m[i] - mi_new)</span><br><span class="line">            li_new = l[i] * exp_row_max_diff + P_ij.sum(dim=-1, keepdim=True)</span><br><span class="line">            O[i] = O[i] * exp_row_max_diff + P_ijV_j</span><br><span class="line">            m[i] = mi_new</span><br><span class="line">            l[i] = li_new</span><br><span class="line">        O[i] = O[i] / l[i]</span><br><span class="line"></span><br><span class="line">    O = torch.cat(O, dim=1)</span><br><span class="line">    l = torch.cat(l, dim=1)</span><br><span class="line"></span><br><span class="line">    return O, l</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">def flash_attention2_backward(Q, K, V, O, l, dO):</span><br><span class="line">    # 参考代码中进行了实现，但这里省略，重点关注一下 backward 过程的输入</span><br><span class="line">    pass</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">if __name__ == &quot;__main__&quot;:</span><br><span class="line">    torch.random.manual_seed(0)</span><br><span class="line"></span><br><span class="line">    device = torch.device(&quot;cuda&quot;) if torch.cuda.is_available() else torch.device(&quot;cpu&quot;)</span><br><span class="line"></span><br><span class="line">    # batch, seq_len, dim</span><br><span class="line">    Q = torch.randn(2, 4096, 128, requires_grad=True).to(device)</span><br><span class="line">    K = torch.randn(2, 4096, 128, requires_grad=True).to(device)</span><br><span class="line">    V = torch.randn(2, 4096, 128, requires_grad=True).to(device)</span><br><span class="line"></span><br><span class="line">    flash2_out = flash_attention2_forward(Q, K, V)</span><br><span class="line">    print(flash2_out[0].sum().item())</span><br></pre></td></tr></table></figure>
+<ul>
+<li><code>backward</code> 过程在 <code>v2</code> 论文中详细的写出来了，如下：</li>
+</ul>
+<p><img src="https://s2.loli.net/2024/07/18/X7e8OgNiIAaysLk.png" alt="flash2_2.png"></p>
+<ul>
+<li>速度效果提升很明显</li>
+</ul>
+<p><img src="https://s2.loli.net/2024/07/18/kQVDHWJI7eAFLXR.png" alt="flash2_3.png"></p>
+<h2 id="Thought"><a href="#Thought" class="headerlink" title="Thought"></a>Thought</h2><ul>
+<li><code>Flash Attention v2</code> 看起来特别像 <code>Flash Attention</code> 的紧急修复版本，把之前写的冗余删掉了</li>
+<li>甚至完全不了解 <code>Flash Attention</code> 思想的人看 <code>Flash Attention</code> 的实现代码，都可以将其优化到 <code>Flash Attention v2</code>，就是简单的代码优化….</li>
+<li><code>Flash Attention v2</code> 彻底把这个 <code>tiling</code> 思路的优势发挥出来了</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/07/17/FlashAttention-Fast-and-Memory-Efficient-Exact-Attention-with-IO-Awareness/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -175,10 +304,16 @@
                 <i class="far fa-calendar"></i>
               </span>
               <span class="post-meta-item-text">Posted on</span>
-              
 
-              <time title="Created: 2024-07-17 08:48:11 / Modified: 20:21:28" itemprop="dateCreated datePublished" datetime="2024-07-17T08:48:11+08:00">2024-07-17</time>
+              <time title="Created: 2024-07-17 08:48:11" itemprop="dateCreated datePublished" datetime="2024-07-17T08:48:11+08:00">2024-07-17</time>
             </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-07-18 19:54:28" itemprop="dateModified" datetime="2024-07-18T19:54:28+08:00">2024-07-18</time>
+              </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
                 <i class="far fa-folder"></i>
@@ -219,6 +354,7 @@
 <li>code: <a target="_blank" rel="noopener" href="https://github.com/shreyansh26/FlashAttention-PyTorch/blob/master/flash_attention.py">https://github.com/shreyansh26/FlashAttention-PyTorch/blob/master/flash_attention.py</a></li>
 </ul>
 <h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
+<li><code>Flash Attention</code> 是标准 <code>Attention</code> 的一种完全数学等价的高效实现</li>
 <li>标准 <code>Self-attention</code> $Attention(Q,K,V)=softmax({\frac{QK^T}{\sqrt d}})V$ 是 $\mathcal{O}(n^2)$ 时间复杂度的，随着大模型的发展，序列长度 <code>n</code> 越来越大，带来的时间复杂度和 <code>IO</code> 量越来越恐怖</li>
 <li><code>GPU</code> 或 <code>NPU</code> 等计算设备的 <code>SRAM</code> 空间有限，无法放下所有后续依赖的计算中间结果，而 <code>softmax</code> 运算又需要全局信息（无法直接简单 <code>tiling</code>），所以这里存在巨大的 <code>IO</code> 量（<code>HBM (high bandwidth memory)</code> 和 <code>SRAM</code> 之间）</li>
 <li>本文设计了一种 <code>tiling</code> 的局部计算 <code>self-attention</code> 的方法，这种方法在 <code>forward</code> 和 <code>backward</code> 中都可以使用</li>
@@ -284,7 +420,20 @@
 </ul>
 </li>
 </ul>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> torch</span><br><span class="line"><span class="keyword">import</span> math</span><br><span class="line"></span><br><span class="line">BLOCK_SIZE = <span class="number">1024</span></span><br><span class="line">NEG_INF = -<span class="number">1e10</span>  <span class="comment"># -infinity</span></span><br><span class="line">EPSILON = <span class="number">1e-10</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">flash_attention_forward</span>(<span class="params">Q, K, V</span>):</span></span><br><span class="line">    batch, seq_len, dim = Q.shape</span><br><span class="line">    O = torch.zeros_like(Q, requires_grad=<span class="literal">True</span>, device=Q.device)</span><br><span class="line">    l = torch.zeros((batch, seq_len, <span class="number">1</span>), device=Q.device)  <span class="comment"># 1 for broadcasting</span></span><br><span class="line">    m = torch.ones((batch, seq_len, <span class="number">1</span>), device=Q.device) * NEG_INF</span><br><span class="line"></span><br><span class="line">    Q_BLOCK_SIZE = <span class="built_in">min</span>(BLOCK_SIZE, dim)</span><br><span class="line">    KV_BLOCK_SIZE = BLOCK_SIZE</span><br><span class="line"></span><br><span class="line">    Q = torch.split(Q, Q_BLOCK_SIZE, dim=<span class="number">1</span>)</span><br><span class="line">    K = torch.split(K, KV_BLOCK_SIZE, dim=<span class="number">1</span>)</span><br><span class="line">    V = torch.split(V, KV_BLOCK_SIZE, dim=<span class="number">1</span>)</span><br><span class="line">    O = <span class="built_in">list</span>(torch.split(O, Q_BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    l = <span class="built_in">list</span>(torch.split(l, Q_BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    m = <span class="built_in">list</span>(torch.split(m, Q_BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line"></span><br><span class="line">    Tr = <span class="built_in">len</span>(Q)</span><br><span class="line">    Tc = <span class="built_in">len</span>(K)</span><br><span class="line"></span><br><span class="line">    scale = <span class="number">1</span> / math.sqrt(dim)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> j <span class="keyword">in</span> <span class="built_in">range</span>(Tc):</span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(Tr):</span><br><span class="line">            Qi_scaled = Q[i] * scale</span><br><span class="line">            S_ij = torch.einsum(<span class="string">&quot;... i d, ... j d -&gt; ... i j&quot;</span>, Qi_scaled, K[j])</span><br><span class="line">            m_ij, _ = torch.<span class="built_in">max</span>(S_ij, dim=-<span class="number">1</span>, keepdim=<span class="literal">True</span>)</span><br><span class="line">            mi_new = torch.maximum(m_ij, m[i])</span><br><span class="line">            P_ij = torch.exp(S_ij - mi_new)</span><br><span class="line">            l_ij = torch.<span class="built_in">sum</span>(P_ij, dim=-<span class="number">1</span>, keepdim=<span class="literal">True</span>) + EPSILON</span><br><span class="line">            P_ij_Vj = torch.einsum(<span class="string">&quot;... i j, ... j d -&gt; ... i d&quot;</span>, P_ij, V[j])</span><br><span class="line">            li_new = torch.exp(m[i] - mi_new) * l[i] + l_ij</span><br><span class="line">            O[i] = (l[i] * torch.exp(m[i] - mi_new) * O[i] + P_ij_Vj) / li_new</span><br><span class="line">            l[i] = li_new</span><br><span class="line">            m[i] = mi_new</span><br><span class="line"></span><br><span class="line">    O = torch.cat(O, dim=<span class="number">1</span>)</span><br><span class="line">    l = torch.cat(l, dim=<span class="number">1</span>)</span><br><span class="line">    m = torch.cat(m, dim=<span class="number">1</span>)</span><br><span class="line">    <span class="keyword">return</span> O, l, m</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">&quot;__main__&quot;</span>:</span><br><span class="line">    torch.random.manual_seed(<span class="number">0</span>)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># batch, seq_len, dim</span></span><br><span class="line">    Q = torch.randn(<span class="number">2</span>, <span class="number">4096</span>, <span class="number">128</span>, requires_grad=<span class="literal">True</span>).to(device=<span class="string">&quot;cuda&quot;</span>)</span><br><span class="line">    K = torch.randn(<span class="number">2</span>, <span class="number">4096</span>, <span class="number">128</span>, requires_grad=<span class="literal">True</span>).to(device=<span class="string">&quot;cuda&quot;</span>)</span><br><span class="line">    V = torch.randn(<span class="number">2</span>, <span class="number">4096</span>, <span class="number">128</span>, requires_grad=<span class="literal">True</span>).to(device=<span class="string">&quot;cuda&quot;</span>)</span><br><span class="line"></span><br><span class="line">    out = flash_attention_forward(Q, K, V)</span><br><span class="line">    <span class="built_in">print</span>(out[<span class="number">0</span>].<span class="built_in">sum</span>().item())</span><br></pre></td></tr></table></figure>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> torch</span><br><span class="line"><span class="keyword">import</span> math</span><br><span class="line"></span><br><span class="line">BLOCK_SIZE = <span class="number">1024</span></span><br><span class="line">NEG_INF = -<span class="number">1e10</span>  <span class="comment"># -infinity</span></span><br><span class="line">EPSILON = <span class="number">1e-10</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">flash_attention_forward</span>(<span class="params">Q, K, V</span>):</span></span><br><span class="line">    batch, seq_len, dim = Q.shape</span><br><span class="line">    O = torch.zeros_like(Q, requires_grad=<span class="literal">True</span>, device=Q.device)</span><br><span class="line">    l = torch.zeros((batch, seq_len, <span class="number">1</span>), device=Q.device)  <span class="comment"># 1 for broadcasting</span></span><br><span class="line">    m = torch.ones((batch, seq_len, <span class="number">1</span>), device=Q.device) * NEG_INF</span><br><span class="line"></span><br><span class="line">    Q_BLOCK_SIZE = <span class="built_in">min</span>(BLOCK_SIZE, dim)</span><br><span class="line">    KV_BLOCK_SIZE = BLOCK_SIZE</span><br><span class="line"></span><br><span class="line">    Q = torch.split(Q, Q_BLOCK_SIZE, dim=<span class="number">1</span>)</span><br><span class="line">    K = torch.split(K, KV_BLOCK_SIZE, dim=<span class="number">1</span>)</span><br><span class="line">    V = torch.split(V, KV_BLOCK_SIZE, dim=<span class="number">1</span>)</span><br><span class="line">    O = <span class="built_in">list</span>(torch.split(O, Q_BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    l = <span class="built_in">list</span>(torch.split(l, Q_BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    m = <span class="built_in">list</span>(torch.split(m, Q_BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line"></span><br><span class="line">    Tr = <span class="built_in">len</span>(Q)</span><br><span class="line">    Tc = <span class="built_in">len</span>(K)</span><br><span class="line"></span><br><span class="line">    scale = <span class="number">1</span> / math.sqrt(dim)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> j <span class="keyword">in</span> <span class="built_in">range</span>(Tc):</span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(Tr):</span><br><span class="line">            Qi_scaled = Q[i] * scale</span><br><span class="line">            S_ij = torch.einsum(<span class="string">&quot;... i d, ... j d -&gt; ... i j&quot;</span>, Qi_scaled, K[j])</span><br><span class="line">            m_ij, _ = torch.<span class="built_in">max</span>(S_ij, dim=-<span class="number">1</span>, keepdim=<span class="literal">True</span>)</span><br><span class="line">            P_ij = torch.exp(S_ij - m_ij)</span><br><span class="line">            mi_new = torch.maximum(m_ij, m[i])</span><br><span class="line">            l_ij = (</span><br><span class="line">                torch.<span class="built_in">sum</span>(P_ij * torch.exp(m_ij - mi_new), dim=-<span class="number">1</span>, keepdim=<span class="literal">True</span>)</span><br><span class="line">                + EPSILON</span><br><span class="line">            )</span><br><span class="line">            P_ij_Vj = torch.einsum(</span><br><span class="line">                <span class="string">&quot;... i j, ... j d -&gt; ... i d&quot;</span>, P_ij * torch.exp(m_ij - mi_new), V[j]</span><br><span class="line">            )</span><br><span class="line">            li_new = torch.exp(m[i] - mi_new) * l[i] + l_ij</span><br><span class="line">            O[i] = (O[i] * l[i] * torch.exp(m[i] - mi_new) + P_ij_Vj) / li_new</span><br><span class="line">            l[i] = li_new</span><br><span class="line">            m[i] = mi_new</span><br><span class="line"></span><br><span class="line">    O = torch.cat(O, dim=<span class="number">1</span>)</span><br><span class="line">    l = torch.cat(l, dim=<span class="number">1</span>)</span><br><span class="line">    m = torch.cat(m, dim=<span class="number">1</span>)</span><br><span class="line">    <span class="keyword">return</span> O, l, m</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">flash_attention_backward</span>(<span class="params">Q, K, V, O, l, m, dO</span>):</span></span><br><span class="line">    <span class="comment"># 参考代码中进行了实现，但这里省略，重点关注一下 backward 过程的输入</span></span><br><span class="line">    <span class="keyword">pass</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">&quot;__main__&quot;</span>:</span><br><span class="line">    torch.random.manual_seed(<span class="number">0</span>)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># batch, seq_len, dim</span></span><br><span class="line">    Q = torch.randn(<span class="number">2</span>, <span class="number">4096</span>, <span class="number">128</span>, requires_grad=<span class="literal">True</span>).to(device=<span class="string">&quot;cuda&quot;</span>)</span><br><span class="line">    K = torch.randn(<span class="number">2</span>, <span class="number">4096</span>, <span class="number">128</span>, requires_grad=<span class="literal">True</span>).to(device=<span class="string">&quot;cuda&quot;</span>)</span><br><span class="line">    V = torch.randn(<span class="number">2</span>, <span class="number">4096</span>, <span class="number">128</span>, requires_grad=<span class="literal">True</span>).to(device=<span class="string">&quot;cuda&quot;</span>)</span><br><span class="line"></span><br><span class="line">    out = flash_attention_forward(Q, K, V)</span><br><span class="line">    <span class="built_in">print</span>(out[<span class="number">0</span>].<span class="built_in">sum</span>().item())</span><br></pre></td></tr></table></figure>
+<ul>
+<li>这里最重要也最难理解的一行代码是：<code>O[i] = (O[i] * l[i] * torch.exp(m[i] - mi_new) + P_ij_Vj) / li_new</code>，这个仔细分析一下<ul>
+<li><code>O[i] * l[i]</code> 是计算得到上次外循环（<code>j-1</code>）时的分子</li>
+<li><code>O[i] * l[i] * torch.exp(m[i] - mi_new)</code> 是把 <code>j-1</code> 时刻存储的信息更新到最新（调整 <code>max_value</code>）</li>
+<li><code>O[i] * l[i] * torch.exp(m[i] - mi_new) + P_ij_Vj</code> 因为 <code>O</code> 的初始值是 <code>0</code>，因此这个公式可以拆解为：$O_i = \sum_{j=1}^{T_c} \frac{P_{ij} * V_j}{l_i}$，通过不断更新 <code>max_value</code> 和累加求和得到最终结果</li>
+</ul>
+</li>
+</ul>
+<h2 id="Thought"><a href="#Thought" class="headerlink" title="Thought"></a>Thought</h2><ul>
+<li><code>Flash Attention</code> 的效率和 <code>block size</code> 相关，<code>block size</code> 越大，效率提升越明显；在一些 <code>block size</code> 较小的情况下，效率可能会比标准 <code>Attention</code> 更差</li>
+<li><code>Flash Attention</code> 目标是解决 <code>Memory hierarchy</code> 情况下标注 <code>Attention</code> 计算访存比较低导致 <code>IO</code> 开销大的问题，是一种以时间换空间的做法；当 <code>SRAM</code> 相比模型足够大时，标准 <code>Attention</code> 效率比 <code>Flash Attention</code> 更高</li>
+<li><code>backward</code> 过程也是通过几乎相同的方式计算的，<code>forward</code> 阶段计算得到的中间 <code>l / m</code> 都会用于计算 <code>backward</code></li>
+</ul>
 
       
     </div>
@@ -975,7 +1124,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-07-15 13:03:00" itemprop="dateModified" datetime="2024-07-15T13:03:00+08:00">2024-07-15</time>
+                <time title="Modified: 2024-07-19 12:22:46" itemprop="dateModified" datetime="2024-07-19T12:22:46+08:00">2024-07-19</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1809,6 +1958,10 @@
 </ol>
 </li>
 <li><p><strong>Flash attention</strong></p>
+<ol>
+<li>简单来说 <code>Flash attention</code> 和 <code>Flash attention v2</code> 是标准 <code>self-attention</code> 的完全等价的高效实现，通过更合理的实现大幅降低了 <code>SRAM</code> 和 <code>HBW</code> 之间的 <code>IO</code> 量，从而大幅加速训练 / 推理速度</li>
+<li>具体可以看 <a target="_blank" rel="noopener" href="https://zhangzhe.space/2024/07/17/FlashAttention-Fast-and-Memory-Efficient-Exact-Attention-with-IO-Awareness/">https://zhangzhe.space/2024/07/17/FlashAttention-Fast-and-Memory-Efficient-Exact-Attention-with-IO-Awareness/</a> 和 </li>
+</ol>
 </li>
 </ol>
 </li>
@@ -2411,143 +2564,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2023/09/07/A-Keypoint-based-Global-Association-Network-for-Lane-Detection/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/09/07/A-Keypoint-based-Global-Association-Network-for-Lane-Detection/" class="post-title-link" itemprop="url">A Keypoint-based Global Association Network for Lane Detection</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-              
-
-              <time title="Created: 2023-09-07 16:20:10 / Modified: 19:58:06" itemprop="dateCreated datePublished" datetime="2023-09-07T16:20:10+08:00">2023-09-07</time>
-            </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Autopilot/" itemprop="url" rel="index"><span itemprop="name">Autopilot</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2023/09/07/A-Keypoint-based-Global-Association-Network-for-Lane-Detection/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2023/09/07/A-Keypoint-based-Global-Association-Network-for-Lane-Detection/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="URL"><a href="#URL" class="headerlink" title="URL"></a>URL</h2><ul>
-<li><p>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2204.07335.pdf">https://arxiv.org/pdf/2204.07335.pdf</a></p>
-</li>
-<li><p>code: <a target="_blank" rel="noopener" href="https://github.com/Wolfwjs/GANet">https://github.com/Wolfwjs/GANet</a></p>
-</li>
-</ul>
-<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
-<li><p>传统基于关键点检测的车道线检测网络通常需要根据任务的定义设计模型输出头结构，比如 <code>UFLD</code> 算法每条车道线需要占据一个输出 <code>channel</code> 。</p>
-</li>
-<li><p>本论文提出一种新颖的车道线检测范式，解耦了任务和网络，仅使用固定的输出通道数即可检测任意多条车道线。</p>
-</li>
-</ul>
-<h2 id="Algorithm"><a href="#Algorithm" class="headerlink" title="Algorithm"></a>Algorithm</h2><h3 id="总体思路"><a href="#总体思路" class="headerlink" title="总体思路"></a>总体思路</h3><p><img src="https://s2.loli.net/2023/09/07/rTU59Ca6tMz24QD.png" alt="ganet2.png"></p>
-<ul>
-<li><p>如何实现只用一个 <code>channel</code> 输出即可检测任意多条车道线？一个可以想到的简单方法是：</p>
-<ol>
-<li><p>输出一个 <code>channel = 1</code> 的 <code>heat map</code>，其中每个位置的 <code>heat map value</code> 依旧表示该位置是车道线关键点的概率。</p>
-</li>
-<li><p>使用阈值过滤得到所有车道线的关键点坐标（每条车道线关键点数量应 &gt;= 2）。</p>
-</li>
-<li><p>使用聚类的方式将一堆关键点分成若干组，每组关键点表示一条车道线。聚类中的 “距离” 判定逻辑需要根据一些先验知识进行设计（比如：因为车道线在图片中更接近竖直方向，因此水平距离权重小于垂直距离）。</p>
-</li>
-</ol>
-</li>
-<li><p>上述操作中的聚类过程包含了很多人为总结的先验知识，非常不 “机器学习”，于是我们可以改进这个过程：</p>
-<ol>
-<li><p>输出一个 <code>channel = 1</code> 的 <code>heat map</code> 和一个 <code>channel = 2</code> 的 <code>offset map</code>，其中每个位置的 <code>heat map value</code> 依旧表示该位置是车道线关键点的概率，每个位置的 <code>offset map value</code> 表示 <strong>如果该点是关键点，那么该点相对于本条车道线起始点的偏移（x, y）</strong>，起始点表示一条车道线关键点中最靠近图片下方的点。</p>
-</li>
-<li><p>使用阈值过滤得到所有关键点，将关键点对应位置的偏移 <code>offset</code> 得到新的点 <code>p&#39;</code>，理论上同一条车道线的每一个关键点偏移后得到的新位置 <code>p&#39;</code> 都一致，都是车道线起始点。</p>
-</li>
-<li><p>因为神经网络不太能拟合到 <code>loss == 0</code>，因此还需要对所有的 <code>p&#39;</code> 进行聚类，每个类表示一条车道线实例，本质相当于将聚类中的距离判定逻辑吸到神经网络内部。</p>
-</li>
-</ol>
-</li>
-<li><p>以上就是本论文提出的 <code>GANet</code> 算法的核心思想：用固定的有限个输出通道去预测任意条车道线。</p>
-</li>
-</ul>
-<h3 id="网络结构"><a href="#网络结构" class="headerlink" title="网络结构"></a>网络结构</h3><p><img src="https://s2.loli.net/2023/09/07/nfbWKHOtFgjp6oz.png" alt="ganet1.png"></p>
-<h3 id="LFA（Lane-aware-Feature-Aggregator）"><a href="#LFA（Lane-aware-Feature-Aggregator）" class="headerlink" title="LFA（Lane-aware Feature Aggregator）"></a>LFA（Lane-aware Feature Aggregator）</h3><p><img src="https://s2.loli.net/2023/09/07/nk9NbMJztSWQRrq.png" alt="ganet3.png"></p>
-<h4 id="动机"><a href="#动机" class="headerlink" title="动机"></a>动机</h4><ul>
-<li><p>传统的2D卷积在固定的网格状区域内采样特征，这不适用于处理车道线的狭长形状。</p>
-</li>
-<li><p>因此作者使用如下步骤改进各关键点上的局部特征：</p>
-<ol>
-<li>预测该关键点同一条车道线紧邻的 <code>num_adjacent_keypoints</code> 个点的 <code>offset</code>，进行显式监督。</li>
-<li>用预测的 <code>offset</code> 引导可变形卷积改进关键点局部特征。</li>
-</ol>
-</li>
-</ul>
-<h4 id="代码实现"><a href="#代码实现" class="headerlink" title="代码实现"></a>代码实现</h4><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> torch</span><br><span class="line"><span class="keyword">import</span> torch.nn <span class="keyword">as</span> nn</span><br><span class="line"><span class="keyword">from</span> torchvision.ops <span class="keyword">import</span> deform_conv2d</span><br><span class="line"><span class="keyword">import</span> math</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">LFA</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, in_channels, out_channels, num_adjacent_keypoints=<span class="number">5</span></span>):</span></span><br><span class="line">        <span class="built_in">super</span>(LFA, self).__init__()</span><br><span class="line">        self.offset_conv = nn.Conv2d(in_channels, <span class="number">2</span> * num_adjacent_keypoints, kernel_size=<span class="number">1</span>)</span><br><span class="line">        self.deform_conv_weight = nn.Parameter(torch.Tensor(out_channels, in_channels, <span class="number">3</span>, <span class="number">3</span>))</span><br><span class="line">        nn.init.kaiming_uniform_(self.deform_conv_weight, a=math.sqrt(<span class="number">5</span>))</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">self, x</span>):</span></span><br><span class="line">        <span class="comment"># x: input feature map with shape [batch_size, in_channels, height, width]</span></span><br><span class="line">        </span><br><span class="line">        <span class="comment"># Step 1: Predict the offsets for adjacent keypoints</span></span><br><span class="line">        offsets = self.offset_conv(x)  <span class="comment"># shape: [batch_size, 2 * num_adjacent_keypoints, height, width]</span></span><br><span class="line">        </span><br><span class="line">        <span class="comment"># Step 2: Perform deformable convolution to aggregate features</span></span><br><span class="line">        aggregated_features = deform_conv2d(x, offsets, self.deform_conv_weight, stride=<span class="number">1</span>, padding=<span class="number">1</span>)</span><br><span class="line">        </span><br><span class="line">        <span class="keyword">return</span> aggregated_features, offsets  <span class="comment"># Return both aggregated features and offsets</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># Initialize LFA module</span></span><br><span class="line">lfa = LFA(in_channels=<span class="number">64</span>, out_channels=<span class="number">128</span>, num_adjacent_keypoints=<span class="number">5</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># Dummy input feature map with shape [batch_size, in_channels, height, width]</span></span><br><span class="line">input_feature_map = torch.randn(<span class="number">16</span>, <span class="number">64</span>, <span class="number">128</span>, <span class="number">128</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># Forward pass</span></span><br><span class="line">aggregated_features, predicted_offsets = lfa(input_feature_map)</span><br><span class="line"></span><br><span class="line"><span class="comment"># aggregated_features 是特征输出</span></span><br><span class="line"><span class="comment"># predicted_offsets 是预测的相邻的 num_adjacent_keypoints 个车道线的偏移量，显式监督</span></span><br></pre></td></tr></table></figure>
-<h2 id="Thought"><a href="#Thought" class="headerlink" title="Thought"></a>Thought</h2><ul>
-<li><p>提出了一种灵活的车道线检测范式，具有较好的可拓展性，目前在车道线榜单上比较靠前。</p>
-</li>
-<li><p>另外一个创新点是<code>LFA module</code>，主要是用到了可形变卷积，对于大多数动态性较差的端侧芯片来说，不容易部署。</p>
-</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -2616,7 +2632,7 @@
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">93</span>
+          <span class="site-state-item-count">94</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
