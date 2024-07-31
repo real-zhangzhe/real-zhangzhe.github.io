@@ -183,7 +183,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-07-31 08:38:07" itemprop="dateModified" datetime="2024-07-31T08:38:07+08:00">2024-07-31</time>
+                <time title="Modified: 2024-07-31 12:27:20" itemprop="dateModified" datetime="2024-07-31T12:27:20+08:00">2024-07-31</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -256,7 +256,10 @@
 <p>可以看到随着时间步的推移，每一层的 <code>x / q / k / v / attention weight</code> 的前 <code>n-1</code> 个 <code>token feature</code> 都和上一个时间步相同，因此可以缓存</p>
 </blockquote>
 <h2 id="Thought"><a href="#Thought" class="headerlink" title="Thought"></a>Thought</h2><ul>
-<li>实际上 <code>q / k / v / attention weight</code> 都可以缓存，只缓存 <code>k / v</code> 是计算量和 <code>IO</code> 量的 <code>tradeoff</code></li>
+<li><p>实际上 <code>q / k / v / attention weight</code> 都可以缓存，只缓存 <code>k / v</code> 是计算量和 <code>IO</code> 量的 <code>tradeoff</code></p>
+</li>
+<li><p><code>paged attention</code> 是通过类似内存分页管理的方式管理 <code>kv cache</code> 的一种方法，动态分配显存，速度更快，支持更高 <code>batch</code></p>
+</li>
 </ul>
 
       
@@ -1249,7 +1252,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-07-19 12:26:03" itemprop="dateModified" datetime="2024-07-19T12:26:03+08:00">2024-07-19</time>
+                <time title="Modified: 2024-07-31 13:35:21" itemprop="dateModified" datetime="2024-07-31T13:35:21+08:00">2024-07-31</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1813,7 +1816,7 @@
 </ol>
 </li>
 </ol>
-<h4 id="4-2-网络结构"><a href="#4-2-网络结构" class="headerlink" title="4.2 网络结构"></a>4.2 网络结构</h4><p><img src="https://s2.loli.net/2024/05/21/QviOjpeFBkPyEg8.png" alt="LLM_survey_8.png"></p>
+<h4 id="4-2-架构设计"><a href="#4-2-架构设计" class="headerlink" title="4.2 架构设计"></a>4.2 架构设计</h4><p><img src="https://s2.loli.net/2024/05/21/QviOjpeFBkPyEg8.png" alt="LLM_survey_8.png"></p>
 <ol>
 <li><p><strong>典型结构</strong></p>
 <ol>
@@ -2089,10 +2092,36 @@
 </ol>
 </li>
 <li><p><strong>Paged attention</strong></p>
-</li>
+<ol>
+<li><code>Paged attention</code> 的目的是解决生成式模型 <code>kv cache</code> 占用太多显存导致显存利用率低的问题，<code>kv cache</code> 具体可以看 <a target="_blank" rel="noopener" href="https://zhangzhe.space/2024/07/30/KV-Cache-Transformer/">https://zhangzhe.space/2024/07/30/KV-Cache-Transformer/</a> 这篇博客</li>
+<li><code>Paged attention</code> 通过类似分页内存管理的方法管理 <code>kv cache</code> 显存，随着序列变长，动态分配显存，显存物理空间不连续，最多只浪费一页，极大提高了显存利用率，使得可以运行更大的 <code>batch size</code></li>
 </ol>
 </li>
 </ol>
+</li>
+</ol>
+</li>
+<li><p><strong>预训练任务</strong></p>
+<ol>
+<li><p><strong>Language modeling（语言建模）</strong></p>
+<ol>
+<li>语言建模任务是给定一个序列 $X = \{x_1, x_2, …, x_n\}$，使得 $L_{LM}=\sum_{i=1}^n log P(x_i|X&lt;i)$ 此极大似然估计最大，其中 $X&lt;i=\{x_1,…,x_i\}$</li>
+<li>语言建模预训练任务是 <code>LLM</code> 最常用的预训练任务，在很多下游任务上甚至无需 <code>fine-tuning</code></li>
+</ol>
+</li>
+<li><p><strong>Denoising Autoencoding（去噪自编码）</strong></p>
+<ol>
+<li>去噪自编码是在一个句子中随机替换 <code>token</code> 为噪声，然后训练模型去恢复原始信息</li>
+</ol>
+</li>
+<li><p><strong>Mixture-of-Denoisers（混合降噪器）</strong></p>
+<ol>
+<li><code>MoD</code> 是出自 <code>Google UL2</code> 大模型，此大模型使用了 <code>MoD</code> 作为预训练任务，是前面提到的两种预训练任务的组合<br><img src="https://s2.loli.net/2024/07/31/eJvRXQnEjrLfN3M.png" alt="UL2.png"> </li>
+</ol>
+</li>
+</ol>
+</li>
+<li><p><strong>长文本建模</strong></p>
 </li>
 </ol>
 
