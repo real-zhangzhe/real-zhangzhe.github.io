@@ -152,6 +152,164 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2021/08/22/Two-Step-Quantization-for-Low-bit-Neural-Networks/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2021/08/22/Two-Step-Quantization-for-Low-bit-Neural-Networks/" class="post-title-link" itemprop="url">Two-Step Quantization for Low-bit Neural Networks</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2021-08-22 22:09:27" itemprop="dateCreated datePublished" datetime="2021-08-22T22:09:27+08:00">2021-08-22</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2022-09-30 14:56:09" itemprop="dateModified" datetime="2022-09-30T14:56:09+08:00">2022-09-30</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Network-Quantization/" itemprop="url" rel="index"><span itemprop="name">Network Quantization</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2021/08/22/Two-Step-Quantization-for-Low-bit-Neural-Networks/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2021/08/22/Two-Step-Quantization-for-Low-bit-Neural-Networks/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="URL"><a href="#URL" class="headerlink" title="URL"></a>URL</h2><p><a target="_blank" rel="noopener" href="http://openaccess.thecvf.com/content_cvpr_2018/papers/Wang_Two-Step_Quantization_for_CVPR_2018_paper.pdf">http://openaccess.thecvf.com/content_cvpr_2018/papers/Wang_Two-Step_Quantization_for_CVPR_2018_paper.pdf</a></p>
+<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
+<li>对于 weight 的量化与对 activation 的量化如果同时学习，模型收敛比较困难，所以分成 <strong>code learning</strong> 和 <strong>transformation function learning</strong> 两个过程进行</li>
+<li><strong>code learning</strong> ：先保持 weight 全精度，量化 activation </li>
+<li><strong>transformation function learning</strong>：量化 weight，学习 $A_{l-1} \to A_l$ 的映射</li>
+<li>最终结果：2-bits activations + 3 值 weights 的 TSQ 只比官方全精度模型准确率低0.5个百分点</li>
+</ul>
+<h2 id="Algorithm"><a href="#Algorithm" class="headerlink" title="Algorithm"></a>Algorithm</h2><h3 id="传统量化网络"><a href="#传统量化网络" class="headerlink" title="传统量化网络"></a>传统量化网络</h3><ul>
+<li><p>优化过程</p>
+<p>  $minimize_{\{W_l\}}\ \ \ \mathcal L(Z_L, y)$</p>
+<p>  $subject\ to \ \  \ \ \ \ \ \ \ \ \ \hat W_l = Q_W(W_l)$</p>
+<p>  $\ \ \ \ \ \ \  \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \hat {Z_l} = \hat W_l \hat A_{l-1}$</p>
+<p>  $\ \ \ \ \ \ \  \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ A_l = \psi (Z_l)$</p>
+<p>  $\ \ \ \ \ \ \  \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \hat A_l = Q_n(A),\ \ \ for l=1,2,…,L$</p>
+</li>
+<li><p>难收敛的原因</p>
+<ul>
+<li>由于对 $Q_W()$ ， $\mu\frac{\partial L}{\partial W}$ 难以直接更新到 $\hat W$ ，导致 $W$ 更新缓慢</li>
+<li>$Q_A()$ 的 STE 会引起梯度高方差</li>
+</ul>
+</li>
+</ul>
+<h3 id="Two-Step-Quantization-TSQ"><a href="#Two-Step-Quantization-TSQ" class="headerlink" title="Two-Step Quantization (TSQ)"></a>Two-Step Quantization (TSQ)</h3><ul>
+<li><p>step 1：<strong>code learning</strong></p>
+<p>  基于 <a target="_blank" rel="noopener" href="https://discourse.brainpp.cn/t/topic/36907">HWGQ</a>，不同点是：</p>
+<ul>
+<li>weights 保持全精度</li>
+<li><p>引入超参数：稀疏阈值 $\epsilon \ge 0$ ，<a target="_blank" rel="noopener" href="https://github.com/wps712/Two-Step-Quantization-AlexNet/blob/master/relu2b_layer.cpp">开源代码</a>中 $\epsilon = 0.32, \delta = 0.6487$</p>
+<p>$ Q_{\epsilon}(x)=\left\{\begin{array}{ll}{q_{i}^{\prime}} &amp; {x \in\left(t_{i}^{\prime}, t_{i+1}^{\prime}\right]} \\ {0} &amp; {x \leq \epsilon}\end{array}\right.$</p>
+</li>
+<li><p>引入超参数的目的是使得网络更关注于 <strong>high activations</strong></p>
+</li>
+</ul>
+</li>
+<li><p>step 2：<strong>transformation function learning</strong></p>
+<p>我对这个步骤的理解是：<strong>使用全精度weights网络蒸馏low-bits weights网络</strong></p>
+<p>  $\begin{aligned} \underset{\Lambda, \hat{W}}{\operatorname{minimize}} \left|Y-Q_{\epsilon}(\Lambda \hat{W} X)\right|_{F}^{2} = \operatorname{minimize}_{\left\{\alpha_{i}\right\},\left\{\hat{w}_{i}^{T}\right\}} \sum_{i}\left|y_{i}^{T}-Q_{\epsilon}\left(\alpha_{i} \hat{w}_{i}^{T} X\right)\right|_{2}^{2} \end{aligned}$</p>
+<p>其中： $\alpha_i$ 表示每个卷积核的缩放因子，$X$与 $Y$ 分别表示 $\hat A_{l-1}$ 与 $\hat A_l$  ，<strong>用全精度weights得到的量化activations网络蒸馏量化weights量化activations网络</strong></p>
+<p>引入辅助变量 $z$ 对 transformation function learning 进行分解：</p>
+<p>  $\underset{\alpha, w, z}{\operatorname{minimize}} \quad\left|y-Q_{\epsilon}(z)\right|_{2}^{2}+\lambda\left|z-\alpha X^{T} \hat{w}\right|_{2}^{2}$</p>
+<ul>
+<li><p><strong>Solving $\alpha$ and $\hat{w}$ with $z$ fixed：</strong></p>
+<p>  $\underset{\alpha, \hat{w}}{\operatorname{minimize}} \quad J(\alpha, \hat{w})=\left|z-\alpha X^{T} \hat{w}\right|_{2}^{2}$</p>
+<p>  $J(\alpha, \hat{w})=z^{T} z-2 \alpha z^{T} X^{T} \hat{w}+\alpha^{2} \hat{w}^{T} X X^{T} \hat{w}$</p>
+<p>  $\alpha^{*}=\frac{z^{T} X^{T} \hat{w}}{\hat{w}^{T} X X^{T} \hat{w}}$</p>
+<p>  $\hat{w}^{*}=\underset{\hat{w}}{\operatorname{argmax}} \frac{\left(z^{T} X^{T} \hat{w}\right)^{2}}{\hat{w}^{T} X X^{T} \hat{w}}$</p>
+</li>
+<li><p><strong>Solving $z$ with $\alpha$ and $\hat{w}$ fixed:</strong></p>
+<p>  $\underset{z_{i}}{\operatorname{minimize}} \quad\left(y_{i}-Q_{\epsilon}\left(z_{i}\right)\right)^{2}+\lambda\left(z_{i}-v_{i}\right)^{2}$</p>
+<p>  ${c}{z_{i}^{(0)}=\min \left(0, v_{i}\right)}$</p>
+<p>  ${z_{i}^{(1)}=\min \left(M, \max \left(0, \frac{\lambda v_{i}+y_{i}}{1+\lambda}\right)\right.}$</p>
+<p>  ${z_{i}^{(2)}=\max \left(M, v_{i}\right)}$</p>
+<ul>
+<li><p><strong>使用 Optimal TernaryWeights Approximation (OTWA) 初始化 $\alpha$ 和 $\hat W$</strong></p>
+<p>  $\min_{\alpha, \hat{w}} \  {|w-\alpha \hat{w}|_{2}^{2}}\ \ \ \ \ \ subject\ to\ \ \  \  \alpha&gt;0, \ \ \ \  {\hat{w} \in\{-1,0,+1\}^{m}}$</p>
+<p>  $\alpha^{*} =\frac{w^{T} \hat{w}}{\hat{w}^{T} \hat{w}}$</p>
+<p>  $\hat{w}^{*} =\underset{\hat{w}}{\operatorname{argmax}} \frac{\left(w^{T} \hat{w}\right)^{2}}{\hat{w}^{T} \hat{w}}$</p>
+<p>  $\hat{w}_{j}=\left\{\begin{array}{ll}{\operatorname{sign}\left(w_{j}\right)} &amp; {\operatorname{abs}\left(w_{j}\right) \text { in top } r \text { of } a b s(w)} \\ {0} &amp; {\text { others }}\end{array}\right.$</p>
+</li>
+<li><p>$\alpha$ 与$\hat{w}$ 初始值的计算过程 (OTWA)</p>
+<p> <img src="https://i.loli.net/2021/08/22/QRL6KVGO19FjNBv.png" alt="初始值的计算过程"></p>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h2 id="Thoughts"><a href="#Thoughts" class="headerlink" title="Thoughts"></a>Thoughts</h2><ul>
+<li>对 weights 的量化与 activations 的量化拆分是一个容易想到的简化量化问题的方法</li>
+<li>把对 weights 的量化转换成一种自蒸馏的方法，与 <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/1612.00212.pdf">量化位宽 decay</a> 有相似之处</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2021/08/22/DO-Conv-Depthwise-Over-parameterized-Convolutional-Layer/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1292,106 +1450,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2021/08/01/WeightNet-Revisiting-the-Design-Space-of-weight-networks/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2021/08/01/WeightNet-Revisiting-the-Design-Space-of-weight-networks/" class="post-title-link" itemprop="url">WeightNet: Revisiting the Design Space of weight networks</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2021-08-01 16:06:17" itemprop="dateCreated datePublished" datetime="2021-08-01T16:06:17+08:00">2021-08-01</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2022-09-30 14:56:09" itemprop="dateModified" datetime="2022-09-30T14:56:09+08:00">2022-09-30</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/CNN-Architecture-Design/" itemprop="url" rel="index"><span itemprop="name">CNN Architecture Design</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2021/08/01/WeightNet-Revisiting-the-Design-Space-of-weight-networks/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2021/08/01/WeightNet-Revisiting-the-Design-Space-of-weight-networks/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="URL"><a href="#URL" class="headerlink" title="URL"></a>URL</h2><p><a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2007.11823.pdf">https://arxiv.org/pdf/2007.11823.pdf</a></p>
-<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
-<li>一种动态产生 Conv 权重的方法，统一了 SENet 和 CondConv 等动态卷积算法</li>
-</ul>
-<h2 id="Dataset-Algorithm-Model-Experiment-Detail"><a href="#Dataset-Algorithm-Model-Experiment-Detail" class="headerlink" title="Dataset/Algorithm/Model/Experiment Detail"></a>Dataset/Algorithm/Model/Experiment Detail</h2><h3 id="结构"><a href="#结构" class="headerlink" title="结构"></a>结构</h3><p><img src="https://i.loli.net/2021/08/01/TNtIughrDSE1Vmj.png" alt="weightnet.png"></p>
-<ul>
-<li>使用 GAP + FC + Sigmoid + Group_FC + Reshape 把 $(N, C_{in}, H, W)$ 的输入 feature map 变成 $(C_{out}, C_{in}, K, K)$ 的 kernel，再与 feature map 做 Conv</li>
-</ul>
-<h3 id="megengine-实现"><a href="#megengine-实现" class="headerlink" title="megengine 实现"></a>megengine 实现</h3><p><a target="_blank" rel="noopener" href="https://github.com/megvii-model/WeightNet">WeightNet</a></p>
-<h2 id="Thoughts"><a href="#Thoughts" class="headerlink" title="Thoughts"></a>Thoughts</h2><ul>
-<li>使用 Group_FC 产生 Weight 是 make sense 的，毕竟下一层 Conv 会做通道间融合</li>
-<li>比 CondConv 和 SENet 在结构上要激进不少，原理上是把 CondConv 和 SENet 对 Conv Weight 的初始化往前提到了 Group FC 中，去掉了人为设计</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1460,7 +1518,7 @@
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">94</span>
+          <span class="site-state-item-count">95</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>

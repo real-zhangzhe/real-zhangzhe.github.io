@@ -152,6 +152,155 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2022/11/21/CUDA-%E5%9F%BA%E7%A1%80%E4%B9%8B%E7%9F%A9%E9%98%B5%E4%B9%98%E4%BC%98%E5%8C%96/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2022/11/21/CUDA-%E5%9F%BA%E7%A1%80%E4%B9%8B%E7%9F%A9%E9%98%B5%E4%B9%98%E4%BC%98%E5%8C%96/" class="post-title-link" itemprop="url">CUDA 基础之矩阵乘优化</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2022-11-21 22:14:58 / Modified: 22:16:30" itemprop="dateCreated datePublished" datetime="2022-11-21T22:14:58+08:00">2022-11-21</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/CUDA/" itemprop="url" rel="index"><span itemprop="name">CUDA</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2022/11/21/CUDA-%E5%9F%BA%E7%A1%80%E4%B9%8B%E7%9F%A9%E9%98%B5%E4%B9%98%E4%BC%98%E5%8C%96/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2022/11/21/CUDA-%E5%9F%BA%E7%A1%80%E4%B9%8B%E7%9F%A9%E9%98%B5%E4%B9%98%E4%BC%98%E5%8C%96/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="CUDA（Compute-Unified-Device-Architecture，统一计算设备架构）资料："><a href="#CUDA（Compute-Unified-Device-Architecture，统一计算设备架构）资料：" class="headerlink" title="CUDA（Compute Unified Device Architecture，统一计算设备架构）资料："></a>CUDA（Compute Unified Device Architecture，统一计算设备架构）资料：</h2><ul>
+<li><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/34587739">知乎 CUDA 编程入门极简教程</a></li>
+<li><a target="_blank" rel="noopener" href="https://face2ai.com/categories/CUDA/page/4/">谭升的博客</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.nvidia.cn/docs/IO/51635/NVIDIA_CUDA_Programming_Guide_1.1_chs.pdf">NVIDIA CUDA 编程指南</a></li>
+<li><a target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/cuda-c-programming-guide/">CUDA C++ 编程指南</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.cnblogs.com/1024incn/p/4564726.html">CUDA memory hierarchy</a></li>
+</ul>
+<h2 id="GPU-体系结构"><a href="#GPU-体系结构" class="headerlink" title="GPU 体系结构"></a>GPU 体系结构</h2><ul>
+<li><p>物理模型</p>
+  <center><img src="https://s2.loli.net/2022/11/19/JdMwmXu9oTrE3H4.png" width=50%></center>
+
+<ul>
+<li>典型的 <code>GPU</code> 包含一组流处理器 (<code>stream multi-processors</code>, <code>SM</code>)，每个流处理器都有许多核心，硬件实现上这些核心之间可共享内存（<code>shared memory</code>）</li>
+</ul>
+</li>
+<li><p>逻辑模型</p>
+  <center><img src="https://s2.loli.net/2022/11/19/uEcUSFqiQbpdeHM.png" width=50%></center>
+
+<ul>
+<li><p>逻辑模型中，引入了 <code>Grid</code> / <code>Block</code> / <code>Thread</code> 三级概念，逻辑模型与物理的对应关系如下：</p>
+  <center><img src="https://s2.loli.net/2022/11/19/ovTRipHj94Uemlb.png" width=50%></center>
+
+<blockquote>
+<p>因此：同一个 <code>Block</code> 中的 <code>Thread</code> 可共享 <code>shared memory</code></p>
+</blockquote>
+</li>
+</ul>
+</li>
+<li><p>Memory Hierarchy</p>
+<p>  <img src="https://s2.loli.net/2022/11/19/CXoJct3fqD7ui4P.png" alt="memory_hierarchy.png"></p>
+<blockquote>
+<p><code>shared memory</code> 速度几乎和 <strong>L1 cache</strong> 一样，比 <code>local memory</code> 和 <code>global memory</code> 都快的多（在物理上，<code>local memory</code> 和 <code>global memory</code> 是同一块 <code>DRAM</code>）</p>
+</blockquote>
+</li>
+<li><p>在对 <code>GPU</code> 进行编程时，需要创建一组进程块 (<code>thread blocks</code>)，每个 <code>thread</code> 映射到单个核心，而 <code>block</code> 映射到流式多处理器 (<code>SM</code>)，如下图所示：</p>
+</li>
+</ul>
+<p><img src="https://s2.loli.net/2022/11/09/BFIHjXAhY534Sar.png" alt="2.png"></p>
+<ul>
+<li>每个线程可由 <code>threadIdx</code> 和 <code>blockIdx</code> 索引，在实际应用中，可以有多维线程索引</li>
+</ul>
+<h2 id="共享内存优化"><a href="#共享内存优化" class="headerlink" title="共享内存优化"></a>共享内存优化</h2><ul>
+<li><p>以矩阵乘为例，$A\in \mathbb{R}^{1024\times 1024},B\in \mathbb{R}^{1024\times 1024}$</p>
+<p>  <img src="https://s2.loli.net/2022/11/14/exR47Sh82q3tHBa.png" alt="4.png"></p>
+<ul>
+<li><p>同一个 <code>block</code> 中的多个 <code>thread</code> 可共享内存，因此可以重排同一个 <code>block</code> 中的 <code>thread</code> 数据，使得尽可能少的数据缓存到 <code>shared memory</code> 中</p>
+</li>
+<li><p>优化前：</p>
+<ul>
+<li>每个 <code>thread</code> 需要计算输出矩阵中 <code>8 * 8</code> 的数据，需要从 <code>local memory</code> 中读取 <code>8 * 8 * 1024 * 2</code> 数据</li>
+<li>每个 <code>block</code> 中的 <code>thread</code> 之间没有数据共享，所以需要从 <code>local memory</code> 中读取 $8 <em> 8 </em> 8 <em> 8 </em> 1024 * 2 = 2^{23}$ 个矩阵元素</li>
+</ul>
+</li>
+<li><p>优化后：</p>
+<ul>
+<li>每个 <code>block</code> 计算输出矩阵的 <code>64 * 64</code> 的数据最少需要 $64 <em> 1024 </em> 2=2^{17}$ 的数据，可提前将这部分数据缓存到 <code>shared memory</code></li>
+<li>然后每个 <code>thread</code> 从 <code>shared memory</code> 读数据计算，需读取 $64 <em> 1024 </em> 2=2^{17}$ 个数据</li>
+</ul>
+</li>
+<li><p>内存优化前后每个 <code>block</code> 读取数据对比：</p>
+<ul>
+<li>优化前：从 <code>local memory</code> 读取 $2^{23}$ 个矩阵元素</li>
+<li>优化后：从 <code>local memory</code> 读取 $2^{17}$ 个矩阵元素到 <code>shared memory</code>，再从 <code>shared memory</code> 读取 $2^{17}$ 个数据计算</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2022/11/21/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0%E7%BC%96%E8%AF%91%E6%80%BB%E7%BB%93/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1517,244 +1666,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2022/09/19/[WIP]A-White-Paper-on-Neural-Network-Quantization/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2022/09/19/%5BWIP%5DA-White-Paper-on-Neural-Network-Quantization/" class="post-title-link" itemprop="url">A White Paper on Neural Network Quantization</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2022-09-19 10:28:28" itemprop="dateCreated datePublished" datetime="2022-09-19T10:28:28+08:00">2022-09-19</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-03-02 20:51:22" itemprop="dateModified" datetime="2024-03-02T20:51:22+08:00">2024-03-02</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Network-Quantization/" itemprop="url" rel="index"><span itemprop="name">Network Quantization</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2022/09/19/%5BWIP%5DA-White-Paper-on-Neural-Network-Quantization/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2022/09/19/%5BWIP%5DA-White-Paper-on-Neural-Network-Quantization/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="URL"><a href="#URL" class="headerlink" title="URL"></a>URL</h2><ul>
-<li><a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2106.08295.pdf">https://arxiv.org/pdf/2106.08295.pdf</a></li>
-</ul>
-<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
-<li>本文用比较简洁的方式给出了神经网络的通用量化方法，是量化领域的必读论文。</li>
-</ul>
-<h2 id="Algorithm"><a href="#Algorithm" class="headerlink" title="Algorithm"></a>Algorithm</h2><h3 id="1-量化基础知识"><a href="#1-量化基础知识" class="headerlink" title="1. 量化基础知识"></a>1. 量化基础知识</h3><h4 id="1-1-硬件背景"><a href="#1-1-硬件背景" class="headerlink" title="1.1 硬件背景"></a>1.1 硬件背景</h4><ul>
-<li>一个 $y=Wx+b$ 实际上是由 <strong>乘法器</strong> 和 <strong>累加器</strong> 组合而成的，实际的计算过程如下：</li>
-</ul>
-<p><img src="https://s2.loli.net/2024/01/23/VidAYgkf5Tc3C84.png" alt="quant_4.png"></p>
-<blockquote>
-<p>卷积实际上也是通过 <code>image to column</code> 操作变成 $y=Wx+b$ 操作</p>
-</blockquote>
-<ul>
-<li>常见的 <code>int8</code> 量化会将上述过程变成如下过程：</li>
-</ul>
-<p><img src="https://s2.loli.net/2024/01/23/zWK21Cydk9lf7SU.png" alt="quant_1.png"></p>
-<blockquote>
-<p><code>weight</code> 和 <code>input</code> 都被量化为 <code>int8</code> ，同时保留各自的量化 <code>scale</code>，乘法操作是整形乘法器（更快），累加器是 <code>int32</code> 类型，最后再量化为 <code>int8</code> 放到 <code>OCM</code> 上</p>
-</blockquote>
-<h4 id="1-2-均匀仿射量化"><a href="#1-2-均匀仿射量化" class="headerlink" title="1.2 均匀仿射量化"></a>1.2 均匀仿射量化</h4><ul>
-<li><p>均匀仿射量化也被称为 <strong>非对称量化</strong>，由三个量化参数定义：</p>
-<ul>
-<li>比例因子 <code>scale</code></li>
-<li>零点 <code>zero_point</code></li>
-<li>比特宽度 <code>bits</code></li>
-</ul>
-</li>
-<li><p>非对称量化：</p>
-<ul>
-<li>for unsigned integers: $X_{int} = clamp(\lfloor\frac{X}{s}\rceil+z;0,2^b-1)$ </li>
-<li>for signed integers: $X_{int} = clamp(\lfloor\frac{X}{s}\rceil+z;-2^{b-1},2^{b-1}-1)$ </li>
-<li>这里的 $\lfloor\rceil$ 表示 <code>round</code> 运算</li>
-</ul>
-</li>
-<li><p>对称量化是非对称量化的简化版本，具体是将零点 <code>zero_point</code> 固定为 <code>0</code></p>
-</li>
-<li><p>对称量化： </p>
-<ul>
-<li>for unsigned integers: $X_{int} = clamp(\lfloor\frac{X}{s}\rceil;0,2^b-1)$ </li>
-<li>for signed integers: $X_{int} = clamp(\lfloor\frac{X}{s}\rceil;-2^{b-1},2^{b-1}-1)$ </li>
-</ul>
-</li>
-<li><p>对称量化和非对称量化的含义：</p>
-</li>
-</ul>
-<p><img src="https://s2.loli.net/2024/01/23/QsGeVkMWJLSlozh.png" alt="quant_3.png"></p>
-<p><img src="https://s2.loli.net/2024/01/23/NqpReAlwIKbThS3.png" alt="quant_2.png"></p>
-<ul>
-<li><p><code>2</code> 的指数幂量化：</p>
-<ul>
-<li>限制 $s=2^{-k}$ </li>
-<li>优势：scale 过程变成了硬件移位，对硬件更友好。</li>
-<li>劣势：会使得 round 和 clip 误差的权衡变难。</li>
-</ul>
-</li>
-<li><p>量化颗粒度：</p>
-<ul>
-<li>per-tensor: 硬件更友好，但限制了量化的自由度。</li>
-<li>per-channel: 反之。</li>
-</ul>
-</li>
-</ul>
-<h3 id="1-3-量化模拟"><a href="#1-3-量化模拟" class="headerlink" title="1.3 量化模拟"></a>1.3 量化模拟</h3><ul>
-<li>量化模拟是指在浮点计算设备上模拟定点计算设备的过程，通常用于训练。</li>
-</ul>
-<p><img src="https://s2.loli.net/2024/01/23/NqpReAlwIKbThS3.png" alt="quant_2.png"></p>
-<blockquote>
-<p>左边是定点计算过程，右边是用浮点设备模型定点计算的过程</p>
-</blockquote>
-<ul>
-<li>为了减少数据搬运和不必要的量化步骤，通常会做：<ul>
-<li><code>batch norm</code> 折叠：<code>batch norm</code> 在推理时是静态的，因此可以和前面的 <code>conv</code> 等层合并。</li>
-<li>激活函数融合：在实际的硬件解决方案中，通常会在非线性操作（如 <code>ReLU</code>）之后直接进行量化，而不是先将激活写入内存然后再加载回计算核心。</li>
-</ul>
-</li>
-</ul>
-<h3 id="1-4-实践考量"><a href="#1-4-实践考量" class="headerlink" title="1.4 实践考量"></a>1.4 实践考量</h3><ul>
-<li><p>对称量化和非对称量化：</p>
-<ul>
-<li>对称量化：<code>zero-point == 0</code></li>
-<li>非对称量化：<code>zero-point != 0</code></li>
-</ul>
-</li>
-<li><p>为了方便计算，通常情况下，<strong>会将权重设置为对称量化（$z_w=0$），将特征设置为非对称量化（$z_x\ne 0$）</strong></p>
-<ul>
-<li>原因分析：<ul>
-<li>$W=S_w(W_{int} - Z_w)$</li>
-<li>$X=S_x(X_{int} - Z_x)$</li>
-<li>$WX=S_wS_x(W_{int} - Z_w)(X_{int} - Z_x)\\=S_wS_xW_{int}X_{int}-S_wS_xZ_wX_{int}-S_wS_xZ_xW_{int}+S_wS_xZ_wZ_x$</li>
-<li>在推理阶段：$S_w,\ S_x,\ Z_w,\ Z_x,\ W_{int}$ 已知，因此：<ul>
-<li>等式的第三项和第四项可提前算出，无需推理耗时。</li>
-<li>第一项和第二项由于关联动态输入 $X_{int}$，因此需要额外耗时；<strong>但是如果设置 $Z_w=0$，则第二项恒等于0，可节省计算量</strong>。</li>
-</ul>
-</li>
-</ul>
-</li>
-</ul>
-</li>
-</ul>
-<h2 id="2-训练后量化（PTQ，post-training-quantization）"><a href="#2-训练后量化（PTQ，post-training-quantization）" class="headerlink" title="2. 训练后量化（PTQ，post-training quantization）"></a>2. 训练后量化（PTQ，post-training quantization）</h2><ul>
-<li>训练后量化是指用 <code>float32</code> 精度训练的模型直接转成量化模型，无需任何数据和训练。</li>
-</ul>
-<h3 id="2-1-量化范围的设置"><a href="#2-1-量化范围的设置" class="headerlink" title="2.1 量化范围的设置"></a>2.1 量化范围的设置</h3><ul>
-<li>最大最小值法（<code>min-max</code>）：$q_{min}=minV,\ \ q_{max}=maxV$，$V$ 是待量化 <code>tensor</code></li>
-<li>均方差法（<code>MSE</code>）：$\argmin_{q_{min},q_{max}}||V-\hat{V}(q_{min}, q_{max})||^2_F$</li>
-<li>交叉熵法（<code>cross entropy</code>）：$\argmin_{q_{min},q_{max}}=H(softmax(V),softmax(\hat{V}(q_{min},q_{max})))$，其中 $H$ 表示 <code>cross entropy function</code></li>
-<li>批量归一化法（<code>BN based</code>）：$q_{min}=min(\beta-\alpha\gamma),\ \ q_{max}=max(\beta+\alpha\gamma)$，其中 $\beta,\ \gamma$ 分布表示 <code>batch norm</code> 学到的 <code>per channel</code> 的 <code>shift</code> 和 <code>scale</code>，$\alpha&gt;0$ 是超参数</li>
-<li>组合法（<code>comparsion</code>）：以上方法的自由组合</li>
-</ul>
-<p><img src="https://s2.loli.net/2024/03/02/rxHRCPGfTpDBws4.png" alt="quant_5.png"><br><img src="https://s2.loli.net/2024/03/02/9y5KmPxtCsAjQel.png" alt="quant_6.png"></p>
-<blockquote>
-<p>使用不同量化方法分别量化 <code>weight</code> 和 <code>activation</code> 后的精度</p>
-</blockquote>
-<h3 id="2-2-跨层均衡（Cross-Layer-Equalization）"><a href="#2-2-跨层均衡（Cross-Layer-Equalization）" class="headerlink" title="2.2 跨层均衡（Cross-Layer Equalization）"></a>2.2 跨层均衡（Cross-Layer Equalization）</h3><ul>
-<li>这是一种 <strong>通过修改模型权重</strong> 来改善神经网络量化性能的技术，<code>CLE</code> 的目的是减少网络中不同 <code>channel</code> 之间由于量化引起的性能不平衡，这种问题在 <code>depth-wise conv layer</code> 中尤其容易出现。</li>
-</ul>
-<p><img src="https://s2.loli.net/2024/03/02/3KlEd5w9Dpoq6ts.png" alt="quant_8.png"></p>
-<blockquote>
-<p><code>mobilenetv2</code> 第一个 <code>depth-wise conv</code> 层的 <code>per output channel weight range</code></p>
-</blockquote>
-<ul>
-<li>想要实现跨层均衡的模型，需要激活函数满足交换律，即：$f(sx)=sf(x)$，常见的 <code>ReLU</code> 和 <code>PReLU</code> 都满足。</li>
-</ul>
-<p><img src="https://s2.loli.net/2024/03/02/dWQlUJuHGpaNTk2.png" alt="quant_7.png"></p>
-<ul>
-<li><p><code>CLE</code> 原理：</p>
-<ul>
-<li>$y=f(W_2(W_1x+b_1)+b_2)\\=f(SW_2(S^{-1}W_1x+S^{-1}b_1)+b_2)\\=f(\hat{W_2}(\hat{W_1}x+\hat{b_1})+b_2)$</li>
-<li>其中：<ul>
-<li>$\hat{W_1}=S^{-1}W_1$</li>
-<li>$\hat{b_1}=S^{-1}b_1$</li>
-<li>$\hat{W_2}=SW_2$</li>
-<li>$S_i=\frac{\sqrt {r_i^1r_i^2}}{r_i^2}$，其中 $r_i^j$ 表示 <code>j tensor</code> 的 <code>i channel</code></li>
-</ul>
-</li>
-</ul>
-</li>
-<li><p><code>abosrbing high bias</code> 是一种 <strong>解决模型中过大 bias</strong> 的技术，原理是：</p>
-<ul>
-<li>$y=W_2h+b_2\\=W_2(f(W_1x+b_1))+b_2\\=W_2(f(W_1x+b_1)+c-c)+b_2\\=W_2(f(W_1x+\hat{b_1})+c)+b_2\\=W_2(f(W_1x+\hat{b_1}))+\hat{b_2}\\=W_2\hat{h}+\hat{b_2}$</li>
-<li>其中：<ul>
-<li>$\hat{b_2}=b_2+W_2c$</li>
-<li>$\hat{h}=h-c$</li>
-<li>$\hat{b_1}=b_1-c$</li>
-<li>$c_i=max(0, min_x(W_{1i}x+b_{1i}))$</li>
-</ul>
-</li>
-</ul>
-</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1823,7 +1734,7 @@
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">94</span>
+          <span class="site-state-item-count">95</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>

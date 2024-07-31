@@ -152,6 +152,244 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2022/09/19/[WIP]A-White-Paper-on-Neural-Network-Quantization/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2022/09/19/%5BWIP%5DA-White-Paper-on-Neural-Network-Quantization/" class="post-title-link" itemprop="url">A White Paper on Neural Network Quantization</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2022-09-19 10:28:28" itemprop="dateCreated datePublished" datetime="2022-09-19T10:28:28+08:00">2022-09-19</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-03-02 20:51:22" itemprop="dateModified" datetime="2024-03-02T20:51:22+08:00">2024-03-02</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Network-Quantization/" itemprop="url" rel="index"><span itemprop="name">Network Quantization</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2022/09/19/%5BWIP%5DA-White-Paper-on-Neural-Network-Quantization/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2022/09/19/%5BWIP%5DA-White-Paper-on-Neural-Network-Quantization/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="URL"><a href="#URL" class="headerlink" title="URL"></a>URL</h2><ul>
+<li><a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2106.08295.pdf">https://arxiv.org/pdf/2106.08295.pdf</a></li>
+</ul>
+<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
+<li>本文用比较简洁的方式给出了神经网络的通用量化方法，是量化领域的必读论文。</li>
+</ul>
+<h2 id="Algorithm"><a href="#Algorithm" class="headerlink" title="Algorithm"></a>Algorithm</h2><h3 id="1-量化基础知识"><a href="#1-量化基础知识" class="headerlink" title="1. 量化基础知识"></a>1. 量化基础知识</h3><h4 id="1-1-硬件背景"><a href="#1-1-硬件背景" class="headerlink" title="1.1 硬件背景"></a>1.1 硬件背景</h4><ul>
+<li>一个 $y=Wx+b$ 实际上是由 <strong>乘法器</strong> 和 <strong>累加器</strong> 组合而成的，实际的计算过程如下：</li>
+</ul>
+<p><img src="https://s2.loli.net/2024/01/23/VidAYgkf5Tc3C84.png" alt="quant_4.png"></p>
+<blockquote>
+<p>卷积实际上也是通过 <code>image to column</code> 操作变成 $y=Wx+b$ 操作</p>
+</blockquote>
+<ul>
+<li>常见的 <code>int8</code> 量化会将上述过程变成如下过程：</li>
+</ul>
+<p><img src="https://s2.loli.net/2024/01/23/zWK21Cydk9lf7SU.png" alt="quant_1.png"></p>
+<blockquote>
+<p><code>weight</code> 和 <code>input</code> 都被量化为 <code>int8</code> ，同时保留各自的量化 <code>scale</code>，乘法操作是整形乘法器（更快），累加器是 <code>int32</code> 类型，最后再量化为 <code>int8</code> 放到 <code>OCM</code> 上</p>
+</blockquote>
+<h4 id="1-2-均匀仿射量化"><a href="#1-2-均匀仿射量化" class="headerlink" title="1.2 均匀仿射量化"></a>1.2 均匀仿射量化</h4><ul>
+<li><p>均匀仿射量化也被称为 <strong>非对称量化</strong>，由三个量化参数定义：</p>
+<ul>
+<li>比例因子 <code>scale</code></li>
+<li>零点 <code>zero_point</code></li>
+<li>比特宽度 <code>bits</code></li>
+</ul>
+</li>
+<li><p>非对称量化：</p>
+<ul>
+<li>for unsigned integers: $X_{int} = clamp(\lfloor\frac{X}{s}\rceil+z;0,2^b-1)$ </li>
+<li>for signed integers: $X_{int} = clamp(\lfloor\frac{X}{s}\rceil+z;-2^{b-1},2^{b-1}-1)$ </li>
+<li>这里的 $\lfloor\rceil$ 表示 <code>round</code> 运算</li>
+</ul>
+</li>
+<li><p>对称量化是非对称量化的简化版本，具体是将零点 <code>zero_point</code> 固定为 <code>0</code></p>
+</li>
+<li><p>对称量化： </p>
+<ul>
+<li>for unsigned integers: $X_{int} = clamp(\lfloor\frac{X}{s}\rceil;0,2^b-1)$ </li>
+<li>for signed integers: $X_{int} = clamp(\lfloor\frac{X}{s}\rceil;-2^{b-1},2^{b-1}-1)$ </li>
+</ul>
+</li>
+<li><p>对称量化和非对称量化的含义：</p>
+</li>
+</ul>
+<p><img src="https://s2.loli.net/2024/01/23/QsGeVkMWJLSlozh.png" alt="quant_3.png"></p>
+<p><img src="https://s2.loli.net/2024/01/23/NqpReAlwIKbThS3.png" alt="quant_2.png"></p>
+<ul>
+<li><p><code>2</code> 的指数幂量化：</p>
+<ul>
+<li>限制 $s=2^{-k}$ </li>
+<li>优势：scale 过程变成了硬件移位，对硬件更友好。</li>
+<li>劣势：会使得 round 和 clip 误差的权衡变难。</li>
+</ul>
+</li>
+<li><p>量化颗粒度：</p>
+<ul>
+<li>per-tensor: 硬件更友好，但限制了量化的自由度。</li>
+<li>per-channel: 反之。</li>
+</ul>
+</li>
+</ul>
+<h3 id="1-3-量化模拟"><a href="#1-3-量化模拟" class="headerlink" title="1.3 量化模拟"></a>1.3 量化模拟</h3><ul>
+<li>量化模拟是指在浮点计算设备上模拟定点计算设备的过程，通常用于训练。</li>
+</ul>
+<p><img src="https://s2.loli.net/2024/01/23/NqpReAlwIKbThS3.png" alt="quant_2.png"></p>
+<blockquote>
+<p>左边是定点计算过程，右边是用浮点设备模型定点计算的过程</p>
+</blockquote>
+<ul>
+<li>为了减少数据搬运和不必要的量化步骤，通常会做：<ul>
+<li><code>batch norm</code> 折叠：<code>batch norm</code> 在推理时是静态的，因此可以和前面的 <code>conv</code> 等层合并。</li>
+<li>激活函数融合：在实际的硬件解决方案中，通常会在非线性操作（如 <code>ReLU</code>）之后直接进行量化，而不是先将激活写入内存然后再加载回计算核心。</li>
+</ul>
+</li>
+</ul>
+<h3 id="1-4-实践考量"><a href="#1-4-实践考量" class="headerlink" title="1.4 实践考量"></a>1.4 实践考量</h3><ul>
+<li><p>对称量化和非对称量化：</p>
+<ul>
+<li>对称量化：<code>zero-point == 0</code></li>
+<li>非对称量化：<code>zero-point != 0</code></li>
+</ul>
+</li>
+<li><p>为了方便计算，通常情况下，<strong>会将权重设置为对称量化（$z_w=0$），将特征设置为非对称量化（$z_x\ne 0$）</strong></p>
+<ul>
+<li>原因分析：<ul>
+<li>$W=S_w(W_{int} - Z_w)$</li>
+<li>$X=S_x(X_{int} - Z_x)$</li>
+<li>$WX=S_wS_x(W_{int} - Z_w)(X_{int} - Z_x)\\=S_wS_xW_{int}X_{int}-S_wS_xZ_wX_{int}-S_wS_xZ_xW_{int}+S_wS_xZ_wZ_x$</li>
+<li>在推理阶段：$S_w,\ S_x,\ Z_w,\ Z_x,\ W_{int}$ 已知，因此：<ul>
+<li>等式的第三项和第四项可提前算出，无需推理耗时。</li>
+<li>第一项和第二项由于关联动态输入 $X_{int}$，因此需要额外耗时；<strong>但是如果设置 $Z_w=0$，则第二项恒等于0，可节省计算量</strong>。</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h2 id="2-训练后量化（PTQ，post-training-quantization）"><a href="#2-训练后量化（PTQ，post-training-quantization）" class="headerlink" title="2. 训练后量化（PTQ，post-training quantization）"></a>2. 训练后量化（PTQ，post-training quantization）</h2><ul>
+<li>训练后量化是指用 <code>float32</code> 精度训练的模型直接转成量化模型，无需任何数据和训练。</li>
+</ul>
+<h3 id="2-1-量化范围的设置"><a href="#2-1-量化范围的设置" class="headerlink" title="2.1 量化范围的设置"></a>2.1 量化范围的设置</h3><ul>
+<li>最大最小值法（<code>min-max</code>）：$q_{min}=minV,\ \ q_{max}=maxV$，$V$ 是待量化 <code>tensor</code></li>
+<li>均方差法（<code>MSE</code>）：$\argmin_{q_{min},q_{max}}||V-\hat{V}(q_{min}, q_{max})||^2_F$</li>
+<li>交叉熵法（<code>cross entropy</code>）：$\argmin_{q_{min},q_{max}}=H(softmax(V),softmax(\hat{V}(q_{min},q_{max})))$，其中 $H$ 表示 <code>cross entropy function</code></li>
+<li>批量归一化法（<code>BN based</code>）：$q_{min}=min(\beta-\alpha\gamma),\ \ q_{max}=max(\beta+\alpha\gamma)$，其中 $\beta,\ \gamma$ 分布表示 <code>batch norm</code> 学到的 <code>per channel</code> 的 <code>shift</code> 和 <code>scale</code>，$\alpha&gt;0$ 是超参数</li>
+<li>组合法（<code>comparsion</code>）：以上方法的自由组合</li>
+</ul>
+<p><img src="https://s2.loli.net/2024/03/02/rxHRCPGfTpDBws4.png" alt="quant_5.png"><br><img src="https://s2.loli.net/2024/03/02/9y5KmPxtCsAjQel.png" alt="quant_6.png"></p>
+<blockquote>
+<p>使用不同量化方法分别量化 <code>weight</code> 和 <code>activation</code> 后的精度</p>
+</blockquote>
+<h3 id="2-2-跨层均衡（Cross-Layer-Equalization）"><a href="#2-2-跨层均衡（Cross-Layer-Equalization）" class="headerlink" title="2.2 跨层均衡（Cross-Layer Equalization）"></a>2.2 跨层均衡（Cross-Layer Equalization）</h3><ul>
+<li>这是一种 <strong>通过修改模型权重</strong> 来改善神经网络量化性能的技术，<code>CLE</code> 的目的是减少网络中不同 <code>channel</code> 之间由于量化引起的性能不平衡，这种问题在 <code>depth-wise conv layer</code> 中尤其容易出现。</li>
+</ul>
+<p><img src="https://s2.loli.net/2024/03/02/3KlEd5w9Dpoq6ts.png" alt="quant_8.png"></p>
+<blockquote>
+<p><code>mobilenetv2</code> 第一个 <code>depth-wise conv</code> 层的 <code>per output channel weight range</code></p>
+</blockquote>
+<ul>
+<li>想要实现跨层均衡的模型，需要激活函数满足交换律，即：$f(sx)=sf(x)$，常见的 <code>ReLU</code> 和 <code>PReLU</code> 都满足。</li>
+</ul>
+<p><img src="https://s2.loli.net/2024/03/02/dWQlUJuHGpaNTk2.png" alt="quant_7.png"></p>
+<ul>
+<li><p><code>CLE</code> 原理：</p>
+<ul>
+<li>$y=f(W_2(W_1x+b_1)+b_2)\\=f(SW_2(S^{-1}W_1x+S^{-1}b_1)+b_2)\\=f(\hat{W_2}(\hat{W_1}x+\hat{b_1})+b_2)$</li>
+<li>其中：<ul>
+<li>$\hat{W_1}=S^{-1}W_1$</li>
+<li>$\hat{b_1}=S^{-1}b_1$</li>
+<li>$\hat{W_2}=SW_2$</li>
+<li>$S_i=\frac{\sqrt {r_i^1r_i^2}}{r_i^2}$，其中 $r_i^j$ 表示 <code>j tensor</code> 的 <code>i channel</code></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><code>abosrbing high bias</code> 是一种 <strong>解决模型中过大 bias</strong> 的技术，原理是：</p>
+<ul>
+<li>$y=W_2h+b_2\\=W_2(f(W_1x+b_1))+b_2\\=W_2(f(W_1x+b_1)+c-c)+b_2\\=W_2(f(W_1x+\hat{b_1})+c)+b_2\\=W_2(f(W_1x+\hat{b_1}))+\hat{b_2}\\=W_2\hat{h}+\hat{b_2}$</li>
+<li>其中：<ul>
+<li>$\hat{b_2}=b_2+W_2c$</li>
+<li>$\hat{h}=h-c$</li>
+<li>$\hat{b_1}=b_1-c$</li>
+<li>$c_i=max(0, min_x(W_{1i}x+b_{1i}))$</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2022/08/21/2-%E5%BC%A0%E9%87%8F%E7%A8%8B%E5%BA%8F%E6%8A%BD%E8%B1%A1/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1502,224 +1740,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2022/07/04/GPT-Improving-Language-Understanding-by-Generative-Pre-Training/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2022/07/04/GPT-Improving-Language-Understanding-by-Generative-Pre-Training/" class="post-title-link" itemprop="url">GPT: Improving Language Understanding by Generative Pre-Training</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2022-07-04 11:02:58" itemprop="dateCreated datePublished" datetime="2022-07-04T11:02:58+08:00">2022-07-04</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-05-30 22:20:36" itemprop="dateModified" datetime="2024-05-30T22:20:36+08:00">2024-05-30</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Self-Supervised-Learning/" itemprop="url" rel="index"><span itemprop="name">Self-Supervised Learning</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2022/07/04/GPT-Improving-Language-Understanding-by-Generative-Pre-Training/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2022/07/04/GPT-Improving-Language-Understanding-by-Generative-Pre-Training/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="URL"><a href="#URL" class="headerlink" title="URL"></a>URL</h2><ul>
-<li><p>paper: <a target="_blank" rel="noopener" href="https://s3-us-west-2.amazonaws.com/openai-assets/research-covers/language-unsupervised/language_understanding_paper.pdf">https://s3-us-west-2.amazonaws.com/openai-assets/research-covers/language-unsupervised/language_understanding_paper.pdf</a></p>
-</li>
-<li><p>demo code: <a target="_blank" rel="noopener" href="https://github.com/karpathy/minGPT">https://github.com/karpathy/minGPT</a></p>
-</li>
-<li><p>reference: <a target="_blank" rel="noopener" href="https://jalammar.github.io/illustrated-gpt2/">https://jalammar.github.io/illustrated-gpt2/</a></p>
-</li>
-</ul>
-<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
-<li><code>GPT (Generative Pre-Training)</code> 是一种基于 <code>transformer decoder</code> 结构的语言预训练模型，和视觉预训练模型不同的是使用没有 <code>label</code> 的文本数据做自监督预训练训练。</li>
-<li><p><code>GPT</code> 训练主要分成两个步骤：</p>
-<ol>
-<li>在无标注数据上做自监督预训练，具体训练目标函数是：根据前 k 个词预测下一个词</li>
-<li>在有监督数据集上做有监督微调，具体微调目标函数是：任务相关预测 + 根据前 k 个词预测下一个词</li>
-</ol>
-</li>
-<li><p>由于 <code>transformer decoder</code> 中存在 <code>mask</code>，所以不像 <code>Bert</code> 可以根据前后文推理中间缺失的词（完型填空任务），<code>GPT</code> 只能使用根据前文推后文的方法，<strong>因此也更适合做文本生成任务</strong>。</p>
-</li>
-<li><p>预训练好的模型在下游任务上微调时，只需要对网络输出头做较小的修改即可适配，效果很好。</p>
-</li>
-</ul>
-<h2 id="Algorithm"><a href="#Algorithm" class="headerlink" title="Algorithm"></a>Algorithm</h2><ul>
-<li>发展历程： Transformer -&gt; GPT -&gt; Bert -&gt; GPT2 -&gt; GPT3 -&gt; GPT4</li>
-</ul>
-<h3 id="example"><a href="#example" class="headerlink" title="example"></a>example</h3><p><code>GPT</code> 模型擅长文本生成，因此以文本生成举例：输入”Hello, world!” 要求生成后续内容。</p>
-<h4 id="1-tokenize"><a href="#1-tokenize" class="headerlink" title="1. tokenize"></a>1. tokenize</h4><ul>
-<li>本质是查词表，把文本字符串转换成若干个有序 <code>id</code>，每个 <code>id</code> 表示这个词在词表的索引</li>
-<li>词表可以在 <a target="_blank" rel="noopener" href="https://huggingface.co/openai-community/gpt2/raw/main/vocab.json">https://huggingface.co/openai-community/gpt2/raw/main/vocab.json</a> 这里获取</li>
-<li><code>Hello, world!</code> 会被拆解为：<ul>
-<li><code>Hello</code>: <code>15496</code></li>
-<li><code>,</code>: <code>11</code></li>
-<li><code>world</code>: <code>995</code></li>
-<li><code>!</code>: <code>0</code></li>
-</ul>
-</li>
-</ul>
-<h4 id="2-token-embeding"><a href="#2-token-embeding" class="headerlink" title="2. token embeding"></a>2. token embeding</h4><ul>
-<li>因为 <code>id</code> 串不是神经网络可以处理的格式，所以需要 <code>id</code> 的向量化</li>
-<li><code>token embedding</code> 过程本身也是一个查表过程，表格的大小是 <code>vocabulary_size * embedding_size</code>，<code>GPT-2</code> 中 <code>vocabulary size == 50257</code>，<code>embedding size == 768</code></li>
-<li>查表后得到一个 <code>4 * 768</code> 的 <code>token embedding</code></li>
-</ul>
-<h4 id="3-position-embeding"><a href="#3-position-embeding" class="headerlink" title="3. position embeding"></a>3. position embeding</h4><ul>
-<li>给每个 <code>token id</code> 顺序编码一个 <code>position id</code>， 因此 <code>position id</code> 为 <code>[0, 1, 2, 3]</code></li>
-<li>然后将 <code>position id</code> 变成模型可识别的向量，也是一个查表过程，表格本身是可以通过梯度下降学习的，表格的大小是 <code>max_seq_len * embedding_size</code>，<code>max_seq_len</code> 表示 <strong>最大支持的上下文长度</strong>，<code>GPT-2</code> 中为 <code>1024</code></li>
-<li><code>position embedding</code> 只用在 <code>transformer</code> 第一层之前</li>
-</ul>
-<h4 id="4-生成输入-hidden-states"><a href="#4-生成输入-hidden-states" class="headerlink" title="4. 生成输入 hidden states"></a>4. 生成输入 <code>hidden states</code></h4><ul>
-<li><code>token embedding</code> + <code>position embedding</code> = <code>hidden states</code></li>
-<li><code>hidden states</code> 的 <code>shape = 4 * 768</code></li>
-</ul>
-<h4 id="5-Casual-Decoder-Layer"><a href="#5-Casual-Decoder-Layer" class="headerlink" title="5. Casual Decoder Layer"></a>5. <code>Casual Decoder Layer</code></h4><ul>
-<li>这个是 <code>GPT</code> 系列模型的核心，是一种因果注意力机制</li>
-<li>因果注意力（<code>Casual</code>）是指每个 <code>hidden state</code> 只能关注之前位置的 <code>hidden state</code>，而不能关注之后的</li>
-<li>例如: <code>Hello, world!</code> 的 <code>seq_len == 4</code>，那么注意力矩阵是 <code>4x4</code>，但此矩阵需要是下三角矩阵，即 <strong>“,” 只能关注 <code>Hello</code>，而不能关注 <code>world</code></strong></li>
-</ul>
-<h4 id="6-Casual-Decoder-Layer-输出的-hidden-states-再输入下一层-Casual-Decoder-Layer"><a href="#6-Casual-Decoder-Layer-输出的-hidden-states-再输入下一层-Casual-Decoder-Layer" class="headerlink" title="6. Casual Decoder Layer 输出的 hidden states 再输入下一层 Casual Decoder Layer"></a>6. <code>Casual Decoder Layer</code> 输出的 <code>hidden states</code> 再输入下一层 <code>Casual Decoder Layer</code></h4><ul>
-<li>输出的 <code>hidden states</code> 和输入的 <code>hidden states</code> 的 <code>shape</code> 保持一致</li>
-<li>再输入下一层 <code>Casual Decoder Layer</code>，<code>GPT-2</code> 有 <code>12</code> 层</li>
-</ul>
-<h4 id="7-最后一层输出的-hidden-states-的最后一个-hidden-state-用于分类"><a href="#7-最后一层输出的-hidden-states-的最后一个-hidden-state-用于分类" class="headerlink" title="7. 最后一层输出的 hidden states 的最后一个 hidden state 用于分类"></a>7. 最后一层输出的 <code>hidden states</code> 的最后一个 <code>hidden state</code> 用于分类</h4><ul>
-<li>经过重复 <code>12</code> 层的 <code>Casual Decoder Layer</code>，最后输出 <code>hidden states (shape = 4 x 768)</code></li>
-<li>取最后一维 <code>hidden state (shape = 1 x 768)</code> 通过一层或多层 <code>fully connect</code> 映射到 <code>vocabulary size</code></li>
-<li><code>vocabulary size</code> 上取 <code>argmax</code> 得到最大概率的下一个词</li>
-</ul>
-<h4 id="8-合并预测到的词到语句末尾"><a href="#8-合并预测到的词到语句末尾" class="headerlink" title="8. 合并预测到的词到语句末尾"></a>8. 合并预测到的词到语句末尾</h4><ul>
-<li>如果预测的词不是结束符，且语句总长小于 <code>max_seq_len</code>，则将预测得到的词加到原语句末尾</li>
-<li>加完之后的长度为 <code>5</code> 的语句继续通过 <code>12</code> 层 <code>Casual Decoder Layer</code> 去预测下一个词</li>
-<li>重复直到结束符或 <code>max_seq_len</code></li>
-</ul>
-<h3 id="model-architecture"><a href="#model-architecture" class="headerlink" title="model architecture"></a>model architecture</h3><ul>
-<li>token embedding</li>
-</ul>
-<p><img src="https://s2.loli.net/2023/05/18/8yRhqfLDmAp5iMd.png" alt="gpt2-token-embeddings-wte-2.png"></p>
-<ul>
-<li>postion embedding</li>
-</ul>
-<p><img src="https://s2.loli.net/2023/05/18/DLKrXdPRA2mknhU.png" alt="gpt2-positional-encoding.png"></p>
-<ul>
-<li>model architecture</li>
-</ul>
-<p><img src="https://s2.loli.net/2023/05/18/4eNbEsnvGKl7uTJ.png" alt="gpt2-input-embedding-positional-encoding-3.png"></p>
-<h3 id="Unsupervised-pre-training"><a href="#Unsupervised-pre-training" class="headerlink" title="Unsupervised pre-training"></a>Unsupervised pre-training</h3><ul>
-<li><p>使用标准语言建模（用前面的词预测下一个词）目标来最大化如下的似然函数：<br>目标函数： $L_1(U)=\sum_ilogP(u_i|u_{i-k},…,u_{i-1} | \Theta)$<br>其中：U 表示 token 的上下文向量，k 为窗口大小， $\Theta$ 为模型参数</p>
-</li>
-<li><p>模型使用 <code>Transformer decoder</code> 结构，整体计算流程可简写为：</p>
-<ul>
-<li>$h_0=UW_e+W_p$</li>
-<li>$h_l=transformer\_block(h_{l-1}),\ \ \ \forall i\in[1,n]$</li>
-<li><p>$P(u)=softmax(h_nW_e^T)$</p>
-<p>其中： <code>n</code> 表示 <code>transformer</code> 层数，U 表示上下文 <code>token</code>，$W_e$ 表示 <code>token</code> 的 <code>embedding</code> 矩阵， $W_p$ 表示 <code>position embedding</code> 矩阵</p>
-</li>
-</ul>
-</li>
-</ul>
-<h3 id="Supervised-fine-tuning"><a href="#Supervised-fine-tuning" class="headerlink" title="Supervised fine-tuning"></a>Supervised fine-tuning</h3><ul>
-<li><p>有监督 <code>fine-tuning</code> 使用的数据可表示为：</p>
-<ul>
-<li>输入 $x_1, x_2, …, x_m$</li>
-<li>标签 y</li>
-</ul>
-</li>
-<li><p>预测 $P(y|x_i,…,x_m)=softmax(h_l^mW_y)$ 这里使用 <strong>最后一个一层的最后一个 token 对应的输出</strong></p>
-</li>
-<li><p>因此，有监督目标函数为： $L_2(C)=\sum_{(x,y)}logP(y|x_1,…,x_m)$ ，其中 C 表示 <code>fine-tuning</code> 使用的有标签数据集</p>
-</li>
-<li><p>作者发现在 <code>fine-tuning</code> 阶段，加上无监督损失函数效果会更好，即： $L_3(C)=L_2(C)+\lambda * L_1(C)$</p>
-</li>
-</ul>
-<h3 id="Task-specific-input-transformations"><a href="#Task-specific-input-transformations" class="headerlink" title="Task-specific input transformations"></a>Task-specific input transformations</h3><ul>
-<li>本节讨论的是在 <code>fine-tunning</code> 以及 <code>inference</code> 阶段如何构造模型输入</li>
-</ul>
-<p><img src="https://s2.loli.net/2023/05/14/UVxR4yisz7BFdNu.png" alt="GPT.png"></p>
-<ul>
-<li><p>上图举例了四个常见 <code>NLP</code> 任务：</p>
-<ul>
-<li><p>分类：图中的 <code>Start</code> 和 <code>Extract</code> 分别是两个保留的特殊 token，分别表示输入的开始和输出特征的抽取（linear 层只输入 transformer 最后一层的最后一个 token 的输出，因此在最后填充一个 Extract 特殊标记 token）</p>
-</li>
-<li><p>蕴含：用于分析 <strong>前提（premise）</strong> 是否蕴含 <strong>假设（hypothesis）</strong>，本质是一个 <strong>蕴含 / 不蕴含 / 不确定</strong> 三分类问题，中间的 <code>Delim</code> 是特殊标识 token，表示分割含义</p>
-</li>
-<li><p>相似：用于分析两个句子是否具有相似关系，由于相似具有对称性，所以需要构造两种顺序的输入，本质是二分类</p>
-</li>
-<li><p>多选：其中 <code>context</code> 包含上下文文本和问题，需要针对每个答案构建一个 <code>context</code> 和 <code>answer</code> 对，最后用 <code>softmax</code> 计算 <code>answer</code> 概率分布</p>
-</li>
-</ul>
-</li>
-</ul>
-<h2 id="Thought"><a href="#Thought" class="headerlink" title="Thought"></a>Thought</h2><ul>
-<li><code>GPT</code> 使用了 <code>Transformer decoder</code>，由于 <code>mask</code> 的存在，无法知道之后的句子，因此选择了比 <code>Bert</code> 更难的标准语言建模（根据前 k 个词预测下一个词）的代理任务，对应的模型无监督预训练效果上限也相应提高。</li>
-<li>由于 <code>Bert</code> 使用的 <code>Transformer encoder</code>，因此可以看到句子的上下文，因此 <code>Bert</code> 使用了较为简单的完形填空无监督目标函数。</li>
-<li><code>Bert</code> 晚于 <code>GPT</code>，借鉴了很多 <code>GPT</code> 的思想，效果也优于 <code>GPT</code>，但 <code>GPT</code> 开启了语言模型无监督预训练先河，有可能成为 <code>AIGC</code> 的原型机。</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1788,7 +1808,7 @@
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">94</span>
+          <span class="site-state-item-count">95</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
