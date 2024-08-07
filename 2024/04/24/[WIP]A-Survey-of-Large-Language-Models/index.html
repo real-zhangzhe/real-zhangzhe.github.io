@@ -40,7 +40,7 @@
 <meta property="og:image" content="https://s2.loli.net/2024/07/02/kc8Q19t3amuS42z.png">
 <meta property="og:image" content="https://s2.loli.net/2024/07/31/eJvRXQnEjrLfN3M.png">
 <meta property="article:published_time" content="2024-04-24T05:24:21.000Z">
-<meta property="article:modified_time" content="2024-07-31T05:35:21.098Z">
+<meta property="article:modified_time" content="2024-08-07T05:24:31.919Z">
 <meta property="article:author" content="Zhangzhe">
 <meta property="article:tag" content="Paper Reading">
 <meta property="article:tag" content="Survey">
@@ -202,7 +202,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-07-31 13:35:21" itemprop="dateModified" datetime="2024-07-31T13:35:21+08:00">2024-07-31</time>
+                <time title="Modified: 2024-08-07 13:24:31" itemprop="dateModified" datetime="2024-08-07T13:24:31+08:00">2024-08-07</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1072,6 +1072,66 @@
 </ol>
 </li>
 <li><p><strong>长文本建模</strong></p>
+<p> 长文本建模是指模型在推理阶段实际输入的序列长度比训练阶段更长，即 <code>train short, test long</code>，主要有两种范式：</p>
+<ol>
+<li><p><strong>扩展位置嵌入（Scaling Position Embeddings）</strong></p>
+<ol>
+<li>直接模型微调：通过多阶段逐步增加上下文长度来适应长文本。</li>
+<li>位置插值：通过调整位置索引来扩展上下文窗口，相比直接模型微调更有效。</li>
+<li>位置截断：截断超出预定义窗口长度的位置索引，保留局部位置关系。</li>
+<li>基础修改：通过调整基础值来改变波长，以适应更长的文本。例如修改 <code>RoPE</code> 的旋转角度间隔等。</li>
+<li>基础截断：截断超出特定范围的基础值，避免在更大位置索引处出现分布外的旋转角度。</li>
+</ol>
+</li>
+<li><p><strong>适应上下文窗口（Adapting Context Window）</strong></p>
+<ol>
+<li>并行上下文窗口：将输入文本分割成多个段，独立编码并修改注意力掩码以访问先前段的令牌。</li>
+<li>Λ 形上下文窗口：基于LLMs倾向于更多关注起始和最近的令牌，采用选择性保留初始和最近令牌的注意力掩码。</li>
+<li>外部记忆：存储过去的键（keys）在外部记忆，并使用k-最近邻搜索方法检索最相关的令牌。</li>
+</ol>
+</li>
+</ol>
+</li>
+<li><p><strong>解码策略</strong></p>
+<ol>
+<li><p>背景</p>
+<ol>
+<li>对于绝大多数的文本生成任务，<code>language modeling</code> 解码策略就足够了，即预测下一个概率最大的词，这种解码策略也被称为 <code>Greedy search</code></li>
+<li><code>language modeling</code> 解码策略对于比如机器翻译、文本总结等任务是够用的，但是对于比如故事生成、对话等任务就有问题，会输出大量重复的、无意义的文本</li>
+<li>因此，一种简单有效的策略是根据输出的词表中每一个词的概率随机选择一个词（即从 <code>argmax</code> 变成 <code>softmax</code>），这种策略被称为 <code>Random sampling</code></li>
+</ol>
+</li>
+<li><p><strong><code>Greedy search</code> 的改进</strong></p>
+<ol>
+<li><code>Beam search</code>：集束搜索可以缓解模型预测陷入局部最优解，<code>beam size</code> 通常设置在 <code>3 ~ 6</code> 之间，太大会降低模型效果</li>
+<li><code>Length penalty</code>：对于集束搜索的搜索空间进行长度惩罚，最终加权选择最优生成序列</li>
+</ol>
+</li>
+<li><p><strong><code>Random sampling</code> 的改进</strong><br> <code>Random sampling</code> 是根据预测概率随机选，因此没个词都有可能被选中（即使概率很低），这可能会导致输出完全不合逻辑的文本序列，因此需要改进</p>
+<ol>
+<li><p><code>Temperature sampling</code></p>
+<ol>
+<li>$P(x_j|x&lt;i)=\frac{exp(l_j/t)}{\sum_{j’}exp(l_{j’}/t)}$，其中 <code>t</code> 代表温度</li>
+<li>是对 <code>softmax</code> 得到概率分布的优化，加入了温度系数，可有效缓解随机采样导致的采样到不合理值的问题</li>
+<li>当 <code>t = 1</code> 时，退化为 <code>random sampling</code></li>
+<li>当 <code>t</code> 趋近于 <code>0</code> 时，退化为 <code>greedy search</code></li>
+</ol>
+</li>
+<li><p><code>top-k sampling</code></p>
+<ol>
+<li>只保留可能性最高的 <code>k</code> 种取值</li>
+<li>概率重新归一化后根据概率随机选</li>
+</ol>
+</li>
+<li><p><code>top-p sampling</code></p>
+<ol>
+<li>只保留概率大于 <code>p</code> 的取值</li>
+<li>概率重新归一化后根据概率随机选</li>
+</ol>
+</li>
+</ol>
+</li>
+</ol>
 </li>
 </ol>
 
