@@ -152,6 +152,224 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2022/09/29/Swin-Transformer-Hierarchical-Vision-Transformer-using-Shifted-Windows/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2022/09/29/Swin-Transformer-Hierarchical-Vision-Transformer-using-Shifted-Windows/" class="post-title-link" itemprop="url">Swin Transformer: Hierarchical Vision Transformer using Shifted Windows</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2022-09-29 20:49:22" itemprop="dateCreated datePublished" datetime="2022-09-29T20:49:22+08:00">2022-09-29</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2022-10-17 09:47:54" itemprop="dateModified" datetime="2022-10-17T09:47:54+08:00">2022-10-17</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Transformer/" itemprop="url" rel="index"><span itemprop="name">Transformer</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2022/09/29/Swin-Transformer-Hierarchical-Vision-Transformer-using-Shifted-Windows/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2022/09/29/Swin-Transformer-Hierarchical-Vision-Transformer-using-Shifted-Windows/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="URL"><a href="#URL" class="headerlink" title="URL"></a>URL</h2><ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2103.14030.pdf">https://arxiv.org/pdf/2103.14030.pdf</a></li>
+<li>code: <a target="_blank" rel="noopener" href="https://github.com/microsoft/Swin-Transformer">https://github.com/microsoft/Swin-Transformer</a></li>
+</ul>
+<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
+<li><p>本文提出一种新型 <code>Transformer</code> 结构使用 <code>Window Multi-head Self-attention (W-MSA)</code> 和 <code>Shifted Window Multi-head Self-attention (SW-MSA)</code> 结构替代原始 <code>Transformer</code> 使用的 <code>Multi-head Self-attention (MSA)</code> 结构。</p>
+<ul>
+<li><p>大大节省了原始 <code>Transformer</code> 的计算复杂度。</p>
+</li>
+<li><p>在视觉任务中吊打了一众 <code>CNN</code> 和 <code>Transformer</code>。</p>
+</li>
+</ul>
+</li>
+</ul>
+<h2 id="Algorithm"><a href="#Algorithm" class="headerlink" title="Algorithm"></a>Algorithm</h2><p><img src="https://s2.loli.net/2022/09/29/kOWptJzaAQns1If.png" alt="1.png"></p>
+<h3 id="总体结构"><a href="#总体结构" class="headerlink" title="总体结构"></a>总体结构</h3><ul>
+<li><p><code>swin-Transformer</code> 总体按照类似 <code>CNN</code> 的层次化构建方式构建网络结构，分为 4 个 <code>stage</code>，每个 <code>stage</code> 都会将分辨率缩小一倍，<code>channel</code> 数扩大一倍 <strong>（like vgg）</strong> 。</p>
+</li>
+<li><p><code>Swin Tranformer Block</code> 像大多数 <code>Transformer Block</code> 一样，不改变输入特征 <code>shape</code>，可以看做是一种比较高级（加入了 self-attention）的激活函数。</p>
+</li>
+<li><p>图中 <code>Swin Tranformer Block</code> 都是以连续偶数次出现，因为是一个 <code>W-MSA Transformer Block</code> + 一个 <code>SW-MSA Transformer Block</code>，如右边子图 b 所示。</p>
+</li>
+</ul>
+<h3 id="Patch-Partition"><a href="#Patch-Partition" class="headerlink" title="Patch Partition"></a>Patch Partition</h3><ul>
+<li><p>作用与 <code>ViT</code> 第一步很像：<strong>将图片切成若干等大小不重叠的 <code>patch</code>，<code>patch_size</code> = P，然后把每个 <code>patch</code> 从 <code>(P, P, c)</code> 拉成 1 维</strong>。</p>
+</li>
+<li><p>本实验中 <code>patch_size = 4</code>，所以一张图被裁切成了 $\frac{H}{4}\times\frac{W}{4}$ 个长度为 <code>4 * 4 * 3 = 48</code> 的向量。</p>
+</li>
+</ul>
+<h3 id="Linear-Embedding"><a href="#Linear-Embedding" class="headerlink" title="Linear Embedding"></a>Linear Embedding</h3><ul>
+<li>与一个 <code>shape = (48, C)</code> 的矩阵乘将 <code>48</code> 维映射到 <code>C</code> 维。</li>
+</ul>
+<blockquote>
+<p>与上一步结合可以变成一个 <strong>in_channel = 3, out_channel = C, kernel_size = stride = 4 的 Conv2d</strong>，官方实现中实际上也是这么做的（ <code>class PatchEmbed</code> ）。</p>
+</blockquote>
+<h3 id="Patch-Merging"><a href="#Patch-Merging" class="headerlink" title="Patch Merging"></a>Patch Merging</h3><ul>
+<li><p>由两步组成，作用是 <strong>将分辨率缩小一倍，channel 扩大一倍</strong>。</p>
+<ul>
+<li><p>将 $\frac{H}{4}\times\frac{W}{4}\times C$ 的输入使用 <code>bayer2rggb (space2depth with block_size = 2)</code> 变成 $\frac{H}{8}\times\frac{W}{8}\times 4C$ 。</p>
+</li>
+<li><p>再将 $\frac{H}{8}\times\frac{W}{8}\times 4C$ 与一个 $4C\times 2C$ 的矩阵相乘，输出一个 $\frac{H}{8}\times\frac{W}{8}\times 2C$ 的矩阵。</p>
+</li>
+</ul>
+</li>
+</ul>
+<h3 id="W-MSA"><a href="#W-MSA" class="headerlink" title="W-MSA"></a>W-MSA</h3><ul>
+<li><p>全称为 <code>Windows Multi-head Self-attention</code>，目的是为了减少 <code>Self-attention</code> 计算量。</p>
+<ul>
+<li><p>原始的 <code>MSA</code> 会直接对完整输入计算其 <code>self-attention</code> 结果</p>
+</li>
+<li><p><code>W-MSA</code> 先将输入拆成大小为 $M\times M$ 且互不重叠的 <code>windows</code>，然后计算每个 <code>window</code> 的 <code>self-attention</code> 结果。</p>
+</li>
+<li><p>计算公式还是: $Attention(Q, K, V) = softmax(\frac{QK^T}{\sqrt{d_k}})V$</p>
+</li>
+</ul>
+</li>
+<li><p><code>MSA</code> 和 <code>W-MSA</code> 计算量对比（假设输入特征图 $X \in \mathbb{R}^{H\times W\times C}$，且 $W_q,W_k,W_v \in \mathbb{R}^{C\times C}$，且 <code>Multi-head</code> 的 <code>head</code> 数为 1)：</p>
+<ul>
+<li><p><code>MSA</code> 计算量：</p>
+<ul>
+<li><p>X -&gt; Q / K / V 计算量：$\mathbb{R}^{H\times W\times C}\times \mathbb{R}^{C\times C}$ 计算量为 $3HWC^2$ 。</p>
+</li>
+<li><p>$QK^T$ 计算量：$\mathbb{R}^{HW\times C}\times \mathbb{R}^{C\times HW}$ 计算量为 $H^2W^2C$ 。</p>
+</li>
+<li><p>不考虑 softmax 和 $\frac{..}{\sqrt{d_k}}$ 计算量。</p>
+</li>
+<li><p>softmax 结果 $\times V$ 计算量： $\mathbb{R}^{HW \times HW}\times \mathbb{R}^{HW \times C}$ 计算量为 $H^2W^2C$ 。</p>
+</li>
+<li><p>因为需要 <code>Multi-head</code>，所以需要将 $\times V$ 之后的矩阵再 $\times W_o$，且 <code>head</code> 数为 1，计算量： $\mathbb{R}^{1*HW \times C}\times \mathbb{R}^{C \times C}$ 计算量为 $HWC^2$ 。</p>
+</li>
+<li><p>总计算量： $4HWC^2 + 2H^2W^2C$ 。</p>
+</li>
+</ul>
+</li>
+<li><p><code>W-MSA</code> 计算量：</p>
+<ul>
+<li><p>上图的 $H\rightarrow M,\ W\rightarrow M$，一共重复 $\frac{HW}{M^2}$ 次，所以总计算量为：</p>
+<p>$(4M^2C^2 + 2M^4C)\times \frac{HW}{M^2}=4HWC^2+2HWM^2C$</p>
+</li>
+</ul>
+</li>
+<li><p>相比之下 <code>W-MSA</code> 会比 <code>WSA</code> 计算量少： $2HWC(HW-M^2)$ 。</p>
+</li>
+</ul>
+</li>
+</ul>
+<h3 id="SW-MSA"><a href="#SW-MSA" class="headerlink" title="SW-MSA"></a>SW-MSA</h3><ul>
+<li>为了节省计算量 <code>W-MSA</code> 会将输入的完整特征图分 window，每个 window 独立去做 self-attention，这会导致 window 之间的关联性消失，这有悖于 self-attention 会在全图上建立长距离全局相关性依赖的特点。</li>
+<li>所以，作者引入 <code>SW-MSA</code> 的方案通过 <strong>滑窗</strong> 解决这一问题。</li>
+</ul>
+<p><img src="https://s2.loli.net/2022/09/29/I1VXz3YWkEZtxOS.png" alt="2.png"></p>
+<ul>
+<li><p>滑窗会带来边角处的零碎区域（长或宽小于 <code>window_size</code> 的区域），由于 $H % M = 0,\ W % M = 0$ (<code>W-MSA</code> 要求)，所以零碎的区域可以通过调整位置拼成完整 <code>window</code> 。</p>
+</li>
+<li><p>完整的滑窗区域与 <code>W-MSA</code> 一样独立做 <code>Self-attention</code>。</p>
+</li>
+<li><p>由零碎区域拼成的滑窗区域中：</p>
+<ul>
+<li><p>本属于同一零碎区域的位置可以 <code>Self-attention</code> 。</p>
+</li>
+<li><p>本不属于同一零碎区域的位置在原图上不相邻，不能做 <code>Self-attention</code> 。</p>
+</li>
+<li>具体做法是来自不同区域位置之间的 <code>Self-attention</code> 被 <strong>mask 掉</strong> ，只保留来自相同区域的位置间的 <code>Self-attention</code> 。</li>
+</ul>
+</li>
+</ul>
+<h3 id="W-MSA-SW-MSA"><a href="#W-MSA-SW-MSA" class="headerlink" title="W-MSA + SW-MSA"></a>W-MSA + SW-MSA</h3><ul>
+<li><p>如网络结构图子图 b 所示，<code>W-MSA</code> 连接 <code>SW-MSA</code> 之后，数学表示：</p>
+<p>  $\hat{z}^l=W-MSA(LN(z^{l-1})) + z^{l-1}$</p>
+<p>  $z^l=MLP(LN(\hat z^l)) + \hat z^l$</p>
+<p>  $\hat z^{l+1} = SW-MSA(LN(z^l))+z^l$</p>
+<p>  $z^{l+1} = MLP(LN(\hat z^{l+1}))+\hat z^{l+1}$</p>
+</li>
+</ul>
+<h3 id="Relative-Position-Bias"><a href="#Relative-Position-Bias" class="headerlink" title="Relative Position Bias"></a>Relative Position Bias</h3><ul>
+<li><p>对 <code>Self-attention</code> 加上 <strong>相对位置偏置</strong> <code>bias</code> 之后，精度提升巨大。</p>
+</li>
+<li><p>原始 <code>Self-attention</code>： $Attention(Q, K, V) = softmax(\frac{QK^T}{\sqrt{d_k}})V$ 。</p>
+</li>
+<li><p><code>Relative Position Bias Self-attention</code>： $Attention(Q, K, V) = softmax(\frac{QK^T}{\sqrt{d_k}} + Bias)V$ 。</p>
+</li>
+</ul>
+<p><img src="https://s2.loli.net/2022/09/29/X85gKzqyNWUuGDs.png" alt="3.png"></p>
+<h2 id="Through"><a href="#Through" class="headerlink" title="Through"></a>Through</h2><ul>
+<li><p>质疑了很多人都没有质疑的点，例如给 <code>Self-attention</code> 加上相对位置偏置。</p>
+</li>
+<li><p>本质是对 <code>Tranformer</code> 的一种很 work 的加速方法。</p>
+</li>
+<li><p>但 <code>Shift window</code> 逻辑比较复杂，没有经典模型该有的简约美，盲猜之后会被更 <code>make sense</code> 的结构替代。</p>
+</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2022/09/24/Python-%E9%97%AD%E5%8C%85%E4%B8%8E%E8%A3%85%E9%A5%B0%E5%99%A8/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1569,165 +1787,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2022/08/01/LSQ-Improving-low-bit-quantization-through-learnable-offsets-and-better-initialization/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2022/08/01/LSQ-Improving-low-bit-quantization-through-learnable-offsets-and-better-initialization/" class="post-title-link" itemprop="url">LSQ+: Improving low-bit quantization through learnable offsets and better initialization</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2022-08-01 09:35:57" itemprop="dateCreated datePublished" datetime="2022-08-01T09:35:57+08:00">2022-08-01</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2022-09-30 14:56:09" itemprop="dateModified" datetime="2022-09-30T14:56:09+08:00">2022-09-30</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Network-Quantization/" itemprop="url" rel="index"><span itemprop="name">Network Quantization</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2022/08/01/LSQ-Improving-low-bit-quantization-through-learnable-offsets-and-better-initialization/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2022/08/01/LSQ-Improving-low-bit-quantization-through-learnable-offsets-and-better-initialization/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="URL"><a href="#URL" class="headerlink" title="URL"></a>URL</h2><ul>
-<li><a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2004.09576.pdf">https://arxiv.org/pdf/2004.09576.pdf</a></li>
-</ul>
-<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
-<li>典型量化算法（如：<code>DoReFa</code>、<code>PACT</code>、<code>LSQ</code>）对 <code>feature</code> 的量化通常使用无符号量化（负半轴量化到零点）：<ul>
-<li>这种量化算法适用于使用 <code>Relu</code> 激活函数的网络。</li>
-<li>但对使用新式激活函数（如：<code>swish</code>, <code>H-swish</code>, <code>Mish</code>, <code>Leaky-ReLU</code>）的网络（如：<code>EfficientNet</code>、<code>MixNet</code>）会造成较大的量化误差。</li>
-<li><code>LSQ+</code> 作为一种非对称量化算法可以学习 <code>scale</code> 和 <code>offset</code>，去适应需要负数激活函数的网络。</li>
-</ul>
-</li>
-<li>量化网络训练收敛较难，所以 <code>LSQ+</code> 提出了一种比较高效的 <code>scale</code> 和 $\beta$ 初始化方法：MSE 最小误差初始化方法优于最大最小值。</li>
-</ul>
-<h2 id="Algorithm"><a href="#Algorithm" class="headerlink" title="Algorithm"></a>Algorithm</h2><h3 id="1-LSQ-算法存在的问题"><a href="#1-LSQ-算法存在的问题" class="headerlink" title="1. LSQ 算法存在的问题"></a>1. LSQ 算法存在的问题</h3><ul>
-<li><p><code>LSQ</code> 公式</p>
-<p>$\bar{x} = \lfloor clamp (\frac{x}{s}, n, p)\rceil$</p>
-<p>$\hat{x} = \bar{x} \times s$</p>
-</li>
-</ul>
-<ul>
-<li><code>LSQ</code> 对例如 <code>Leaky-ReLU</code>、<code>Swish</code> 这种存在负半轴的激活函数量化有两种方法：<ul>
-<li>截断负半轴，即 $n=0,\ p=2^b-1$，显然降低模型表现能力</li>
-<li>正负半轴相同尺度量化，即 $n=-2^{b-1},\ p=2^{b-1}-1$，由于正半轴的信息量远高于负半轴，同尺度量化会增大正半轴的量化误差</li>
-</ul>
-</li>
-</ul>
-<h3 id="2-LSQ-的解决方案"><a href="#2-LSQ-的解决方案" class="headerlink" title="2. LSQ+ 的解决方案"></a>2. LSQ+ 的解决方案</h3><ul>
-<li><code>LSQ+</code> 的改进主要包含两个方面：<ul>
-<li>在 <code>LSQ</code> 设置了可学习的参数 <code>scale</code> 的基础上，<strong>在 activation 量化上</strong> （<code>weight</code> 量化没有 <code>offset</code>）增加了另外一个可学习参数 <code>offset</code></li>
-<li>对网络初始化的方法进行了改进</li>
-</ul>
-</li>
-</ul>
-<h4 id="2-1-增加可学习-offset-参数"><a href="#2-1-增加可学习-offset-参数" class="headerlink" title="2.1 增加可学习 offset 参数"></a>2.1 增加可学习 offset 参数</h4><ul>
-<li><p>LSQ+ 公式<br>$\bar{x} = \lfloor clamp (\frac{x-\beta}{s}, n, p)\rceil$</p>
-<p>$\hat{x} = \bar{x} \times s + \beta$</p>
-</li>
-</ul>
-<ul>
-<li><p>对 <code>s</code> 的梯度计算:</p>
-<p>$\frac{\partial\hat{x}}{\partial{s}}$ = $\frac{\partial\bar{x}}{\partial{s}}s + \bar{x} \simeq \begin{cases} -\frac{x-\beta}{s}+\lfloor\frac{x-\beta}{s}\rceil &amp;,if\ n &lt; \frac{x-\beta}{s} &lt; p\\ n&amp;, if\ \frac{x-\beta}{s} &lt; n\\ p&amp;,if\ p&lt;\frac{x-\beta}{s}\end{cases}$</p>
-</li>
-<li><p>对 $\beta$ 的梯度计算</p>
-<p>$\frac{\partial\hat{x}}{\partial{\beta}}=\frac{\partial\bar{x}}{\partial{\beta}}+1\simeq \begin{cases} 0&amp;,if\ n&lt;\frac{x-\beta}{s} &lt;p\\ 1&amp;,otherwise\end{cases}$</p>
-</li>
-<li><p>加入了 $\beta$ 参数后，对存在负半轴的激活函数进行非对称量化将几乎没有额外开销</p>
-<p>$\hat{w}\hat{x}=(\bar{w}\times s_w)(\bar{x}\times s_x + \beta)=\bar{w}\bar{x}s_ws_x+\begin{matrix}\underbrace{\beta s_w\bar{w}}\\ bias\end{matrix}$</p>
-</li>
-</ul>
-<h4 id="2-2-更合理的-scale-和-beta-参数初始化方法"><a href="#2-2-更合理的-scale-和-beta-参数初始化方法" class="headerlink" title="2.2 更合理的 scale 和 $\beta$ 参数初始化方法"></a>2.2 更合理的 scale 和 $\beta$ 参数初始化方法</h4><ul>
-<li>低比特量化神经网络训练的最终性能与参数初始化方法关联性较大，这在深度可分离卷积网络中更为明显（例如： MobileNet系列）</li>
-</ul>
-<h5 id="2-2-1-weight-量化的-scale-参数初始化方法"><a href="#2-2-1-weight-量化的-scale-参数初始化方法" class="headerlink" title="2.2.1 weight 量化的 scale 参数初始化方法"></a>2.2.1 weight 量化的 scale 参数初始化方法</h5><ul>
-<li>LSQ 对于对称量化的 <code>weight</code> 的 <code>scale</code> 初始化公式是：$s_{init} = \frac{2&lt;|w|&gt;}{\sqrt{p}}$</li>
-<li><p>作者认为这样的 <code>scale</code> 初始化方法会导致初始 <code>scale</code> 太大，所以 LSQ+ 对 weight 对称量化的 <code>scale</code> 初始化方法是：$s_{init}=\frac{max(|\mu-3\times\sigma|, |\mu+3\times\sigma|)}{2^{b-1}}$</p>
-<ul>
-<li>其中，$\mu,\ \sigma$ 分别表示本层权重的均值和标准差<blockquote>
-<p>由于 weight 是对称量化，所以不需要 $\beta$ 参数</p>
-<h5 id="2-2-2-feature-量化的-scale-和-beta-参数初始化方法"><a href="#2-2-2-feature-量化的-scale-和-beta-参数初始化方法" class="headerlink" title="2.2.2 feature 量化的 scale 和 $\beta$ 参数初始化方法"></a>2.2.2 feature 量化的 scale 和 $\beta$ 参数初始化方法</h5></blockquote>
-</li>
-</ul>
-</li>
-<li><p>一个最理想的量化方式是 x 只被量化，没有被 clamp，因此根据 LSQ+ 的量化公式可知：</p>
-<ul>
-<li>$\frac{x_{min}-\beta_{init}}{s_{init}}\rightarrow n,\ \frac{x_{max}-\beta_{init}}{s_{init}}\rightarrow p$</li>
-<li>化简后：$s_{init}=\frac{x_{max}-x_{min}}{p-n},\ \beta_{init} = x_{min} - n \times s_{init}$</li>
-<li>但是，这种完全不 clamp 的操作容易被离群点干扰，所以 $s_{init},\ \beta_{init}$ 还是使用量化前和反量化后的数据最小 MSE loss 来确定，即：$s_{init},\ \beta_{init}=argmin_{s,\beta} ||\hat{x}-x||^2_F$</li>
-</ul>
-</li>
-</ul>
-<h2 id="Thought"><a href="#Thought" class="headerlink" title="Thought"></a>Thought</h2><ul>
-<li>量化算法中多一个可以被硬件无痛吸收的自由度自然是好事</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1796,20 +1855,20 @@
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">96</span>
+          <span class="site-state-item-count">97</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">31</span>
+        <span class="site-state-item-count">32</span>
         <span class="site-state-item-name">categories</span></a>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">49</span>
+        <span class="site-state-item-count">50</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
