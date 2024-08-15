@@ -152,6 +152,222 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2023/04/19/FCOS3D-Fully-Convolutional-One-Stage-Monocular-3D-Object-Detection/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/04/19/FCOS3D-Fully-Convolutional-One-Stage-Monocular-3D-Object-Detection/" class="post-title-link" itemprop="url">FCOS3D: Fully Convolutional One-Stage Monocular 3D Object Detection</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-04-19 10:00:53" itemprop="dateCreated datePublished" datetime="2023-04-19T10:00:53+08:00">2023-04-19</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-08-09 10:24:16" itemprop="dateModified" datetime="2024-08-09T10:24:16+08:00">2024-08-09</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Monocular-3D-Object-Detection/" itemprop="url" rel="index"><span itemprop="name">Monocular 3D Object Detection</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2023/04/19/FCOS3D-Fully-Convolutional-One-Stage-Monocular-3D-Object-Detection/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2023/04/19/FCOS3D-Fully-Convolutional-One-Stage-Monocular-3D-Object-Detection/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>
+<p>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2104.10956.pdf">https://arxiv.org/pdf/2104.10956.pdf</a></p>
+</li>
+<li>
+<p>code: <a target="_blank" rel="noopener" href="https://github.com/open-mmlab/mmdetection3d/blob/main/mmdet3d/models/dense_heads/fcos_mono3d_head.py">https://github.com/open-mmlab/mmdetection3d/blob/main/mmdet3d/models/dense_heads/fcos_mono3d_head.py</a></p>
+</li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li>本文基于 <code>FCOS</code> 论文提出一种架构简单的 <code>Anchor Free</code> 的单目 <code>3D</code> 检测算法 <code>FCOS3D</code>，在 <code>NeurIPS 2020</code> 的 <code>nuScenes 3D</code> 检测比赛纯视觉赛道上取得了第一名。</li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<h3 id="问题定义"><a class="markdownIt-Anchor" href="#问题定义"></a> 问题定义</h3>
+<ul>
+<li>
+<p>本文提出的 <code>FCOS3D</code> 要解决的核心问题是一个 <strong>图片到 7-DoF 属性（x, y, z, w, l, h, yaw+dir）的预测</strong>。</p>
+<ul>
+<li>
+<p><code>DoF</code> 是指 <code>degree of freedom</code>（自由度）。</p>
+</li>
+<li>
+<p><code>(x, y, z, w, l, h, yaw+dir)</code> 分别表示物体在相机坐标系下的 3 维坐标和长宽高（单位都是米），和偏航角（俯视图角度，单位是弧度）和方向 2 分类共同构成朝向。</p>
+</li>
+</ul>
+</li>
+<li>
+<p>对于 <code>nuScenes 3D</code> 检测比赛，还需要解决的非核心问题包括：</p>
+<ul>
+<li>
+<p>预测出的 <code>3D</code> 框物体的类别（10类物体）</p>
+</li>
+<li>
+<p>预测出的 <code>3D</code> 框物体的属性（9种属性）</p>
+</li>
+<li>
+<p>预测出的 <code>3D</code> 框物体的 <code>x, y</code> 轴速度（不是 “病态” 问题了，已经属于癌症问题了…）</p>
+</li>
+</ul>
+</li>
+</ul>
+<h3 id="网络结构"><a class="markdownIt-Anchor" href="#网络结构"></a> 网络结构</h3>
+<p><img src="https://s2.loli.net/2023/04/19/oysj5k6Z3IKvNnr.png" alt="fcos3d.png" /></p>
+<ul>
+<li>
+<p><code>backbone</code> 和 <code>FPN</code> 比较常规</p>
+</li>
+<li>
+<p><code>decode head</code> 和 <code>FCOS</code> 一样，使用了不同 <code>level feature</code> 的参数共享（反正是全卷积，不存在 shape 问题）</p>
+</li>
+<li>
+<p><code>decode head</code> 中包括：</p>
+<ul>
+<li>
+<p>分类分支：</p>
+<ul>
+<li>
+<p>class: <code>output_shape = (N, 10, H, W)</code>，使用 <code>FocalLoss</code></p>
+</li>
+<li>
+<p>attribute: <code>output_shape = (N, 9, H, W)</code>，使用 <code>CrossEntropyLoss</code></p>
+</li>
+</ul>
+</li>
+<li>
+<p>回归分支：</p>
+<ul>
+<li>
+<p>box:  <code>output_shape = (N, 9, H, W)</code>， <code>(dx, dy, log(z), log(w), log(l), log(h), yaw, vx, vy)</code>，使用 <code>SmoothL1Loss</code></p>
+</li>
+<li>
+<p>centerness: <code>output_shape = (N, 1, H, W)</code>，使用 <code>BCEWithLogitsLoss</code></p>
+</li>
+<li>
+<p>direction: <code>output_shape = (N, 2, H, W)</code>，使用 <code>CrossEntropyLoss</code></p>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h3 id="target-设置"><a class="markdownIt-Anchor" href="#target-设置"></a> target 设置</h3>
+<ul>
+<li>target 设置中使用了很多 <strong>2D 引导 3D</strong> 的思想。</li>
+</ul>
+<h4 id="x-y-z-target-设置"><a class="markdownIt-Anchor" href="#x-y-z-target-设置"></a> <code>(x, y, z)</code> target 设置</h4>
+<ul>
+<li>
+<p>由于是 3D 检测，所以 GT 的 3D 框坐标（x, y, z, w, l, h）单位都是米，这对神经网络是不友好的（因为神经网络看到的是像素，预测以像素为单位更容易）。</p>
+</li>
+<li>
+<p>因此，<strong>本文实际是一个 <code>2.5D</code> 的预测<code>（xy 2D, z 3D）</code>，实际预测的 <code>x, y</code> 是像素坐标系下相对于 feature map 每一个点的偏移量（由相机坐标系和相机内参可计算得到像素坐标系），<code>z, w, l, h</code> 的预测是相机坐标系下的米为单位的真值取 <code>log</code>。</strong></p>
+</li>
+</ul>
+<h4 id="centerness-target-设置"><a class="markdownIt-Anchor" href="#centerness-target-设置"></a> centerness target 设置</h4>
+<ul>
+<li>与 <code>FCOS</code> 不同，<code>FCOS3D centerness</code>: <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>c</mi><mo>=</mo><msup><mi>e</mi><mrow><mo>−</mo><mi>α</mi><mo stretchy="false">(</mo><mo stretchy="false">(</mo><mi mathvariant="normal">Δ</mi><mi>x</mi><msup><mo stretchy="false">)</mo><mn>2</mn></msup><mo>+</mo><mo stretchy="false">(</mo><mi mathvariant="normal">Δ</mi><mi>y</mi><msup><mo stretchy="false">)</mo><mn>2</mn></msup><mo stretchy="false">)</mo></mrow></msup></mrow><annotation encoding="application/x-tex">c = e^{-\alpha((\Delta x)^2+(\Delta y)^2)}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathnormal">c</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:0.9869199999999998em;vertical-align:0em;"></span><span class="mord"><span class="mord mathnormal">e</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.9869199999999998em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">−</span><span class="mord mathnormal mtight" style="margin-right:0.0037em;">α</span><span class="mopen mtight">(</span><span class="mopen mtight">(</span><span class="mord mtight">Δ</span><span class="mord mathnormal mtight">x</span><span class="mclose mtight"><span class="mclose mtight">)</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8913142857142857em;"><span style="top:-2.931em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mbin mtight">+</span><span class="mopen mtight">(</span><span class="mord mtight">Δ</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span><span class="mclose mtight"><span class="mclose mtight">)</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8913142857142857em;"><span style="top:-2.931em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mclose mtight">)</span></span></span></span></span></span></span></span></span></span></span></span> ，<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mo>=</mo><mn>2.5</mn></mrow><annotation encoding="application/x-tex">\alpha=2.5</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathnormal" style="margin-right:0.0037em;">α</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:0.64444em;vertical-align:0em;"></span><span class="mord">2</span><span class="mord">.</span><span class="mord">5</span></span></span></span></li>
+</ul>
+<h4 id="yaw-target-设置"><a class="markdownIt-Anchor" href="#yaw-target-设置"></a> yaw target 设置</h4>
+<ul>
+<li>本文将 yaw （0 ~ <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mi>π</mi></mrow><annotation encoding="application/x-tex">2\pi</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.64444em;vertical-align:0em;"></span><span class="mord">2</span><span class="mord mathnormal" style="margin-right:0.03588em;">π</span></span></span></span>）编码成 yaw （0 ~ <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>π</mi></mrow><annotation encoding="application/x-tex">\pi</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathnormal" style="margin-right:0.03588em;">π</span></span></span></span>）和方向</li>
+</ul>
+<h3 id="正样本选择"><a class="markdownIt-Anchor" href="#正样本选择"></a> 正样本选择</h3>
+<ul>
+<li>
+<p><code>FCOS</code> 是将 <code>feature map</code> 上的每个位置到 GT 中心点的距离小于 <code>1.5 * stride</code> 的点作为正样本。</p>
+</li>
+<li>
+<p>但 <code>FCOS3D</code> 是 <code>3D</code> 检测，没办法直接使用 <code>FCOS</code> 提出的方法；解决方法和 <code>x, y</code> 坐标回归方法类似，如果 <code>2.5D</code> 坐标下的 <code>x, y</code> 和 <code>feature map</code> 位置距离小于 <code>1.5 * stride</code>，则算作正例。</p>
+</li>
+</ul>
+<h3 id="gt-尺度分配"><a class="markdownIt-Anchor" href="#gt-尺度分配"></a> GT 尺度分配</h3>
+<ul>
+<li>和 <code>FCOS</code> 思想一样</li>
+</ul>
+<h3 id="不同尺度-feature-map-缩放"><a class="markdownIt-Anchor" href="#不同尺度-feature-map-缩放"></a> 不同尺度 feature map 缩放</h3>
+<ul>
+<li>和 <code>FCOS</code> 思想一样，只是更丰富 <strong><code>scale.shape == (num_of_level, 3)，分别表示 scale_offset(for xy) / scale_depth(for z) / scale_size(for wlh)</code></strong></li>
+</ul>
+<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
+<ul>
+<li>
+<p>本文极大程度的借鉴了 <code>FCOS</code>，相当于 <code>FCOS</code> 的 <code>2.5D</code> 版</p>
+</li>
+<li>
+<p>加入了很多 <code>trick</code>: log(z), centerness target 定义，encode yaw 等，很 work</p>
+</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2023/04/17/FCOS-A-Simple-and-Strong-Anchor-free-Object-Detector/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -2179,110 +2395,10 @@ M1001 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2022/10/22/4-%E8%87%AA%E5%8A%A8%E7%A8%8B%E5%BA%8F%E4%BC%98%E5%8C%96/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2022/10/22/4-%E8%87%AA%E5%8A%A8%E7%A8%8B%E5%BA%8F%E4%BC%98%E5%8C%96/" class="post-title-link" itemprop="url">4. 自动程序优化</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2022-10-22 15:43:09" itemprop="dateCreated datePublished" datetime="2022-10-22T15:43:09+08:00">2022-10-22</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-08-09 10:24:24" itemprop="dateModified" datetime="2024-08-09T10:24:24+08:00">2024-08-09</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0%E7%BC%96%E8%AF%91/" itemprop="url" rel="index"><span itemprop="name">机器学习编译</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2022/10/22/4-%E8%87%AA%E5%8A%A8%E7%A8%8B%E5%BA%8F%E4%BC%98%E5%8C%96/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2022/10/22/4-%E8%87%AA%E5%8A%A8%E7%A8%8B%E5%BA%8F%E4%BC%98%E5%8C%96/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
-<ul>
-<li><a target="_blank" rel="noopener" href="https://mlc.ai/zh/chapter_auto_program_optimization/index.html">https://mlc.ai/zh/chapter_auto_program_optimization/index.html</a></li>
-</ul>
-<h2 id="自动程序优化的原因"><a class="markdownIt-Anchor" href="#自动程序优化的原因"></a> 自动程序优化的原因</h2>
-<ul>
-<li><code>MLC</code> 的本质是<strong>张量函数之间的转换</strong>，但我们不知道哪种转换是让模型运行更快的，所以需要使用自动程序优化，去自动搜索最有转换。</li>
-</ul>
-<h2 id="自动程序优化过程"><a class="markdownIt-Anchor" href="#自动程序优化过程"></a> 自动程序优化过程</h2>
-<h3 id="end-to-end-构建模型"><a class="markdownIt-Anchor" href="#end-to-end-构建模型"></a> end-to-end 构建模型</h3>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># IR_Module 使用自定义主张量函数和库张量函数</span></span><br><span class="line"><span class="meta">@tvm.script.ir_module</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">MyModuleMixture</span>:</span></span><br><span class="line"><span class="meta">    @T.prim_func</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">linear0</span>(<span class="params"></span></span></span><br><span class="line"><span class="params"><span class="function">        X: T.Buffer[(<span class="params"><span class="number">1</span>, <span class="number">784</span></span>), <span class="string">&quot;float32&quot;</span>],</span></span></span><br><span class="line"><span class="params"><span class="function">        W: T.Buffer[(<span class="params"><span class="number">128</span>, <span class="number">784</span></span>), <span class="string">&quot;float32&quot;</span>],</span></span></span><br><span class="line"><span class="params"><span class="function">        B: T.Buffer[(<span class="params"><span class="number">128</span>,</span>), <span class="string">&quot;float32&quot;</span>],</span></span></span><br><span class="line"><span class="params"><span class="function">        Z: T.Buffer[(<span class="params"><span class="number">1</span>, <span class="number">128</span></span>), <span class="string">&quot;float32&quot;</span>],</span></span></span><br><span class="line"><span class="params"><span class="function">    </span>):</span></span><br><span class="line">        T.func_attr(&#123;<span class="string">&quot;global_symbol&quot;</span>: <span class="string">&quot;linear0&quot;</span>, <span class="string">&quot;tir.noalias&quot;</span>: <span class="literal">True</span>&#125;)</span><br><span class="line">        ...</span><br><span class="line"></span><br><span class="line"><span class="meta">    @R.function</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">main</span>(<span class="params"></span></span></span><br><span class="line"><span class="params"><span class="function">        x: Tensor(<span class="params">(<span class="params"><span class="number">1</span>, <span class="number">784</span></span>), <span class="string">&quot;float32&quot;</span></span>),</span></span></span><br><span class="line"><span class="params"><span class="function">        w0: Tensor(<span class="params">(<span class="params"><span class="number">128</span>, <span class="number">784</span></span>), <span class="string">&quot;float32&quot;</span></span>),</span></span></span><br><span class="line"><span class="params"><span class="function">        b0: Tensor(<span class="params">(<span class="params"><span class="number">128</span>,</span>), <span class="string">&quot;float32&quot;</span></span>),</span></span></span><br><span class="line"><span class="params"><span class="function">        w1: Tensor(<span class="params">(<span class="params"><span class="number">10</span>, <span class="number">128</span></span>), <span class="string">&quot;float32&quot;</span></span>),</span></span></span><br><span class="line"><span class="params"><span class="function">        b1: Tensor(<span class="params">(<span class="params"><span class="number">10</span>,</span>), <span class="string">&quot;float32&quot;</span></span>),</span></span></span><br><span class="line"><span class="params"><span class="function">    </span>):</span></span><br><span class="line">        <span class="keyword">with</span> R.dataflow():</span><br><span class="line">            lv0 = R.call_tir(linear0, (x, w0, b0), (<span class="number">1</span>, <span class="number">128</span>), dtype=<span class="string">&quot;float32&quot;</span>)</span><br><span class="line">            lv1 = R.call_tir(<span class="string">&quot;env.relu&quot;</span>, (lv0,), (<span class="number">1</span>, <span class="number">128</span>), dtype=<span class="string">&quot;float32&quot;</span>)</span><br><span class="line">            out = R.call_tir(<span class="string">&quot;env.linear&quot;</span>, (lv1, w1, b1), (<span class="number">1</span>, <span class="number">10</span>), dtype=<span class="string">&quot;float32&quot;</span>)</span><br><span class="line">            R.output(out)</span><br><span class="line">        <span class="keyword">return</span> out</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment"># 注册库张量函数</span></span><br><span class="line"><span class="meta">@tvm.register_func(<span class="params"><span class="string">&quot;env.linear&quot;</span>, override=<span class="literal">True</span></span>)</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">torch_linear</span>(<span class="params"></span></span></span><br><span class="line"><span class="params"><span class="function">    x: tvm.nd.NDArray, w: tvm.nd.NDArray, b: tvm.nd.NDArray, out: tvm.nd.NDArray</span></span></span><br><span class="line"><span class="params"><span class="function"></span>):</span></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line"><span class="comment"># 注册库张量函数</span></span><br><span class="line"><span class="meta">@tvm.register_func(<span class="params"><span class="string">&quot;env.relu&quot;</span>, override=<span class="literal">True</span></span>)</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">lnumpy_relu</span>(<span class="params">x: tvm.nd.NDArray, out: tvm.nd.NDArray</span>):</span></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line"><span class="comment"># 绑定模型权重参数（nd_params 是模型权重），作用类似于 functools.partial()</span></span><br><span class="line">MyModuleWithParams = relax.transform.BindParams(<span class="string">&quot;main&quot;</span>, nd_params)(MyModuleMixture)</span><br><span class="line"></span><br><span class="line"><span class="comment"># IR_Module -&gt; 可执行程序 -&gt; 虚拟机执行器</span></span><br><span class="line">ex = relax.vm.build(MyModuleWithParams, target=<span class="string">&quot;llvm&quot;</span>)</span><br><span class="line">vm = relax.VirtualMachine(ex, tvm.cpu())</span><br><span class="line"></span><br><span class="line"><span class="comment"># 执行</span></span><br><span class="line">nd_res = vm[<span class="string">&quot;main&quot;</span>](data_nd)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 测速</span></span><br><span class="line">ftimer = vm.module.time_evaluator(<span class="string">&quot;main&quot;</span>, tvm.cpu(), number=<span class="number">100</span>)</span><br></pre></td></tr></table></figure>
-<h3 id="自动优化-linear0-主张量函数"><a class="markdownIt-Anchor" href="#自动优化-linear0-主张量函数"></a> 自动优化 linear0 主张量函数</h3>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 调优 API 只接受一个带有一个 main 函数的 IRModule，所以需要将原始 IRModule 中的 linear0 转成新 IRModule 的 main 函数</span></span><br><span class="line">mod_linear = tvm.IRModule.from_expr(MyModuleMixture[<span class="string">&quot;linear0&quot;</span>].with_attr(<span class="string">&quot;global_symbol&quot;</span>, <span class="string">&quot;main&quot;</span>))</span><br><span class="line"></span><br><span class="line"><span class="comment"># 打印新IRModule</span></span><br><span class="line">IPython.display.HTML(code2html(mod_linear.script()))</span><br><span class="line"></span><br><span class="line"><span class="comment"># 打印输出</span></span><br><span class="line"><span class="meta">@tvm.script.ir_module</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Module</span>:</span></span><br><span class="line"><span class="meta">    @T.prim_func</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">main</span>(<span class="params"></span></span></span><br><span class="line"><span class="params"><span class="function">        X: T.Buffer[(<span class="params"><span class="number">1</span>, <span class="number">784</span></span>), <span class="string">&quot;float32&quot;</span>],</span></span></span><br><span class="line"><span class="params"><span class="function">        W: T.Buffer[(<span class="params"><span class="number">128</span>, <span class="number">784</span></span>), <span class="string">&quot;float32&quot;</span>],</span></span></span><br><span class="line"><span class="params"><span class="function">        B: T.Buffer[(<span class="params"><span class="number">128</span>,</span>), <span class="string">&quot;float32&quot;</span>],</span></span></span><br><span class="line"><span class="params"><span class="function">        Z: T.Buffer[(<span class="params"><span class="number">1</span>, <span class="number">128</span></span>), <span class="string">&quot;float32&quot;</span>],</span></span></span><br><span class="line"><span class="params"><span class="function">    </span>):</span></span><br><span class="line">        <span class="comment"># 函数中内容是 MyModuleMixture.linear0</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 自动调优 API，input 是需要调优的 IRModule，output 是调优后的 schedule，schedule.mod 是调优后的 IRModule</span></span><br><span class="line">sch_tuned_linear = ms.tune_tir(</span><br><span class="line">    mod=mod_linear,                 <span class="comment"># 待调优 IRModule</span></span><br><span class="line">    target=<span class="string">&quot;llvm --num-cores=1&quot;</span>,    <span class="comment"># 调优目标</span></span><br><span class="line">    config=ms.TuneConfig(           <span class="comment"># 自动调优配置</span></span><br><span class="line">      max_trials_global=<span class="number">64</span>,</span><br><span class="line">      num_trials_per_iter=<span class="number">64</span>,</span><br><span class="line">    ),</span><br><span class="line">    work_dir=<span class="string">&quot;./tune_tmp&quot;</span>,</span><br><span class="line">    task_name=<span class="string">&quot;main&quot;</span>,</span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 将返回的 IRModule 中的 main 函数更新到原 IRModule 的 linear0 中</span></span><br><span class="line"><span class="comment"># 绑定参数</span></span><br><span class="line">MyModuleWithParams2 = relax.transform.BindParams(<span class="string">&quot;main&quot;</span>, nd_params)(MyModuleMixture)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 获取调优后的 main 函数</span></span><br><span class="line">new_func = sch_tuned_linear.mod[<span class="string">&quot;main&quot;</span>].with_attr(<span class="string">&quot;global_symbol&quot;</span>, <span class="string">&quot;linear0&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 获取原 IRModule 的 linear0 张量函数</span></span><br><span class="line">gv = MyModuleWithParams2.get_global_var(<span class="string">&quot;linear0&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 更新调优后的 main 函数到原 IRModule 的 linear0 张量函数</span></span><br><span class="line">MyModuleWithParams2.update_func(gv, new_func)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 重新测速，速度变快</span></span><br><span class="line"></span><br></pre></td></tr></table></figure>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/3/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/3/">3</a><span class="page-number current">4</span><a class="page-number" href="/page/5/">5</a><span class="space">&hellip;</span><a class="page-number" href="/page/10/">10</a><a class="extend next" rel="next" href="/page/5/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
+    <a class="extend prev" rel="prev" href="/page/3/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/3/">3</a><span class="page-number current">4</span><a class="page-number" href="/page/5/">5</a><span class="space">&hellip;</span><a class="page-number" href="/page/11/">11</a><a class="extend next" rel="next" href="/page/5/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
   </nav>
 
 
@@ -2347,7 +2463,7 @@ M1001 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">100</span>
+          <span class="site-state-item-count">101</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>

@@ -152,6 +152,137 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2023/08/06/BEVDet4D-Exploit-Temporal-Cues-in-Multi-camera-3D-Object-Detection/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/08/06/BEVDet4D-Exploit-Temporal-Cues-in-Multi-camera-3D-Object-Detection/" class="post-title-link" itemprop="url">BEVDet4D: Exploit Temporal Cues in Multi-camera 3D Object Detection</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-08-06 15:00:34" itemprop="dateCreated datePublished" datetime="2023-08-06T15:00:34+08:00">2023-08-06</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-08-09 10:24:24" itemprop="dateModified" datetime="2024-08-09T10:24:24+08:00">2024-08-09</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/BEV/" itemprop="url" rel="index"><span itemprop="name">BEV</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2023/08/06/BEVDet4D-Exploit-Temporal-Cues-in-Multi-camera-3D-Object-Detection/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2023/08/06/BEVDet4D-Exploit-Temporal-Cues-in-Multi-camera-3D-Object-Detection/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>
+<p>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2203.17054.pdf">https://arxiv.org/pdf/2203.17054.pdf</a></p>
+</li>
+<li>
+<p>code: <a target="_blank" rel="noopener" href="https://github.com/HuangJunJie2017/BEVDet">https://github.com/HuangJunJie2017/BEVDet</a></p>
+</li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li>
+<p><code>BEVDet4D</code> 是基于 <code>BEVDet</code> 加入了时序信息的一篇论文</p>
+</li>
+<li>
+<p>具体来说就是将上一帧的 <code>BEV Feature</code> 和本帧的 <code>BEV Feature</code> 对齐后 <code>Concat</code> 到一起送入 <code>BEV Encoder</code> 中进行 <code>BEV</code> 视角下的 <code>3D</code> 目标检测</p>
+</li>
+<li>
+<p><code>BEVDet</code> 论文中的 <code>image encoder + view transformer</code> 完全保持不变</p>
+</li>
+<li>
+<p>由于有两帧的信息，所以对速度的预测相较于单帧有较大提升</p>
+</li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<h3 id="整体流程"><a class="markdownIt-Anchor" href="#整体流程"></a> 整体流程</h3>
+<p><img src="https://s2.loli.net/2023/08/06/XwCSmtKiFWJEzQk.png" alt="bevdet4d.png" /></p>
+<p>在 <code>BEV Feature</code> 层面（<code>View Transformer</code> 的输出）融合两帧信息</p>
+<h3 id="算法的伪代码表示"><a class="markdownIt-Anchor" href="#算法的伪代码表示"></a> 算法的伪代码表示</h3>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line">class BEVDet4D:</span><br><span class="line">    def __init__(self):</span><br><span class="line">        # 初始化相关的编码器、转换器和其他必要的组件</span><br><span class="line">        self.image_view_encoder = ImageViewEncoder()</span><br><span class="line">        self.view_transformer = ViewTransformer()</span><br><span class="line">        self.bev_encoder = BEVEncoder()</span><br><span class="line">        self.head = DetectionHead()</span><br><span class="line">        self.previous_bev_feature = None</span><br><span class="line"></span><br><span class="line">    def spatial_alignment(self, feature):</span><br><span class="line">        # 这里执行空间对齐操作，具体细节可能需要根据原始论文进行补充</span><br><span class="line">        # 实际代码中这里似乎没有开，即上一帧的 BEV feature 直接和本帧 BEV feature map concat</span><br><span class="line">        aligned_feature = ... </span><br><span class="line">        return aligned_feature</span><br><span class="line"></span><br><span class="line">    def forward(self, current_image):</span><br><span class="line">        # 使用图像视图编码器和视图转换器处理当前图像</span><br><span class="line">        image_feature = self.image_view_encoder(current_image)</span><br><span class="line">        transformed_feature = self.view_transformer(image_feature)</span><br><span class="line"></span><br><span class="line">        # 使用BEV编码器获取当前帧的BEV特征</span><br><span class="line">        current_bev_feature = self.bev_encoder(transformed_feature)</span><br><span class="line"></span><br><span class="line">        # 如果存在前一帧的BEV特征，则进行空间对齐和融合</span><br><span class="line">        if self.previous_bev_feature:</span><br><span class="line">            aligned_previous_feature = self.spatial_alignment(self.previous_bev_feature)</span><br><span class="line">            fused_feature = concatenate(aligned_previous_feature, current_bev_feature)</span><br><span class="line">        else:</span><br><span class="line">            fused_feature = current_bev_feature</span><br><span class="line"></span><br><span class="line">        # 使用检测头部进行3D物体检测</span><br><span class="line">        detections = self.head(fused_feature)</span><br><span class="line"></span><br><span class="line">        # 保存当前帧的BEV特征以供下一帧使用</span><br><span class="line">        self.previous_bev_feature = current_bev_feature</span><br><span class="line"></span><br><span class="line">        return detections</span><br><span class="line"></span><br><span class="line"># 实例化BEVDet4D并进行前向传递</span><br><span class="line">bevdet4d = BEVDet4D()</span><br><span class="line">detections = bevdet4d.forward(current_image)</span><br></pre></td></tr></table></figure>
+<h3 id="result"><a class="markdownIt-Anchor" href="#result"></a> result</h3>
+<p><img src="https://s2.loli.net/2023/08/06/TgX7qpHDZUjsEGn.png" alt="BEVdet4D2.png" /></p>
+<blockquote>
+<p>效果比 <code>BEVDet</code> 好了不少，尤其是 <code>mAVE</code> (速度误差)</p>
+</blockquote>
+<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
+<ul>
+<li>
+<p>没有很大的创新点，更像是 <code>BEVDet</code> 的一个使用 <code>trick</code></p>
+</li>
+<li>
+<p><code>BEVDet</code> 的计算量主要分布在 <code>image encoder</code> 和 <code>view transformer</code>，所以复用上一帧的 <code>BEV feature</code> 即充分利用了上一帧的计算量，对当前帧引入的额外计算量也比较可控（<code>BEV encoder</code> 和 <code>task head</code> 都比较轻量）</p>
+</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2023/08/06/BEVDet-High-Performance-Multi-Camera-3D-Object-Detection-in-Bird-Eye-View/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1444,226 +1575,10 @@ lightweight mask decoder 是轻量级 transformer</p>
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2023/04/19/FCOS3D-Fully-Convolutional-One-Stage-Monocular-3D-Object-Detection/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/04/19/FCOS3D-Fully-Convolutional-One-Stage-Monocular-3D-Object-Detection/" class="post-title-link" itemprop="url">FCOS3D: Fully Convolutional One-Stage Monocular 3D Object Detection</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-04-19 10:00:53" itemprop="dateCreated datePublished" datetime="2023-04-19T10:00:53+08:00">2023-04-19</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-08-09 10:24:16" itemprop="dateModified" datetime="2024-08-09T10:24:16+08:00">2024-08-09</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Monocular-3D-Object-Detection/" itemprop="url" rel="index"><span itemprop="name">Monocular 3D Object Detection</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2023/04/19/FCOS3D-Fully-Convolutional-One-Stage-Monocular-3D-Object-Detection/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2023/04/19/FCOS3D-Fully-Convolutional-One-Stage-Monocular-3D-Object-Detection/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
-<ul>
-<li>
-<p>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2104.10956.pdf">https://arxiv.org/pdf/2104.10956.pdf</a></p>
-</li>
-<li>
-<p>code: <a target="_blank" rel="noopener" href="https://github.com/open-mmlab/mmdetection3d/blob/main/mmdet3d/models/dense_heads/fcos_mono3d_head.py">https://github.com/open-mmlab/mmdetection3d/blob/main/mmdet3d/models/dense_heads/fcos_mono3d_head.py</a></p>
-</li>
-</ul>
-<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
-<ul>
-<li>本文基于 <code>FCOS</code> 论文提出一种架构简单的 <code>Anchor Free</code> 的单目 <code>3D</code> 检测算法 <code>FCOS3D</code>，在 <code>NeurIPS 2020</code> 的 <code>nuScenes 3D</code> 检测比赛纯视觉赛道上取得了第一名。</li>
-</ul>
-<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
-<h3 id="问题定义"><a class="markdownIt-Anchor" href="#问题定义"></a> 问题定义</h3>
-<ul>
-<li>
-<p>本文提出的 <code>FCOS3D</code> 要解决的核心问题是一个 <strong>图片到 7-DoF 属性（x, y, z, w, l, h, yaw+dir）的预测</strong>。</p>
-<ul>
-<li>
-<p><code>DoF</code> 是指 <code>degree of freedom</code>（自由度）。</p>
-</li>
-<li>
-<p><code>(x, y, z, w, l, h, yaw+dir)</code> 分别表示物体在相机坐标系下的 3 维坐标和长宽高（单位都是米），和偏航角（俯视图角度，单位是弧度）和方向 2 分类共同构成朝向。</p>
-</li>
-</ul>
-</li>
-<li>
-<p>对于 <code>nuScenes 3D</code> 检测比赛，还需要解决的非核心问题包括：</p>
-<ul>
-<li>
-<p>预测出的 <code>3D</code> 框物体的类别（10类物体）</p>
-</li>
-<li>
-<p>预测出的 <code>3D</code> 框物体的属性（9种属性）</p>
-</li>
-<li>
-<p>预测出的 <code>3D</code> 框物体的 <code>x, y</code> 轴速度（不是 “病态” 问题了，已经属于癌症问题了…）</p>
-</li>
-</ul>
-</li>
-</ul>
-<h3 id="网络结构"><a class="markdownIt-Anchor" href="#网络结构"></a> 网络结构</h3>
-<p><img src="https://s2.loli.net/2023/04/19/oysj5k6Z3IKvNnr.png" alt="fcos3d.png" /></p>
-<ul>
-<li>
-<p><code>backbone</code> 和 <code>FPN</code> 比较常规</p>
-</li>
-<li>
-<p><code>decode head</code> 和 <code>FCOS</code> 一样，使用了不同 <code>level feature</code> 的参数共享（反正是全卷积，不存在 shape 问题）</p>
-</li>
-<li>
-<p><code>decode head</code> 中包括：</p>
-<ul>
-<li>
-<p>分类分支：</p>
-<ul>
-<li>
-<p>class: <code>output_shape = (N, 10, H, W)</code>，使用 <code>FocalLoss</code></p>
-</li>
-<li>
-<p>attribute: <code>output_shape = (N, 9, H, W)</code>，使用 <code>CrossEntropyLoss</code></p>
-</li>
-</ul>
-</li>
-<li>
-<p>回归分支：</p>
-<ul>
-<li>
-<p>box:  <code>output_shape = (N, 9, H, W)</code>， <code>(dx, dy, log(z), log(w), log(l), log(h), yaw, vx, vy)</code>，使用 <code>SmoothL1Loss</code></p>
-</li>
-<li>
-<p>centerness: <code>output_shape = (N, 1, H, W)</code>，使用 <code>BCEWithLogitsLoss</code></p>
-</li>
-<li>
-<p>direction: <code>output_shape = (N, 2, H, W)</code>，使用 <code>CrossEntropyLoss</code></p>
-</li>
-</ul>
-</li>
-</ul>
-</li>
-</ul>
-<h3 id="target-设置"><a class="markdownIt-Anchor" href="#target-设置"></a> target 设置</h3>
-<ul>
-<li>target 设置中使用了很多 <strong>2D 引导 3D</strong> 的思想。</li>
-</ul>
-<h4 id="x-y-z-target-设置"><a class="markdownIt-Anchor" href="#x-y-z-target-设置"></a> <code>(x, y, z)</code> target 设置</h4>
-<ul>
-<li>
-<p>由于是 3D 检测，所以 GT 的 3D 框坐标（x, y, z, w, l, h）单位都是米，这对神经网络是不友好的（因为神经网络看到的是像素，预测以像素为单位更容易）。</p>
-</li>
-<li>
-<p>因此，<strong>本文实际是一个 <code>2.5D</code> 的预测<code>（xy 2D, z 3D）</code>，实际预测的 <code>x, y</code> 是像素坐标系下相对于 feature map 每一个点的偏移量（由相机坐标系和相机内参可计算得到像素坐标系），<code>z, w, l, h</code> 的预测是相机坐标系下的米为单位的真值取 <code>log</code>。</strong></p>
-</li>
-</ul>
-<h4 id="centerness-target-设置"><a class="markdownIt-Anchor" href="#centerness-target-设置"></a> centerness target 设置</h4>
-<ul>
-<li>与 <code>FCOS</code> 不同，<code>FCOS3D centerness</code>: <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>c</mi><mo>=</mo><msup><mi>e</mi><mrow><mo>−</mo><mi>α</mi><mo stretchy="false">(</mo><mo stretchy="false">(</mo><mi mathvariant="normal">Δ</mi><mi>x</mi><msup><mo stretchy="false">)</mo><mn>2</mn></msup><mo>+</mo><mo stretchy="false">(</mo><mi mathvariant="normal">Δ</mi><mi>y</mi><msup><mo stretchy="false">)</mo><mn>2</mn></msup><mo stretchy="false">)</mo></mrow></msup></mrow><annotation encoding="application/x-tex">c = e^{-\alpha((\Delta x)^2+(\Delta y)^2)}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathnormal">c</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:0.9869199999999998em;vertical-align:0em;"></span><span class="mord"><span class="mord mathnormal">e</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.9869199999999998em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">−</span><span class="mord mathnormal mtight" style="margin-right:0.0037em;">α</span><span class="mopen mtight">(</span><span class="mopen mtight">(</span><span class="mord mtight">Δ</span><span class="mord mathnormal mtight">x</span><span class="mclose mtight"><span class="mclose mtight">)</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8913142857142857em;"><span style="top:-2.931em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mbin mtight">+</span><span class="mopen mtight">(</span><span class="mord mtight">Δ</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span><span class="mclose mtight"><span class="mclose mtight">)</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8913142857142857em;"><span style="top:-2.931em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mclose mtight">)</span></span></span></span></span></span></span></span></span></span></span></span> ，<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mo>=</mo><mn>2.5</mn></mrow><annotation encoding="application/x-tex">\alpha=2.5</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathnormal" style="margin-right:0.0037em;">α</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:0.64444em;vertical-align:0em;"></span><span class="mord">2</span><span class="mord">.</span><span class="mord">5</span></span></span></span></li>
-</ul>
-<h4 id="yaw-target-设置"><a class="markdownIt-Anchor" href="#yaw-target-设置"></a> yaw target 设置</h4>
-<ul>
-<li>本文将 yaw （0 ~ <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mi>π</mi></mrow><annotation encoding="application/x-tex">2\pi</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.64444em;vertical-align:0em;"></span><span class="mord">2</span><span class="mord mathnormal" style="margin-right:0.03588em;">π</span></span></span></span>）编码成 yaw （0 ~ <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>π</mi></mrow><annotation encoding="application/x-tex">\pi</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathnormal" style="margin-right:0.03588em;">π</span></span></span></span>）和方向</li>
-</ul>
-<h3 id="正样本选择"><a class="markdownIt-Anchor" href="#正样本选择"></a> 正样本选择</h3>
-<ul>
-<li>
-<p><code>FCOS</code> 是将 <code>feature map</code> 上的每个位置到 GT 中心点的距离小于 <code>1.5 * stride</code> 的点作为正样本。</p>
-</li>
-<li>
-<p>但 <code>FCOS3D</code> 是 <code>3D</code> 检测，没办法直接使用 <code>FCOS</code> 提出的方法；解决方法和 <code>x, y</code> 坐标回归方法类似，如果 <code>2.5D</code> 坐标下的 <code>x, y</code> 和 <code>feature map</code> 位置距离小于 <code>1.5 * stride</code>，则算作正例。</p>
-</li>
-</ul>
-<h3 id="gt-尺度分配"><a class="markdownIt-Anchor" href="#gt-尺度分配"></a> GT 尺度分配</h3>
-<ul>
-<li>和 <code>FCOS</code> 思想一样</li>
-</ul>
-<h3 id="不同尺度-feature-map-缩放"><a class="markdownIt-Anchor" href="#不同尺度-feature-map-缩放"></a> 不同尺度 feature map 缩放</h3>
-<ul>
-<li>和 <code>FCOS</code> 思想一样，只是更丰富 <strong><code>scale.shape == (num_of_level, 3)，分别表示 scale_offset(for xy) / scale_depth(for z) / scale_size(for wlh)</code></strong></li>
-</ul>
-<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
-<ul>
-<li>
-<p>本文极大程度的借鉴了 <code>FCOS</code>，相当于 <code>FCOS</code> 的 <code>2.5D</code> 版</p>
-</li>
-<li>
-<p>加入了很多 <code>trick</code>: log(z), centerness target 定义，encode yaw 等，很 work</p>
-</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/2/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/">1</a><a class="page-number" href="/page/2/">2</a><span class="page-number current">3</span><a class="page-number" href="/page/4/">4</a><span class="space">&hellip;</span><a class="page-number" href="/page/10/">10</a><a class="extend next" rel="next" href="/page/4/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
+    <a class="extend prev" rel="prev" href="/page/2/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/">1</a><a class="page-number" href="/page/2/">2</a><span class="page-number current">3</span><a class="page-number" href="/page/4/">4</a><span class="space">&hellip;</span><a class="page-number" href="/page/11/">11</a><a class="extend next" rel="next" href="/page/4/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
   </nav>
 
 
@@ -1728,7 +1643,7 @@ lightweight mask decoder 是轻量级 transformer</p>
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">100</span>
+          <span class="site-state-item-count">101</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
