@@ -175,10 +175,16 @@
                 <i class="far fa-calendar"></i>
               </span>
               <span class="post-meta-item-text">Posted on</span>
-              
 
-              <time title="Created: 2024-08-15 12:25:11 / Modified: 12:46:32" itemprop="dateCreated datePublished" datetime="2024-08-15T12:25:11+08:00">2024-08-15</time>
+              <time title="Created: 2024-08-15 12:25:11" itemprop="dateCreated datePublished" datetime="2024-08-15T12:25:11+08:00">2024-08-15</time>
             </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-08-16 09:56:17" itemprop="dateModified" datetime="2024-08-16T09:56:17+08:00">2024-08-16</time>
+              </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
                 <i class="far fa-folder"></i>
@@ -232,9 +238,34 @@
 </li>
 </ul>
 <h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
-<ul>
-<li></li>
-</ul>
+<h3 id="增量式解码-序列式投机解码-树式投机解码三者对比"><a class="markdownIt-Anchor" href="#增量式解码-序列式投机解码-树式投机解码三者对比"></a> 增量式解码、序列式投机解码、树式投机解码三者对比</h3>
+<p><img src="https://s2.loli.net/2024/08/15/98NPOk4gMia1dIy.png" alt="specinfer_1.png" /></p>
+<blockquote>
+<p>左图表示传统增量式推理 <code>LLM</code> 的解码方式<br />
+右图从上到下依次表示：增量式解码、序列式投机解码、树式投机解码</p>
+</blockquote>
+<h3 id="候选树生成和验证流程"><a class="markdownIt-Anchor" href="#候选树生成和验证流程"></a> 候选树生成和验证流程</h3>
+<p><img src="https://s2.loli.net/2024/08/15/eW9VJYnQv6bcuMA.png" alt="specinfer_2.png" /></p>
+<blockquote>
+<p><code>SSM (small speculative model)</code> 给出候选树<br />
+<code>target model</code> 对候选树进行验证</p>
+</blockquote>
+<h3 id="如何对树式结构并行解码"><a class="markdownIt-Anchor" href="#如何对树式结构并行解码"></a> 如何对树式结构并行解码</h3>
+<p><img src="https://s2.loli.net/2024/08/16/caHNM5xfVn2ZrPq.png" alt="specinfer_3.png" /></p>
+<ol>
+<li>使用 <code>kv cache</code> 对解码过程进行加速是一个常见的方法，但树式结构无法直接使用 <code>kv cache</code>（因为要动态剪枝，如图左侧所示）</li>
+<li>因此本文提出一种新颖的方法使得树式结构可以并行解码，这个方法包括两个改进：
+<ol>
+<li>对树进行 <strong>深度优先搜索</strong>，使得树变成一个序列</li>
+<li>将传统的上三角 <code>attention mask</code> 变成一个 <code>topology-aware mask</code>，即通过 <code>mask</code> 来确定 <code>token</code> 两两之间的可见性（如图右侧所示），这种可见性包含：
+<ol>
+<li>每个 <code>token</code> 看不到之后的 <code>token</code>（矩阵下三角置 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mi mathvariant="normal">∞</mi></mrow><annotation encoding="application/x-tex">-\infty</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.66666em;vertical-align:-0.08333em;"></span><span class="mord">−</span><span class="mord">∞</span></span></span></span>）</li>
+<li>每个 <code>token</code> 看不到不在其拓扑路径上的 <code>token</code></li>
+</ol>
+</li>
+</ol>
+</li>
+</ol>
 
       
     </div>
