@@ -152,6 +152,123 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/08/20/GPipe-Easy-Scaling-with-Micro-Batch-Pipeline-Parallelism/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2024/08/20/GPipe-Easy-Scaling-with-Micro-Batch-Pipeline-Parallelism/" class="post-title-link" itemprop="url">GPipe: Easy Scaling with Micro-Batch Pipeline Parallelism</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2024-08-20 12:04:46 / Modified: 12:42:31" itemprop="dateCreated datePublished" datetime="2024-08-20T12:04:46+08:00">2024-08-20</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Pipeline-Parallelism/" itemprop="url" rel="index"><span itemprop="name">Pipeline Parallelism</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2024/08/20/GPipe-Easy-Scaling-with-Micro-Batch-Pipeline-Parallelism/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2024/08/20/GPipe-Easy-Scaling-with-Micro-Batch-Pipeline-Parallelism/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/1811.06965">https://arxiv.org/pdf/1811.06965</a></li>
+<li>code: <a target="_blank" rel="noopener" href="https://github.com/kakaobrain/torchgpipe%EF%BC%88%E6%B0%91%E9%97%B4%E5%AE%9E%E7%8E%B0%EF%BC%89">https://github.com/kakaobrain/torchgpipe（民间实现）</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li>随着模型和数据量的增长，单 <code>GPU</code> 已经无法满足需求，所以需要多 <code>GPU</code> 并行</li>
+<li><code>Data parallelism</code> 是最常用的，即将数据划分到多个 <code>GPU</code> 上，每个 <code>GPU</code> 单独前向反向传播，仅在梯度更新时聚合，例如 <code>pytorch ddp</code></li>
+<li>本论文提出一种新的并行方式 <code>Pipeline parallelism</code>，这种方式是将模型划分为多段子图，每个设备上加载一段，各个子图直接串联</li>
+<li>直接实现的 <code>Pipeline parallelism</code> 的 <code>GPU</code> 利用率较低，本文通过一些方法可大幅提高 <code>GPU</code> 利用率</li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<p><img src="https://s2.loli.net/2024/08/20/XuV9cyDHBgK2nqf.png" alt="gpipe_1.png" /></p>
+<p><code>Gpipe</code> 方案主要包含三个部分</p>
+<h3 id="划分-stage"><a class="markdownIt-Anchor" href="#划分-stage"></a> 划分 <code>Stage</code></h3>
+<ol>
+<li>模型切成若干 <code>stage</code>，每个 <code>GPU</code> 只加载一段</li>
+<li>每个 <code>stage</code> 串起来形成一个 <code>pipeline</code></li>
+</ol>
+<h3 id="划分-micro-batch"><a class="markdownIt-Anchor" href="#划分-micro-batch"></a> 划分 <code>Micro-Batch</code></h3>
+<ol>
+<li>传统模型训练过程中使用 <code>Mini-Batch</code>，<code>Mini-Batch</code> 在 <code>pipeline parallelism</code> 中会出现大量气泡，因此 <code>Gpipe</code> 提出 <code>Micro-Batch</code> 概念</li>
+<li><code>Micro-Batch</code> 是将 <code>Mini-Batch</code> 再划分成多份，用于排计算流水，<code>Mini-Batch</code> 变成最小计算单元，有利于减小气泡，上图 <code>2.c</code> 中横向就是一个 <code>Mini-Batch</code> 划分得到的一组 <code>Micro-Batch</code></li>
+</ol>
+<h3 id="重计算"><a class="markdownIt-Anchor" href="#重计算"></a> 重计算</h3>
+<ol>
+<li>传统模型训练过程中，计算的中间结果都需要保存，用于反向传播计算梯度，非常消耗显存，同时会导致 <code>pipeline parallelism</code> 的数据依赖问题，上图 <code>2.a</code> 中的横向连接</li>
+<li>重计算是一种用计算换空间的操作，在前向传播过程中，丢弃 <code>stage</code> 内所有中间结果，只保留 <code>stage</code> 间中间结果；在反向传播时，<code>stage</code> 内中间结果会再做一次前向传播计算得到</li>
+<li>重计算可大幅降低显存占用，使得可以放更大的 <code>batch size</code> 和更大的模型，且可以改善数据依赖问题</li>
+</ol>
+<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
+<ul>
+<li>这种方案前瞻性比较强，提出时还没有 <code>LLM</code></li>
+<li>给并行训练提供了一种新思路</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/08/15/SpecInfer-Accelerating-Large-Language-Model-Serving-with-Tree-based-Speculative-Inference-and-Verification/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1423,108 +1540,6 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/07/12/GQA-Grouped-Query-Attention/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2024/07/12/GQA-Grouped-Query-Attention/" class="post-title-link" itemprop="url">GQA: Grouped-Query Attention</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-07-12 12:55:14" itemprop="dateCreated datePublished" datetime="2024-07-12T12:55:14+08:00">2024-07-12</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-08-09 10:24:24" itemprop="dateModified" datetime="2024-08-09T10:24:24+08:00">2024-08-09</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Transformer/" itemprop="url" rel="index"><span itemprop="name">Transformer</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2024/07/12/GQA-Grouped-Query-Attention/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2024/07/12/GQA-Grouped-Query-Attention/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
-<ul>
-<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2305.13245">https://arxiv.org/pdf/2305.13245</a></li>
-</ul>
-<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
-<ul>
-<li>本质是标准 <code>Multi-Head Attention</code> 和 <code>Multi-Query Attention</code> 的一个折衷。</li>
-</ul>
-<p><img src="https://s2.loli.net/2024/07/12/zPEebjTWqMphBVt.png" alt="GQA.png" /></p>
-<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> torch</span><br><span class="line"><span class="keyword">import</span> torch.nn.functional <span class="keyword">as</span> F</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">multiquery_attention_batched</span>(<span class="params">X, M, mask, P_q, P_k, P_v, P_o, num_groups</span>):</span></span><br><span class="line">    <span class="comment"># b: batch size</span></span><br><span class="line">    <span class="comment"># n: number of querys</span></span><br><span class="line">    <span class="comment"># m: number of keys / values</span></span><br><span class="line">    <span class="comment"># d: input dimension</span></span><br><span class="line">    <span class="comment"># H: number of heads</span></span><br><span class="line">    <span class="comment"># g: number of groups</span></span><br><span class="line">    <span class="comment"># h: number of heads per group</span></span><br><span class="line">    <span class="comment"># k: key / query dimention</span></span><br><span class="line">    <span class="comment"># v: value dimention</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">assert</span> <span class="number">0</span> == P_q.size(<span class="number">0</span>) % num_groups</span><br><span class="line">    heads_per_group = P_q.size(<span class="number">0</span>) // num_groups</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 应用线性变换获取查询Q（multi-head）</span></span><br><span class="line">    Q = torch.einsum(<span class="string">&quot;bnd,Hdk-&gt;bHkn&quot;</span>, X, P_q).view(</span><br><span class="line">        -<span class="number">1</span>, num_groups, heads_per_group, P_q.size(<span class="number">2</span>), X.size(<span class="number">1</span>)</span><br><span class="line">    )</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 应用线性变换获取键K和值V（single-head）</span></span><br><span class="line">    K = torch.einsum(<span class="string">&quot;bmd,gdk-&gt;bgmk&quot;</span>, M, P_k)</span><br><span class="line">    V = torch.einsum(<span class="string">&quot;bmd,gdv-&gt;bgmv&quot;</span>, M, P_v)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 计算注意力得分并应用掩码</span></span><br><span class="line">    logits = torch.einsum(<span class="string">&quot;bghkn,bgmk-&gt;bghnm&quot;</span>, Q, K)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># mask 分组</span></span><br><span class="line">    mask = mask.view(-<span class="number">1</span>, num_groups, heads_per_group, mask.size(-<span class="number">2</span>), mask.size(-<span class="number">1</span>))</span><br><span class="line">    weights = F.softmax(logits + mask, dim=-<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 计算加权的值</span></span><br><span class="line">    O = torch.einsum(<span class="string">&quot;bghnm,bgmv-&gt;bghnv&quot;</span>, weights, V)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># P_o 分组</span></span><br><span class="line">    P_o = P_o.view(num_groups, heads_per_group, P_o.size(-<span class="number">2</span>), P_o.size(-<span class="number">1</span>))</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 应用输出变换</span></span><br><span class="line">    Y = torch.einsum(<span class="string">&quot;bghnv,ghvd-&gt;bnd&quot;</span>, O, P_o)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> Y</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment"># 假设参数和维度</span></span><br><span class="line">batch_size = <span class="number">2</span></span><br><span class="line">num_queries = <span class="number">5</span></span><br><span class="line">num_keys = <span class="number">7</span>  <span class="comment"># 同时也是 num_values</span></span><br><span class="line">dim = <span class="number">64</span></span><br><span class="line">key_dim = <span class="number">32</span>  <span class="comment"># 同时也是 query_dim</span></span><br><span class="line">value_dim = <span class="number">48</span></span><br><span class="line">num_heads = <span class="number">8</span></span><br><span class="line">num_groups = <span class="number">4</span>  <span class="comment"># head 分成多少组，必须整除 num_heads</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 随机初始化输入数据和参数</span></span><br><span class="line">X = torch.randn(batch_size, num_queries, dim)</span><br><span class="line">M = torch.randn(batch_size, num_keys, dim)</span><br><span class="line">mask = torch.randn(batch_size, num_heads, num_queries, num_keys)</span><br><span class="line">P_q = torch.randn(num_heads, dim, key_dim)</span><br><span class="line">P_k = torch.randn(num_groups, dim, key_dim)     <span class="comment"># 组件 key / value 不共享</span></span><br><span class="line">P_v = torch.randn(num_groups, dim, value_dim)</span><br><span class="line">P_o = torch.randn(num_heads, value_dim, dim)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 运行多查询注意力机制</span></span><br><span class="line">output = multiquery_attention_batched(X, M, mask, P_q, P_k, P_v, P_o, num_groups)</span><br><span class="line"><span class="built_in">print</span>(output.shape)  <span class="comment"># 应该输出: torch.Size([2, 5, 64])</span></span><br></pre></td></tr></table></figure>
-<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
-<ul>
-<li><code>GQA</code> 介于 <code>MHA</code> 和 <code>MQA</code> 之间，每个 <code>group</code> 内部实际上是 <code>MQA</code></li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1593,20 +1608,20 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">101</span>
+          <span class="site-state-item-count">102</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">32</span>
+        <span class="site-state-item-count">33</span>
         <span class="site-state-item-name">categories</span></a>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">50</span>
+        <span class="site-state-item-count">51</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
