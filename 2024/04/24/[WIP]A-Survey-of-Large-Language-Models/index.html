@@ -40,7 +40,7 @@
 <meta property="og:image" content="https://s2.loli.net/2024/07/02/kc8Q19t3amuS42z.png">
 <meta property="og:image" content="https://s2.loli.net/2024/07/31/eJvRXQnEjrLfN3M.png">
 <meta property="article:published_time" content="2024-04-24T05:24:21.000Z">
-<meta property="article:modified_time" content="2024-08-20T01:59:34.260Z">
+<meta property="article:modified_time" content="2024-08-21T05:56:27.524Z">
 <meta property="article:author" content="Zhangzhe">
 <meta property="article:tag" content="LLM">
 <meta property="article:tag" content="Paper Reading">
@@ -202,7 +202,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-08-20 09:59:34" itemprop="dateModified" datetime="2024-08-20T09:59:34+08:00">2024-08-20</time>
+                <time title="Modified: 2024-08-21 13:56:27" itemprop="dateModified" datetime="2024-08-21T13:56:27+08:00">2024-08-21</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1663,7 +1663,7 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
 </ol>
 <ul>
 <li>
-<p><code>LLM</code> 训练会有两个技术难题：<em>训练吞吐量的增加</em> 和 <em>加载大模型到显存</em>，解决方法包含以下几种：</p>
+<p><code>LLM</code> 训练会有两个技术难题：<em>训练吞吐量的增加</em> 和 <em>加载大模型到显存</em>，解决方法包含以下几种（以下几种并不冲突，可以同时使用）：</p>
 <ol>
 <li><code>3D Parallelism</code>
 <ol>
@@ -1678,7 +1678,20 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
 <ol>
 <li>模型不同的层放到不同的 <code>GPU</code> 上训练，由于 <code>LLM</code> 基本都是 <code>Transformer</code> 架构，所以一个 <code>GPU</code> 通常会加载连续的几层，这样可以有效降低 <code>hiddent state</code> 和 <code>gradient</code> 通信量</li>
 <li><code>GPU one-by-one</code> 计算会导致 <code>GPU</code> 利用率很低（流水存在大量气泡），需要有效的排计算流水</li>
-<li><code>Gpipe</code> 和 <code>PipeDream</code> 可以通过重整数据 <code>batch</code> 和异步梯度更新提高 <code>GPU</code> 利用率</li>
+<li><code>Gpipe</code> 和 <code>PipeDream</code> 可以通过重整数据 <code>batch</code> 和异步梯度更新提高 <code>GPU</code> 利用率
+<ul>
+<li><code>Gpipe</code> 可参考 <a target="_blank" rel="noopener" href="https://zhangzhe.space/2024/08/20/GPipe-Easy-Scaling-with-Micro-Batch-Pipeline-Parallelism/">https://zhangzhe.space/2024/08/20/GPipe-Easy-Scaling-with-Micro-Batch-Pipeline-Parallelism/</a></li>
+<li><code>PipeDream</code> 可参考 <a target="_blank" rel="noopener" href="https://zhangzhe.space/2024/08/20/PipeDream-Fast-and-Efficient-Pipeline-Parallel-DNN-Training/">https://zhangzhe.space/2024/08/20/PipeDream-Fast-and-Efficient-Pipeline-Parallel-DNN-Training/</a></li>
+</ul>
+</li>
+</ol>
+</li>
+<li><code>Tensor parallelism</code>
+<ol>
+<li><code>Tensor parallelism</code> 是把模型一层的参数切成多份，每份独立计算，即 <code>Pipeline parallelism</code> 是横向把模型切成几段，而 <code>Tensor parallelism</code> 是纵向把模型切成几段</li>
+<li>以 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Y</mi><mo>=</mo><mi>X</mi><mi mathvariant="normal">@</mi><mi>A</mi></mrow><annotation encoding="application/x-tex">Y=X @ A</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord mathnormal" style="margin-right:0.22222em;">Y</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:0.69444em;vertical-align:0em;"></span><span class="mord mathnormal" style="margin-right:0.07847em;">X</span><span class="mord">@</span><span class="mord mathnormal">A</span></span></span></span> 矩阵乘运算为例，<code>Tensor parallelism</code> 是将 <code>A</code> 纵向切分为 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false">[</mo><msub><mi>A</mi><mn>1</mn></msub><mo separator="true">,</mo><msub><mi>A</mi><mn>2</mn></msub><mo stretchy="false">]</mo></mrow><annotation encoding="application/x-tex">[A_1,A_2]</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">[</span><span class="mord"><span class="mord mathnormal">A</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.30110799999999993em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">1</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathnormal">A</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.30110799999999993em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">]</span></span></span></span> 放到不同的 <code>GPU</code> 上独立运算，则 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Y</mi><mo>=</mo><mo stretchy="false">[</mo><mi>X</mi><mi mathvariant="normal">@</mi><msub><mi>A</mi><mn>1</mn></msub><mo separator="true">,</mo><mi>X</mi><mi mathvariant="normal">@</mi><msub><mi>A</mi><mn>2</mn></msub><mo stretchy="false">]</mo></mrow><annotation encoding="application/x-tex">Y=[X@A_1,X@A_2]</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord mathnormal" style="margin-right:0.22222em;">Y</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">[</span><span class="mord mathnormal" style="margin-right:0.07847em;">X</span><span class="mord">@</span><span class="mord"><span class="mord mathnormal">A</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.30110799999999993em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">1</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal" style="margin-right:0.07847em;">X</span><span class="mord">@</span><span class="mord"><span class="mord mathnormal">A</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.30110799999999993em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">]</span></span></span></span></li>
+<li><code>Tensor parallelism</code> 需要分析每个算子的数据依赖情况，比如矩阵乘的右矩阵可以按列划分，但不可以按行划分。</li>
+<li>目前一些开源框架都支持了 <code>Tensor parallelism</code>，例如 <code>Megatron-LM</code> 和 <code>Colossal-AI</code></li>
 </ol>
 </li>
 </ol>
@@ -1785,20 +1798,20 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">103</span>
+          <span class="site-state-item-count">104</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">33</span>
+        <span class="site-state-item-count">34</span>
         <span class="site-state-item-name">categories</span></a>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">51</span>
+        <span class="site-state-item-count">52</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
