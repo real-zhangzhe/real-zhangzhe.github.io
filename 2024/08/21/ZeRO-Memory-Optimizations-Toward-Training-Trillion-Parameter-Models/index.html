@@ -20,12 +20,12 @@
     var CONFIG = {"hostname":"real-zhangzhe.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
   </script>
 
-  <meta name="description" content="URL  paper: https:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;1910.02054 code: https:&#x2F;&#x2F;github.com&#x2F;microsoft&#x2F;DeepSpeed   TL;DR   传统的 DDP 训练大模型有个很大的问题是：由于 DDP 训练中每个 GPU 上都需要存储模型状态信息和其他状态信息：  模型状态信息包括：Prameter + Gradient + Optimiz">
+  <meta name="description" content="URL  paper: https:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;1910.02054 code: https:&#x2F;&#x2F;github.com&#x2F;microsoft&#x2F;DeepSpeed   TL;DR  传统的 DDP 训练大模型有个很大的问题是：由于 DDP 训练中每个 GPU 上都需要存储模型状态信息和其他状态信息：  模型状态信息包括：Prameter + Gradient + Optimize">
 <meta property="og:type" content="article">
 <meta property="og:title" content="ZeRO: Memory Optimizations Toward Training Trillion Parameter Models">
 <meta property="og:url" content="https://real-zhangzhe.github.io/2024/08/21/ZeRO-Memory-Optimizations-Toward-Training-Trillion-Parameter-Models/index.html">
 <meta property="og:site_name" content="Zhangzhe&#39;s Blog">
-<meta property="og:description" content="URL  paper: https:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;1910.02054 code: https:&#x2F;&#x2F;github.com&#x2F;microsoft&#x2F;DeepSpeed   TL;DR   传统的 DDP 训练大模型有个很大的问题是：由于 DDP 训练中每个 GPU 上都需要存储模型状态信息和其他状态信息：  模型状态信息包括：Prameter + Gradient + Optimiz">
+<meta property="og:description" content="URL  paper: https:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;1910.02054 code: https:&#x2F;&#x2F;github.com&#x2F;microsoft&#x2F;DeepSpeed   TL;DR  传统的 DDP 训练大模型有个很大的问题是：由于 DDP 训练中每个 GPU 上都需要存储模型状态信息和其他状态信息：  模型状态信息包括：Prameter + Gradient + Optimize">
 <meta property="og:locale" content="en_US">
 <meta property="og:image" content="https://s2.loli.net/2024/08/21/ibqQzKWk4UvAPru.png">
 <meta property="og:image" content="https://s2.loli.net/2024/08/26/QPTxZX7gnLeG8iF.png">
@@ -37,7 +37,7 @@
 <meta property="og:image" content="https://s2.loli.net/2024/08/28/ZasfEMvulenz5JF.webp">
 <meta property="og:image" content="https://s2.loli.net/2024/08/28/4Fvq1eHSyhnwMKr.webp">
 <meta property="article:published_time" content="2024-08-21T09:01:35.000Z">
-<meta property="article:modified_time" content="2024-08-28T01:58:34.896Z">
+<meta property="article:modified_time" content="2024-10-08T08:11:14.229Z">
 <meta property="article:author" content="Zhangzhe">
 <meta property="article:tag" content="LLM">
 <meta property="article:tag" content="Data Parallelism">
@@ -198,7 +198,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-08-28 09:58:34" itemprop="dateModified" datetime="2024-08-28T09:58:34+08:00">2024-08-28</time>
+                <time title="Modified: 2024-10-08 16:11:14" itemprop="dateModified" datetime="2024-10-08T16:11:14+08:00">2024-10-08</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -242,23 +242,16 @@
 </ul>
 <h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
 <ul>
-<li>
-<p>传统的 <code>DDP</code> 训练大模型有个很大的问题是：由于 <code>DDP</code> 训练中每个 <code>GPU</code> 上都需要存储模型状态信息和其他状态信息：</p>
+<li>传统的 <code>DDP</code> 训练大模型有个很大的问题是：由于 <code>DDP</code> 训练中每个 <code>GPU</code> 上都需要存储模型状态信息和其他状态信息：
 <ul>
 <li>模型状态信息包括：<code>Prameter</code> + <code>Gradient</code> + <code>Optimizer states</code></li>
 <li>其他状态信息包括：激活值（<code>Activation</code>）、各种临时缓冲区（<code>buffer</code>）以及无法使用的显存碎片（<code>fragmentation</code>）<br />
 所以显存占用较大，使得不能通过 <code>DDP</code> 训练较大的模型。</li>
 </ul>
 </li>
-<li>
-<p>本文提出来 <code>Zero-DP</code> 和 <code>Zero-R</code> 两种大模型训练优化策略，分别解决模型状态信息过大和其他状态信息过大的问题。</p>
-</li>
-<li>
-<p><code>Zero-DP</code> 全称是 <code>Zero Redundancy Optimizer Data Parallelism</code>，主要优化点是将 <code>GPU</code> 间冗余存储的模型状态信息（<code>Parmeter + Gradient + Optimizer states</code>）删除，每个 <code>GPU</code> 只保留一小部分信息，所有 <code>GPU</code> 上的信息汇聚之后才是完整模型。</p>
-</li>
-<li>
-<p><code>Zero-R</code> 的目的是解决 <code>Tensor Parallelism</code> 训练时，<code>Activation</code> 信息占用过大的问题。</p>
-</li>
+<li>本文提出来 <code>Zero-DP</code> 和 <code>Zero-R</code> 两种大模型训练优化策略，分别解决模型状态信息过大和其他状态信息过大的问题。</li>
+<li><code>Zero-DP</code> 全称是 <code>Zero Redundancy Optimizer Data Parallelism</code>，主要优化点是将 <code>GPU</code> 间冗余存储的模型状态信息（<code>Parmeter + Gradient + Optimizer states</code>）删除，每个 <code>GPU</code> 只保留一小部分信息，所有 <code>GPU</code> 上的信息汇聚之后才是完整模型。</li>
+<li><code>Zero-R</code> 的目的是解决 <code>Tensor Parallelism</code> 训练时，<code>Activation</code> 信息占用过大的问题。</li>
 </ul>
 <h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
 <h3 id="zero-dp"><a class="markdownIt-Anchor" href="#zero-dp"></a> <code>ZeRO-DP</code></h3>
@@ -268,10 +261,8 @@
 </ul>
 <h4 id="没有其他方法可以降低显存占用吗"><a class="markdownIt-Anchor" href="#没有其他方法可以降低显存占用吗"></a> 没有其他方法可以降低显存占用吗？</h4>
 <ul>
-<li>有的，比如混合精度训练 (<a target="_blank" rel="noopener" href="https://arxiv.org/pdf/1710.03740">https://arxiv.org/pdf/1710.03740</a>) 就是一个常用的有效的手段</li>
-</ul>
-<p><img src="https://s2.loli.net/2024/08/21/ibqQzKWk4UvAPru.png" alt="mixed_precision_1.png" /></p>
-<ul>
+<li>有的，比如混合精度训练 (<a target="_blank" rel="noopener" href="https://arxiv.org/pdf/1710.03740">https://arxiv.org/pdf/1710.03740</a>) 就是一个常用的有效的手段<br />
+<img src="https://s2.loli.net/2024/08/21/ibqQzKWk4UvAPru.png" alt="mixed_precision_1.png" /></li>
 <li>已知 <code>LLM</code> 通常使用 <code>Adam / AdamW</code> 优化器进行优化，假设模型参数量为 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="normal">Φ</mi></mrow><annotation encoding="application/x-tex">\Phi</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord">Φ</span></span></span></span>，那么用混合精度训练过程中，模型状态信息实际的显存占用是:
 <ul>
 <li><code>Parameter</code> 占用 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mi mathvariant="normal">Φ</mi></mrow><annotation encoding="application/x-tex">2\Phi</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord">2</span><span class="mord">Φ</span></span></span></span> 字节（<code>fp16</code> 类型存储）</li>
@@ -301,18 +292,12 @@
 </ul>
 <h4 id="分块存储-ring-reduce-会带来额外的通信代价吗"><a class="markdownIt-Anchor" href="#分块存储-ring-reduce-会带来额外的通信代价吗"></a> 分块存储 + <code>Ring Reduce</code> 会带来额外的通信代价吗？</h4>
 <ul>
-<li>
-<p><code>All Reduce</code> 运算来计算设备间梯度均值（求和）<br />
-<img src="https://s2.loli.net/2024/08/27/k3m7wPG82yEzgD1.png" alt="ZeRO-DP_2.png" /></p>
-</li>
-<li>
-<p><code>Reduce Scatter</code> 来求和，<code>All Gather</code> 做 <code>broadcast</code> 同步到所有设备上<br />
-<img src="https://s2.loli.net/2024/08/27/oRKD4MYkLa9z1UX.png" alt="ZeRO-DP_3.png" /></p>
-</li>
-<li>
-<p>使用 <code>Ring Reduce</code> 实现 <code>Reduce Scatter</code><br />
-<img src="https://s2.loli.net/2024/08/27/PrQFLkZAc7zRbOn.png" alt="ZeRO-DP_4.png" /></p>
-</li>
+<li><code>All Reduce</code> 运算来计算设备间梯度均值（求和）<br />
+<img src="https://s2.loli.net/2024/08/27/k3m7wPG82yEzgD1.png" alt="ZeRO-DP_2.png" /></li>
+<li><code>Reduce Scatter</code> 来求和，<code>All Gather</code> 做 <code>broadcast</code> 同步到所有设备上<br />
+<img src="https://s2.loli.net/2024/08/27/oRKD4MYkLa9z1UX.png" alt="ZeRO-DP_3.png" /></li>
+<li>使用 <code>Ring Reduce</code> 实现 <code>Reduce Scatter</code><br />
+<img src="https://s2.loli.net/2024/08/27/PrQFLkZAc7zRbOn.png" alt="ZeRO-DP_4.png" /></li>
 </ul>
 <blockquote>
 <p>颜色逐渐累积代表梯度累加</p>
@@ -343,73 +328,40 @@
 <h3 id="zero-r"><a class="markdownIt-Anchor" href="#zero-r"></a> <code>ZeRO-R</code></h3>
 <h4 id="zero-r-想要解决哪些问题"><a class="markdownIt-Anchor" href="#zero-r-想要解决哪些问题"></a> <code>ZeRO-R</code> 想要解决哪些问题？</h4>
 <ol>
-<li>
-<p><code>Tensor Parallelism</code> 中 <code>Activation</code> 冗余存储问题</p>
-</li>
-<li>
-<p>临时缓冲区占用问题</p>
-</li>
-<li>
-<p>显存碎片导致无法使用的问题</p>
-</li>
+<li><code>Tensor Parallelism</code> 中 <code>Activation</code> 冗余存储问题</li>
+<li>临时缓冲区占用问题</li>
+<li>显存碎片导致无法使用的问题</li>
 </ol>
 <h4 id="zero-r-如何解决-tensor-parallelism-中-activation-冗余存储问题"><a class="markdownIt-Anchor" href="#zero-r-如何解决-tensor-parallelism-中-activation-冗余存储问题"></a> <code>ZeRO-R</code> 如何解决 <code>Tensor Parallelism</code> 中 <code>Activation</code> 冗余存储问题？</h4>
 <ul>
-<li>
-<p>是通过激活值检查点分片存储（<code>Partitioned Activation Checkpointing</code>，简称 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>P</mi><mi>A</mi></msub></mrow><annotation encoding="application/x-tex">P_A</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">P</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.32833099999999993em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">A</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span>）来解决 <code>Tensor Parallelism</code> 中 <code>Activation</code> 冗余存储问题。</p>
-</li>
-<li>
-<p>其中的 <strong>分片</strong> 思想和 <code>ZeRO-DP</code> 是一样的，<code>N</code> 个设备每个设备只存储 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><mn>1</mn><mi>N</mi></mfrac></mrow><annotation encoding="application/x-tex">\frac{1}{N}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.190108em;vertical-align:-0.345em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.845108em;"><span style="top:-2.6550000000000002em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.10903em;">N</span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.394em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.345em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span> 的信息，通过 <code>All Reduce</code> 进行信息聚合</p>
-</li>
-<li>
-<p><strong>激活值检查点</strong> 思想是来自 <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/1604.06174">https://arxiv.org/pdf/1604.06174</a> 这篇论文，实际上是传统前向反向传播过程和 <code>ReCompute</code> 前向反向传播过程的折衷，也是空间和时间的折衷。</p>
-</li>
-<li>
-<p>传统前向反向传播过程：存储每个中间算子的前向传播计算结果，用于反向传播计算梯度<br />
-<img src="https://s2.loli.net/2024/08/28/4LqChjgEwIAfuRS.webp" alt="ZeRO-R_1.webp" /></p>
-</li>
-<li>
-<p><code>ReCompute</code> 前向反向传播过程：不存储任何中间算子的前向计算结果，反向传播需要用时重新计算<br />
-<img src="https://s2.loli.net/2024/08/28/ZasfEMvulenz5JF.webp" alt="ZeRO-R_2.webp" /></p>
-</li>
-<li>
-<p><code>Activation Checkpointing</code> 前向反向传播过程：存储部分中间算子前向计算结果，反向传播需要用时，从拓扑上游最近的检查点开始重新计算<br />
-<img src="https://s2.loli.net/2024/08/28/4Fvq1eHSyhnwMKr.webp" alt="ZeRO-R_3.webp" /></p>
-</li>
+<li>是通过激活值检查点分片存储（<code>Partitioned Activation Checkpointing</code>，简称 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>P</mi><mi>A</mi></msub></mrow><annotation encoding="application/x-tex">P_A</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">P</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.32833099999999993em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">A</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span>）来解决 <code>Tensor Parallelism</code> 中 <code>Activation</code> 冗余存储问题。</li>
+<li>其中的 <strong>分片</strong> 思想和 <code>ZeRO-DP</code> 是一样的，<code>N</code> 个设备每个设备只存储 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><mn>1</mn><mi>N</mi></mfrac></mrow><annotation encoding="application/x-tex">\frac{1}{N}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.190108em;vertical-align:-0.345em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.845108em;"><span style="top:-2.6550000000000002em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.10903em;">N</span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.394em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.345em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span> 的信息，通过 <code>All Reduce</code> 进行信息聚合</li>
+<li><strong>激活值检查点</strong> 思想是来自 <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/1604.06174">https://arxiv.org/pdf/1604.06174</a> 这篇论文，实际上是传统前向反向传播过程和 <code>ReCompute</code> 前向反向传播过程的折衷，也是空间和时间的折衷。</li>
+<li>传统前向反向传播过程：存储每个中间算子的前向传播计算结果，用于反向传播计算梯度<br />
+<img src="https://s2.loli.net/2024/08/28/4LqChjgEwIAfuRS.webp" alt="ZeRO-R_1.webp" /></li>
+<li><code>ReCompute</code> 前向反向传播过程：不存储任何中间算子的前向计算结果，反向传播需要用时重新计算<br />
+<img src="https://s2.loli.net/2024/08/28/ZasfEMvulenz5JF.webp" alt="ZeRO-R_2.webp" /></li>
+<li><code>Activation Checkpointing</code> 前向反向传播过程：存储部分中间算子前向计算结果，反向传播需要用时，从拓扑上游最近的检查点开始重新计算<br />
+<img src="https://s2.loli.net/2024/08/28/4Fvq1eHSyhnwMKr.webp" alt="ZeRO-R_3.webp" /></li>
 </ul>
 <h4 id="zero-r-如何解决临时缓存区空间占用问题"><a class="markdownIt-Anchor" href="#zero-r-如何解决临时缓存区空间占用问题"></a> <code>ZeRO-R</code> 如何解决临时缓存区空间占用问题？</h4>
 <ul>
-<li>
-<p>通常情况下，临时缓存区是用来做数据聚合的，例如 <code>All Reduce</code> 操作，模型越大，需要的临时缓存区也越大。</p>
-</li>
-<li>
-<p><code>ZeRO-R</code> 用了一个非常简单的策略：在模型大到一定程度后，使用固定尺寸的融合缓存区，即常数尺寸缓存区（<code>Constant Size Buffers</code>，简称 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>C</mi><mi>B</mi></msub></mrow><annotation encoding="application/x-tex">C_B</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.07153em;">C</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.32833099999999993em;"><span style="top:-2.5500000000000003em;margin-left:-0.07153em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.05017em;">B</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span>）</p>
-</li>
+<li>通常情况下，临时缓存区是用来做数据聚合的，例如 <code>All Reduce</code> 操作，模型越大，需要的临时缓存区也越大。</li>
+<li><code>ZeRO-R</code> 用了一个非常简单的策略：在模型大到一定程度后，使用固定尺寸的融合缓存区，即常数尺寸缓存区（<code>Constant Size Buffers</code>，简称 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>C</mi><mi>B</mi></msub></mrow><annotation encoding="application/x-tex">C_B</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.07153em;">C</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.32833099999999993em;"><span style="top:-2.5500000000000003em;margin-left:-0.07153em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.05017em;">B</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span>）</li>
 </ul>
 <h4 id="zero-r-如何解决显存碎片化问题"><a class="markdownIt-Anchor" href="#zero-r-如何解决显存碎片化问题"></a> <code>ZeRO-R</code> 如何解决显存碎片化问题？</h4>
 <ul>
-<li>
-<p>问：为什么会产生显存碎片化问题？</p>
-</li>
-<li>
-<p>答：因为 <code>Activation Checkpointing</code> 的存在，不同的 <code>Activation</code> 有不同的生命周期，非 <code>checkpoint</code> 的 <code>Activation</code> 用完即弃，<code>checkpoint</code> 的 <code>Activation</code> 需要反向传播之后才可以丢弃，不同生命周期的存储空间交织就会出现显存碎片</p>
-</li>
-<li>
-<p>问：显存碎片化会带来什么问题？</p>
-</li>
-<li>
-<p>答：显存碎片化通常会有两个问题：</p>
+<li>问：为什么会产生显存碎片化问题？</li>
+<li>答：因为 <code>Activation Checkpointing</code> 的存在，不同的 <code>Activation</code> 有不同的生命周期，非 <code>checkpoint</code> 的 <code>Activation</code> 用完即弃，<code>checkpoint</code> 的 <code>Activation</code> 需要反向传播之后才可以丢弃，不同生命周期的存储空间交织就会出现显存碎片</li>
+<li>问：显存碎片化会带来什么问题？</li>
+<li>答：显存碎片化通常会有两个问题：
 <ol>
 <li>大量的碎片无法使用，使得实际空间占用不多，但出现 <code>OOM</code></li>
 <li>大量存储碎片会导致系统在分配内存时需要大量的搜索来找到合适的空间，会带来额外耗时</li>
 </ol>
 </li>
-<li>
-<p>问：那 <code>ZeRO-R</code> 如何解决显存碎片化问题？</p>
-</li>
-<li>
-<p>答：预先给不同生命周期的 <code>Activation</code> 划分不同的存储空间，避免产生交织。例如：把显存划分成两段连续的存储空间，其中一段存储 <code>Checkpoint Activation</code> 另外一段存储 <code>Temporary Activation</code>。</p>
-</li>
+<li>问：那 <code>ZeRO-R</code> 如何解决显存碎片化问题？</li>
+<li>答：预先给不同生命周期的 <code>Activation</code> 划分不同的存储空间，避免产生交织。例如：把显存划分成两段连续的存储空间，其中一段存储 <code>Checkpoint Activation</code> 另外一段存储 <code>Temporary Activation</code>。</li>
 </ul>
 <h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
 <ul>
@@ -513,7 +465,7 @@
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">110</span>
+          <span class="site-state-item-count">111</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
