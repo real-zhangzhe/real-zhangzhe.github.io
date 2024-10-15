@@ -1393,7 +1393,7 @@ n+1 &amp; if &amp; n = k\\
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-10-08 16:11:14" itemprop="dateModified" datetime="2024-10-08T16:11:14+08:00">2024-10-08</time>
+                <time title="Modified: 2024-10-15 12:19:07" itemprop="dateModified" datetime="2024-10-15T12:19:07+08:00">2024-10-15</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1467,7 +1467,7 @@ n+1 &amp; if &amp; n = k\\
 <h4 id="4-encoder"><a class="markdownIt-Anchor" href="#4-encoder"></a> 4. encoder</h4>
 <ul>
 <li>与 <code>GPT</code> 系列直接使用 <code>token embedding</code> + <code>position embedding</code> 直接得到 <code>hidden state</code> 来输入 <code>decoder</code> 不同，<code>T5</code> 有 <code>encoder</code> 结构</li>
-<li><code>T5</code> 的 <code>encoder</code> 结构采用标准 <code>transformer encoder</code> 结构，每个 <code>token</code> 可以看到所有 <code>token</code></li>
+<li><code>T5</code> 的 <code>encoder</code> 结构采用标准 <code>transformer encoder</code> 结构，<strong>每个 <code>token</code> 可以看到所有 <code>token</code>（双向注意力机制）</strong></li>
 <li><code>encoder</code> 一共 <code>12</code> 层，每一层包括如下顺序结构为：
 <ul>
 <li><code>self attention block</code>
@@ -1522,12 +1522,13 @@ n+1 &amp; if &amp; n = k\\
 </li>
 </ul>
 </li>
-<li>其中 <code>self attention</code> 的输入是 <code>decoder hidden state</code>（<strong>注意不是 <code>encoder hidden state</code></strong>）</li>
+<li>其中 <code>self attention</code> 的输入是 <code>decoder hidden state</code>（<strong>注意不是 <code>encoder hidden state</code></strong>），在 <code>self attention</code> 中，和 <code>GPT</code> 类似，采用 <strong>单向注意力</strong></li>
 <li><code>decoder hidden state</code> 和 <code>encoder hidden state</code> 输入到 <code>cross attention</code>中，<code>Cross attention</code> 和 <code>Self attention</code> 实际上只有一个区别：
 <ul>
 <li><strong><code>self attention</code> 的 <code>query / key / value</code> 都由同一个 <code>hidden state</code> 得到，因此称为 <code>self</code></strong></li>
 <li><strong><code>cross attention</code> 的 <code>key / value</code> 由同一个 <code>hidden state</code> 得到，<code>query</code> 由另一个 <code>hidden state</code> 得到，因此称为 <code>cross</code></strong></li>
 <li><strong>在 <code>encoder-decoder</code> 架构的 <code>transformer</code> 中，<code>decoder</code> 中的 <code>cross attention</code> 的 <code>key / value</code> 通常由 <code>encoder output hidden state</code> 得到，<code>query</code> 通常由 <code>decoder hidden state</code> 得到</strong></li>
+<li><code>Cross attention</code> 中每个 <code>decoder hidden state</code> 可以查询到所有的 <code>encoder hidden state</code></li>
 </ul>
 </li>
 <li>重复跑完 <code>12</code> 层，最终输出 <code>shape = (batch, 1, decoder_dim)</code> 的 <code>decoder output hidden state</code></li>
@@ -1538,6 +1539,18 @@ n+1 &amp; if &amp; n = k\\
 <li>此 <code>token</code> 对应的单词即为模型最终输出的第一个词。</li>
 <li>如果这个词是词表中的结束符，则停止输出。如果不是，则用此词替代前一个词，重复上述的 <strong>5. decoder input token embedding and position encoding</strong> 和 <strong>6. decoder</strong> 和 <strong>7. decoder output hidden state to token</strong> 过程，直到达到最长输出长度限制或出现停止符。</li>
 </ul>
+<h3 id="总结"><a class="markdownIt-Anchor" href="#总结"></a> 总结</h3>
+<ol>
+<li><code>encoder</code> 输入所有文本，<strong>双向注意力</strong>，得到 <code>encoder hidden state</code></li>
+<li><code>decoder</code> 输入初始化为 <code>&lt;BOS&gt;</code>，长度为 <code>1</code></li>
+<li><code>decoder</code> 每一层包含：
+<ol>
+<li><code>self attention</code>，<strong>单向注意力</strong></li>
+<li><code>cross attention</code>，<strong>双向注意力</strong>，<code>decoder hidden state</code> 做 <code>query</code>，<code>encoder hidden states</code> 做 <code>key and value</code></li>
+<li><code>FFN</code></li>
+</ol>
+</li>
+</ol>
 
       
     </div>
