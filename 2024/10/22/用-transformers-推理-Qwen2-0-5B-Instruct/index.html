@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"real-zhangzhe.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="0. 背景  本文主要介绍 hugging face 托管的 LLM 如何下载，并用 transformers repo 推理   1. 相关工具介绍  hugging face 是一个托管 LLM 的网站，类似 github &#x2F; dockerhub，可以上传下载大模型也可以在线推理等 transformers 是一个 hugging face 维护的开源大模型代码库，包含约 300 个开源大模">
+<meta property="og:type" content="article">
+<meta property="og:title" content="用 transformers 推理 Qwen2-0.5B-Instruct">
+<meta property="og:url" content="https://real-zhangzhe.github.io/2024/10/22/%E7%94%A8-transformers-%E6%8E%A8%E7%90%86-Qwen2-0-5B-Instruct/index.html">
+<meta property="og:site_name" content="Zhangzhe&#39;s Blog">
+<meta property="og:description" content="0. 背景  本文主要介绍 hugging face 托管的 LLM 如何下载，并用 transformers repo 推理   1. 相关工具介绍  hugging face 是一个托管 LLM 的网站，类似 github &#x2F; dockerhub，可以上传下载大模型也可以在线推理等 transformers 是一个 hugging face 维护的开源大模型代码库，包含约 300 个开源大模">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2024-10-22T04:03:04.000Z">
+<meta property="article:modified_time" content="2024-10-22T11:21:26.187Z">
+<meta property="article:author" content="Zhangzhe">
+<meta property="article:tag" content="LLM">
+<meta property="article:tag" content="Transformer">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://real-zhangzhe.github.io/2024/10/22/%E7%94%A8-transformers-%E6%8E%A8%E7%90%86-Qwen2-0-5B-Instruct/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>用 transformers 推理 Qwen2-0.5B-Instruct | Zhangzhe's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Zhangzhe's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">The projection of my life.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/archives/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/10/22/%E7%94%A8-transformers-%E6%8E%A8%E7%90%86-Qwen2-0-5B-Instruct/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          用 transformers 推理 Qwen2-0.5B-Instruct
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2024-10-22 12:03:04 / Modified: 19:21:26" itemprop="dateCreated datePublished" datetime="2024-10-22T12:03:04+08:00">2024-10-22</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/LLM/" itemprop="url" rel="index"><span itemprop="name">LLM</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2024/10/22/%E7%94%A8-transformers-%E6%8E%A8%E7%90%86-Qwen2-0-5B-Instruct/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2024/10/22/%E7%94%A8-transformers-%E6%8E%A8%E7%90%86-Qwen2-0-5B-Instruct/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="0-背景"><a class="markdownIt-Anchor" href="#0-背景"></a> 0. 背景</h2>
+<ul>
+<li>本文主要介绍 <code>hugging face</code> 托管的 <code>LLM</code> 如何下载，并用 <code>transformers repo</code> 推理</li>
+</ul>
+<h2 id="1-相关工具介绍"><a class="markdownIt-Anchor" href="#1-相关工具介绍"></a> 1. 相关工具介绍</h2>
+<ol>
+<li><a target="_blank" rel="noopener" href="https://huggingface.co"><code>hugging face</code></a> 是一个托管 <code>LLM</code> 的网站，类似 <code>github / dockerhub</code>，可以上传下载大模型也可以在线推理等</li>
+<li><a target="_blank" rel="noopener" href="https://github.com/huggingface/transformers"><code>transformers</code></a> 是一个 <code>hugging face</code> 维护的开源大模型代码库，包含约 <code>300</code> 个开源大模型的网络结构，可以配合 <code>hugging face</code> 下载的大模型实现一键推理</li>
+</ol>
+<h2 id="2-模型文件下载"><a class="markdownIt-Anchor" href="#2-模型文件下载"></a> 2. 模型文件下载</h2>
+<h3 id="下载工具"><a class="markdownIt-Anchor" href="#下载工具"></a> 下载工具</h3>
+<ol>
+<li><code>hugging face</code> 有专用工具 <code>huggingface-cli</code>，作用类似于低配版 <code>git</code>，可以实现远程 <code>hugging face repo</code> 的登录、登出、上传、下载等</li>
+<li>对于 <code>Qwen2-0.5B-Instruct</code> 模型，<code>huggingface-cli</code> 可直接免登录下载，而例如 <code>Llama3.2-1B</code> 等模型需要向 <code>meta</code> 提交申请并获得同意后下载</li>
+</ol>
+<h3 id="下载文件内容"><a class="markdownIt-Anchor" href="#下载文件内容"></a> 下载文件内容</h3>
+<ol>
+<li><code>hugging face</code> 模型文件格式较为固定，一般为：
+<ol>
+<li><code>config.json</code>：
+<ol>
+<li>这个文件包含了模型的配置信息，比如模型的架构参数、预处理步骤、头层大小等</li>
+<li>它通常用于在加载模型时，确保模型的配置与原始模型一致</li>
+</ol>
+</li>
+<li><code>generation_config.json</code>：
+<ol>
+<li>这个文件包含了生成文本时的配置信息，比如最大长度、停止序列、温度等，以及依赖的 <code>transformers</code> 版本</li>
+<li>这些参数影响模型生成文本的行为</li>
+</ol>
+</li>
+<li><code>LICENSE</code>：
+<ol>
+<li>这个文件包含了模型的许可证信息，说明了你可以如何使用这个模型，以及使用时需要遵守的法律条款</li>
+</ol>
+</li>
+<li><code>merges.txt</code>：
+<ol>
+<li>这个文件通常用于字节对编码（<code>Byte Pair Encoding, BPE</code>）分词器，它包含了词汇的合并规则</li>
+<li><code>BPE</code> 是一种用于创建词汇表和编码文本的算法</li>
+</ol>
+</li>
+<li><code>model.safetensors</code>：
+<ol>
+<li>这是一个保存模型权重的文件，使用了 <code>SafeTensors</code> 格式</li>
+<li>这是一种高效的文件格式，用于存储和加载深度学习模型的权重</li>
+</ol>
+</li>
+<li><code>README.md</code>：
+<ol>
+<li>这个文件包含了模型的说明文档，通常包括模型的简介、如何使用模型、训练细节、性能指标等信息</li>
+</ol>
+</li>
+<li><code>tokenizer_config.json</code>：
+<ol>
+<li>这个文件包含了分词器的配置信息，比如分词器的类型、是否使用 <code>BPE</code> 等</li>
+</ol>
+</li>
+<li><code>tokenizer.json</code>：
+<ol>
+<li>这个文件包含了分词器的预训练信息，比如词汇表、特殊标记等</li>
+<li>它用于将文本转换为模型可以理解的数值输入</li>
+</ol>
+</li>
+<li>vocab.json：
+<ol>
+<li>这个文件包含了模型的词汇表，即模型在训练时使用的所有单词或标记的列表</li>
+<li>分词器使用这个词汇表将文本分割成模型可以理解的输入</li>
+</ol>
+</li>
+</ol>
+</li>
+<li><code>Qwen2-0.5B-Instruct</code> 中的 <code>&quot;Instruct&quot;</code> 是指此模型是经过指令遵循微调后的模型</li>
+</ol>
+<h3 id="模型参数解析"><a class="markdownIt-Anchor" href="#模型参数解析"></a> 模型参数解析</h3>
+<ol>
+<li>下载的文件中 <code>model.safetensors</code> 就是模型参数</li>
+<li><code>safetensors</code> 是由 <code>Hugging Face</code> 开发的一种新型文件格式，专门用于安全地存储和加载机器学习模型的权重，这种格式特别关注模型的安全性、隐私保护和快速加载
+<ol>
+<li>安全性：<code>safetensors</code> 格式的设计目标之一是提高模型存储的安全性，它不允许执行代码，从而减少了模型文件被恶意篡改的风险</li>
+<li>快速加载：与传统的 <code>PyTorch</code> 序列化格式（如 <code>.pth</code> 或 <code>.bin</code>）相比，<code>safetensors</code> 可以更快地加载模型权重，尤其是在 <code>CPU</code> 和 <code>GPU</code> 上</li>
+<li>跨语言和跨框架兼容性：<code>safetensors</code> 支持在不同的编程语言和机器学习框架之间共享模型权重，例如可以在 <code>Python</code> 中序列化并在 <code>C++ / Java / JavaScript</code> 中加载</li>
+<li>懒加载：支持懒加载，即可以选择只读取文件中的一部分张量，这对于分布式设置中的多节点或 <code>GPU</code> 非常有用</li>
+</ol>
+</li>
+<li>如何解析一个 <code>model.safetensors</code> 文件？</li>
+</ol>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> safetensors <span class="keyword">import</span> safe_open</span><br><span class="line">tensors = &#123;&#125;</span><br><span class="line"><span class="comment"># framework=&quot;pt&quot; means pytorch</span></span><br><span class="line"><span class="keyword">with</span> safe_open(<span class="string">&quot;model.safetensors&quot;</span>, framework=<span class="string">&quot;pt&quot;</span>, device=<span class="string">&quot;cpu&quot;</span>) <span class="keyword">as</span> f:</span><br><span class="line">    <span class="keyword">for</span> key <span class="keyword">in</span> f.keys():</span><br><span class="line">        tensors[key] = f.get_tensor(key)</span><br></pre></td></tr></table></figure>
+<h2 id="3-模型推理"><a class="markdownIt-Anchor" href="#3-模型推理"></a> 3. 模型推理</h2>
+<p>模型推理是本文重点，在这里会详细介绍模型推理中所有的计算过程，主要包括：</p>
+<ol>
+<li>构建模型并加载预训练参数</li>
+<li>输入构建</li>
+<li>模型前向传播</li>
+<li><code>decode method</code></li>
+<li>重复迭代，直到输出结束符或序列长度达到最长限制</li>
+<li><code>token to text</code></li>
+</ol>
+<h3 id="构建模型并加载预训练参数"><a class="markdownIt-Anchor" href="#构建模型并加载预训练参数"></a> 构建模型并加载预训练参数</h3>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> transformers <span class="keyword">import</span> AutoModelForCausalLM</span><br><span class="line">model = AutoModelForCausalLM.from_pretrained(</span><br><span class="line">    model_path, torch_dtype=<span class="string">&quot;auto&quot;</span>, device_map=<span class="string">&quot;auto&quot;</span></span><br><span class="line">)</span><br></pre></td></tr></table></figure>
+<ul>
+<li><code>transformers</code> 会自动读取模型结构相关配置文件，创建对应的 <code>LLM model</code> 对象，并加载预训练参数</li>
+</ul>
+<h3 id="输入构建"><a class="markdownIt-Anchor" href="#输入构建"></a> 输入构建</h3>
+<p>输入构建分成四部分：</p>
+<ol>
+<li>初始化 <code>tokenizer</code></li>
+<li><code>prompt</code> 指令化</li>
+<li><code>text to token</code>（<code>tokenize</code>）</li>
+<li><code>token to embedding</code></li>
+</ol>
+<h4 id="初始化-tokenizer"><a class="markdownIt-Anchor" href="#初始化-tokenizer"></a> 初始化 <code>tokenizer</code></h4>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> transformers <span class="keyword">import</span> AutoTokenizer</span><br><span class="line">tokenizer = AutoTokenizer.from_pretrained(model_path)</span><br></pre></td></tr></table></figure>
+<ul>
+<li><code>transformers</code> 会自动读取 <code>tokenizer</code> 相关配置文件，创建对应的 <code>tokenizer</code> 对象</li>
+</ul>
+<h4 id="prompt-指令化"><a class="markdownIt-Anchor" href="#prompt-指令化"></a> <code>prompt</code> 指令化</h4>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">prompt = <span class="string">&quot;艾萨克牛顿是谁？&quot;</span></span><br><span class="line">messages = [</span><br><span class="line">    &#123;</span><br><span class="line">        <span class="string">&quot;role&quot;</span>: <span class="string">&quot;system&quot;</span>,</span><br><span class="line">        <span class="string">&quot;content&quot;</span>: <span class="string">&quot;You are Qwen, created by Alibaba Cloud. You are a helpful assistant.&quot;</span>,</span><br><span class="line">    &#125;,</span><br><span class="line">    &#123;<span class="string">&quot;role&quot;</span>: <span class="string">&quot;user&quot;</span>, <span class="string">&quot;content&quot;</span>: prompt&#125;,</span><br><span class="line">]</span><br><span class="line">text = tokenizer.apply_chat_template(</span><br><span class="line">    messages,</span><br><span class="line">    tokenize=<span class="literal">False</span>,</span><br><span class="line">    add_generation_prompt=<span class="literal">True</span>,</span><br><span class="line">)</span><br></pre></td></tr></table></figure>
+<ul>
+<li>上面的 <code>message</code> 是 <code>Qwen2</code> 指令微调后模型的输入格式，包含了 <code>role</code> 和 <code>content</code> 两个字段</li>
+<li>具体来说需要两个步骤：
+<ol>
+<li><strong><code>prompt to message</code></strong>：将 <code>prompt</code> 转换为 <code>message</code> 格式</li>
+<li><strong><code>message to chat</code></strong>：在 <code>message</code> 中插入特殊字符，形成 <code>chat</code> 格式，特殊字符主要包括：
+<ol>
+<li><code>&lt;|im_start|&gt;</code>：表示对话开始</li>
+<li><code>&lt;|im_end|&gt;</code>：表示对话结束</li>
+<li><code>\n</code>：间隔 <code>role</code> 和 <code>content</code></li>
+</ol>
+</li>
+</ol>
+</li>
+<li>最终生成的 <code>text</code> 实际内容为：</li>
+</ul>
+<figure class="highlight coq"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;|<span class="type">im_start</span>|<span class="type">&gt;system</span>\nYou are Qwen, created <span class="built_in">by</span> Alibaba Cloud. You are a helpful assistant.&lt;|<span class="type">im_end</span>|<span class="type">&gt;\n</span>&lt;|<span class="type">im_start</span>|<span class="type">&gt;user</span>\n艾萨克牛顿是谁？&lt;|<span class="type">im_end</span>|<span class="type">&gt;\n</span>&lt;|<span class="type">im_start</span>|<span class="type">&gt;assistant</span></span><br></pre></td></tr></table></figure>
+<ul>
+<li>一些额外知识：
+<ol>
+<li><code>prompt</code> 输入模板信息在 <code>tokenizer_config.json</code> 中被定义过，<code>key</code> 为 <code>chat_template</code>： <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&#123;% for message in messages %&#125;&#123;% if loop.first and messages[0][&#x27;role&#x27;] != &#x27;system&#x27; %&#125;&#123;&#123; &#x27;&lt;|im_start|&gt;system\nYou are a helpful assistant.&lt;|im_end|&gt;\n&#x27; &#125;&#125;&#123;% endif %&#125;&#123;&#123;&#x27;&lt;|im_start|&gt;&#x27; + message[&#x27;role&#x27;] + &#x27;\n&#x27; + message[&#x27;content&#x27;] + &#x27;&lt;|im_end|&gt;&#x27; + &#x27;\n&#x27;&#125;&#125;&#123;% endfor %&#125;&#123;% if add_generation_prompt %&#125;&#123;&#123; &#x27;&lt;|im_start|&gt;assistant\n&#x27; &#125;&#125;&#123;% endif %&#125;</span><br></pre></td></tr></table></figure>
+</li>
+<li>模板用到的代码是 <code>jinaj2</code> 写的，<code>jinaj2</code> 是一种模板引擎，<code>tokenizer</code> 会根据这个模板生成 <code>chat</code> 格式的 <code>text</code></li>
+<li>代码中的 <code>messages</code> 和 <code>add_generation_prompt</code> 是模板的输入参数</li>
+</ol>
+</li>
+</ul>
+<h4 id="text-to-token"><a class="markdownIt-Anchor" href="#text-to-token"></a> <code>text to token</code></h4>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">model_inputs = tokenizer([text], return_tensors=<span class="string">&quot;pt&quot;</span>).to(model.device)</span><br></pre></td></tr></table></figure>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/LLM/" rel="tag"># LLM</a>
+              <a href="/tags/Transformer/" rel="tag"># Transformer</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2024/10/21/%E7%94%A8%E6%A0%91%E8%8E%93%E6%B4%BE-5-%E6%90%AD%E5%BB%BA-NAS-%E7%9A%84-worklog/" rel="prev" title="用树莓派 5 搭建 NAS 的 worklog">
+      <i class="fa fa-chevron-left"></i> 用树莓派 5 搭建 NAS 的 worklog
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#0-%E8%83%8C%E6%99%AF"><span class="nav-number">1.</span> <span class="nav-text"> 0. 背景</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-%E7%9B%B8%E5%85%B3%E5%B7%A5%E5%85%B7%E4%BB%8B%E7%BB%8D"><span class="nav-number">2.</span> <span class="nav-text"> 1. 相关工具介绍</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-%E6%A8%A1%E5%9E%8B%E6%96%87%E4%BB%B6%E4%B8%8B%E8%BD%BD"><span class="nav-number">3.</span> <span class="nav-text"> 2. 模型文件下载</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B8%8B%E8%BD%BD%E5%B7%A5%E5%85%B7"><span class="nav-number">3.1.</span> <span class="nav-text"> 下载工具</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B8%8B%E8%BD%BD%E6%96%87%E4%BB%B6%E5%86%85%E5%AE%B9"><span class="nav-number">3.2.</span> <span class="nav-text"> 下载文件内容</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%A8%A1%E5%9E%8B%E5%8F%82%E6%95%B0%E8%A7%A3%E6%9E%90"><span class="nav-number">3.3.</span> <span class="nav-text"> 模型参数解析</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-%E6%A8%A1%E5%9E%8B%E6%8E%A8%E7%90%86"><span class="nav-number">4.</span> <span class="nav-text"> 3. 模型推理</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%9E%84%E5%BB%BA%E6%A8%A1%E5%9E%8B%E5%B9%B6%E5%8A%A0%E8%BD%BD%E9%A2%84%E8%AE%AD%E7%BB%83%E5%8F%82%E6%95%B0"><span class="nav-number">4.1.</span> <span class="nav-text"> 构建模型并加载预训练参数</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%BE%93%E5%85%A5%E6%9E%84%E5%BB%BA"><span class="nav-number">4.2.</span> <span class="nav-text"> 输入构建</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%88%9D%E5%A7%8B%E5%8C%96-tokenizer"><span class="nav-number">4.2.1.</span> <span class="nav-text"> 初始化 tokenizer</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#prompt-%E6%8C%87%E4%BB%A4%E5%8C%96"><span class="nav-number">4.2.2.</span> <span class="nav-text"> prompt 指令化</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#text-to-token"><span class="nav-number">4.2.3.</span> <span class="nav-text"> text to token</span></a></li></ol></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Zhangzhe</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives">
+          <span class="site-state-item-count">119</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">40</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">62</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2024</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhangzhe</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme    : 'forest',
+      logLevel : 3,
+      flowchart: { curve     : 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+      
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/katex@0/dist/katex.min.css">
+
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'eK3W25jybCO5jVUrYBBpAPqM-gzGzoHsz',
+      appKey     : 'F4KVyUj9wHI5c80Bhz7O2uhq',
+      placeholder: "说点什么再走吧...",
+      avatar     : 'hide',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>
