@@ -152,6 +152,530 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2023/08/16/BEVFormer-Learning-Bird%E2%80%99s-Eye-View-Representation-from-Multi-Camera-Images-via-Spatiotemporal-Transformers/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/08/16/BEVFormer-Learning-Bird%E2%80%99s-Eye-View-Representation-from-Multi-Camera-Images-via-Spatiotemporal-Transformers/" class="post-title-link" itemprop="url">BEVFormer: Learning Bird’s-Eye-View Representation from Multi-Camera Images via Spatiotemporal Transformers</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-08-16 12:02:58" itemprop="dateCreated datePublished" datetime="2023-08-16T12:02:58+08:00">2023-08-16</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-10-09 14:07:30" itemprop="dateModified" datetime="2024-10-09T14:07:30+08:00">2024-10-09</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/BEV/" itemprop="url" rel="index"><span itemprop="name">BEV</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2023/08/16/BEVFormer-Learning-Bird%E2%80%99s-Eye-View-Representation-from-Multi-Camera-Images-via-Spatiotemporal-Transformers/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2023/08/16/BEVFormer-Learning-Bird%E2%80%99s-Eye-View-Representation-from-Multi-Camera-Images-via-Spatiotemporal-Transformers/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2203.17270.pdf">https://arxiv.org/pdf/2203.17270.pdf</a></li>
+<li>chinese paper: <a target="_blank" rel="noopener" href="https://drive.google.com/file/d/1dKnD6gUHhBXZ8gT733cIU_A7dHEEzNTP/view?pli=1">https://drive.google.com/file/d/1dKnD6gUHhBXZ8gT733cIU_A7dHEEzNTP/view?pli=1</a></li>
+<li>code: <a target="_blank" rel="noopener" href="https://github.com/fundamentalvision/BEVFormer">https://github.com/fundamentalvision/BEVFormer</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li>传统 <code>BEV</code> 算法中 <code>View Transform</code> 都是通过 <code>LSS</code> 实现 <code>Image View</code> 到 <code>BEV View</code> 的转变，这种视角转换方法依赖于图像视角的深度估计（显式（例如 <code>BEVDepth</code>）或隐式（例如 <code>LSS / BEVDet</code> 等））。</li>
+<li>本文提出一种新的通过时空注意力机制实现的 <code>View Transform</code> 方法，在 <code>Neuscenes</code> 数据集上取得了不错的 <code>3D</code> 目标检测成绩（略差于 <code>BEVDet4D</code>）。</li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<p><img src="https://s2.loli.net/2024/10/09/wkgV4SOFjJtncAX.png" alt="bevformer.png" /></p>
+<h3 id="整体架构"><a class="markdownIt-Anchor" href="#整体架构"></a> 整体架构</h3>
+<h4 id="1-输入"><a class="markdownIt-Anchor" href="#1-输入"></a> 1. 输入</h4>
+<ul>
+<li>输入包含两部分，分别是：
+<ul>
+<li>环视图（<code>6</code> 张）</li>
+<li><code>BEV Queries</code>（<code>shape = [num_voxel, dim]</code>）</li>
+<li><code>History BEV Feature</code>（上一帧的 <code>BEV Feature</code> 输出，<code>shape = [num_voxel, dim]</code>）</li>
+</ul>
+</li>
+</ul>
+<h4 id="2-输出"><a class="markdownIt-Anchor" href="#2-输出"></a> 2. 输出</h4>
+<ul>
+<li>输出为当前帧的 <code>BEV Feature</code>（<code>shape = [num_voxel, dim]</code>），记作 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>B</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">B_t</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.05017em;">B</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2805559999999999em;"><span style="top:-2.5500000000000003em;margin-left:-0.05017em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span></li>
+<li>暂时不考虑任务头</li>
+</ul>
+<h4 id="3-网络模块"><a class="markdownIt-Anchor" href="#3-网络模块"></a> 3. 网络模块</h4>
+<ol>
+<li>图像特征提取
+<ul>
+<li><code>6</code> 张图片单独做 <code>CNN base</code> 特征提取，输出记作 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>F</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">F_t</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">F</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2805559999999999em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span></li>
+</ul>
+</li>
+<li>时序信息融合：
+<ul>
+<li>将构造的 <code>BEV Queries</code>（记作 <code>Q</code>），和上一帧的 <code>BEV Feature</code>（记作 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>B</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></mrow><annotation encoding="application/x-tex">B_{t-1}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.891661em;vertical-align:-0.208331em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.05017em;">B</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.301108em;"><span style="top:-2.5500000000000003em;margin-left:-0.05017em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">t</span><span class="mbin mtight">−</span><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.208331em;"><span></span></span></span></span></span></span></span></span></span>）做 <code>Self-Attention</code></li>
+<li>其中 <code>Q</code> 作为 <code>Query</code>，<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>B</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></mrow><annotation encoding="application/x-tex">B_{t-1}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.891661em;vertical-align:-0.208331em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.05017em;">B</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.301108em;"><span style="top:-2.5500000000000003em;margin-left:-0.05017em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">t</span><span class="mbin mtight">−</span><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.208331em;"><span></span></span></span></span></span></span></span></span></span> 作为 <code>Key / value</code>，做 <code>Attention</code> 运算</li>
+<li>虽然这里的 <code>Query / Key / Value</code> 并不同源，但依然被称为是 <code>Self-Attention</code> 而不是 <code>Cross-Attention</code>，是因为 <code>Q</code> 和 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>B</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></mrow><annotation encoding="application/x-tex">B_{t-1}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.891661em;vertical-align:-0.208331em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.05017em;">B</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.301108em;"><span style="top:-2.5500000000000003em;margin-left:-0.05017em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">t</span><span class="mbin mtight">−</span><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.208331em;"><span></span></span></span></span></span></span></span></span></span> 都属于 <code>BEV</code> 语义</li>
+<li>输出记作 <code>Q'</code></li>
+</ul>
+</li>
+<li>空间交叉注意力（<strong>视角转换</strong>）
+<ul>
+<li>此步骤是本文的重点，<code>BEVFormer</code> 通过这一步将透视图特征转换为俯视图特征</li>
+<li>输入为:
+<ul>
+<li><code>Q'</code></li>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>F</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">F_t</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">F</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2805559999999999em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span></li>
+</ul>
+</li>
+<li>做 <code>Cross-Attention</code> 运算，其中：
+<ul>
+<li><code>Q'</code> 作为 <code>Queries</code></li>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>F</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">F_t</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">F</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2805559999999999em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> 作为 <code>Key / Value</code></li>
+</ul>
+</li>
+<li>用预设的无意义且可学习的 <code>BEV Queries</code> 去查询图片总体特征，得到 <code>BEV Feature</code> 输出，记作 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>B</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">B_t</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.05017em;">B</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2805559999999999em;"><span style="top:-2.5500000000000003em;margin-left:-0.05017em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span></li>
+</ul>
+</li>
+<li>任务相关头
+<ul>
+<li>输入为：<code>BEV Feature</code></li>
+<li>输出为：<code>BEV</code> 视角下的检测 / 分割等任务预测结果</li>
+<li>模型结构：可以是 <code>CNN base</code> 也可以是 <code>Transformer base</code> 的</li>
+</ul>
+</li>
+</ol>
+<ul>
+<li>以上提到的所有 <code>Attention</code> 过程都需要额外添加 <code>Position embedding</code></li>
+</ul>
+<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
+<ul>
+<li>过程并不复杂，只要看过经典的 <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2005.12872"><code>DETR</code></a>，都熟悉这种套路：<strong>预设一个无意义的（随机初始化但可学习） <code>pattern</code> 序列作为 <code>Query</code> 去查询 <code>image features</code>，得到有意义的结果（或者说是可监督的结果）</strong></li>
+<li>后续的部分工作对其改进是：<strong>将随机初始化预设的 <code>Query</code> 有意义化（例如通过一个轻量化 <code>2D</code> 检测头预检测，得到 <code>proposal</code> 并编码为 <code>Query</code>）</strong></li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2023/08/06/BEVDepth-Acquisition-of-Reliable-Depth-for-Multi-view-3D-Object-Detection/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/08/06/BEVDepth-Acquisition-of-Reliable-Depth-for-Multi-view-3D-Object-Detection/" class="post-title-link" itemprop="url">BEVDepth: Acquisition of Reliable Depth for Multi-view 3D Object Detection</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-08-06 20:43:24" itemprop="dateCreated datePublished" datetime="2023-08-06T20:43:24+08:00">2023-08-06</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-10-08 16:11:14" itemprop="dateModified" datetime="2024-10-08T16:11:14+08:00">2024-10-08</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/BEV/" itemprop="url" rel="index"><span itemprop="name">BEV</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2023/08/06/BEVDepth-Acquisition-of-Reliable-Depth-for-Multi-view-3D-Object-Detection/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2023/08/06/BEVDepth-Acquisition-of-Reliable-Depth-for-Multi-view-3D-Object-Detection/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2206.10092.pdf">https://arxiv.org/pdf/2206.10092.pdf</a></li>
+<li>code: <a target="_blank" rel="noopener" href="https://github.com/Megvii-BaseDetection/BEVDepth">https://github.com/Megvii-BaseDetection/BEVDepth</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li>本文提出一种 <code>BEV</code> 视角下的的 <code>3D</code> 目标检测算法，作者认为尽管深度对相机 <code>3D</code> 检测至关重要，但最近的方法中的深度估计却出奇地不足。</li>
+<li><code>BEVDepth</code> 通过利用显式深度监督（来自 <code>lidar</code> 点云）来解决这个问题。</li>
+<li>同时使用关键帧和过渡帧在 <code>bev feature</code> 维度进行特征融合，引入时序信息，提高模型效果。</li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<p><img src="https://s2.loli.net/2023/08/14/hiLsqmKyRrbajHe.png" alt="bevdepth1.png" /></p>
+<ul>
+<li>与 <code>BEVDet4D</code> 的 <code>pipeline</code> 很相似，区别是 <code>BEVDepth</code> 使用了 <code>DepthNet</code> 用激光雷达点云数据做了深度监督。</li>
+<li><code>DepthNet</code> 深度监督的输入是 <code>6v</code> 图像特征和每个相机的内外参，输出为 <strong>相机相关深度估计（camera_awareness_depth_estimation）</strong><br />
+<img src="https://s2.loli.net/2023/08/14/fDwVr9PMLEb1z3Q.png" alt="bevdepth2.png" /></li>
+</ul>
+<blockquote>
+<p>显式监督效果和 baseline 对比还是很赞的！<br />
+<img src="https://s2.loli.net/2023/08/15/G9fWVKmtTeawzYQ.png" alt="table.png" /><br />
+<code>MAP</code> 和 <code>NDS</code> 吊打了一众基于纯视觉的算法</p>
+</blockquote>
+<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
+<ul>
+<li>多帧训练中过渡帧使用了 <code>nuScenes</code> 数据集的 <code>Sweep</code> 数据（没有人工标注的原始数据，只包含图像和 lidar 点云），无形中拓展了数据量。</li>
+<li>本文创新点不多，基本是 <code>BEVDet4D + DepthNet</code>，更像是一个工程优化，比如：用 <code>cuda</code> 写了 <code>voxel pooling</code> 过程，计算过程非常高效。</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2023/08/06/BEVDet4D-Exploit-Temporal-Cues-in-Multi-camera-3D-Object-Detection/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/08/06/BEVDet4D-Exploit-Temporal-Cues-in-Multi-camera-3D-Object-Detection/" class="post-title-link" itemprop="url">BEVDet4D: Exploit Temporal Cues in Multi-camera 3D Object Detection</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-08-06 15:00:34" itemprop="dateCreated datePublished" datetime="2023-08-06T15:00:34+08:00">2023-08-06</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-10-08 16:23:27" itemprop="dateModified" datetime="2024-10-08T16:23:27+08:00">2024-10-08</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/BEV/" itemprop="url" rel="index"><span itemprop="name">BEV</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2023/08/06/BEVDet4D-Exploit-Temporal-Cues-in-Multi-camera-3D-Object-Detection/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2023/08/06/BEVDet4D-Exploit-Temporal-Cues-in-Multi-camera-3D-Object-Detection/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2203.17054.pdf">https://arxiv.org/pdf/2203.17054.pdf</a></li>
+<li>code: <a target="_blank" rel="noopener" href="https://github.com/HuangJunJie2017/BEVDet">https://github.com/HuangJunJie2017/BEVDet</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li><code>BEVDet4D</code> 是基于 <code>BEVDet</code> 加入了时序信息的一篇论文</li>
+<li>具体来说就是将上一帧的 <code>BEV Feature</code> 和本帧的 <code>BEV Feature</code> 对齐后 <code>Concat</code> 到一起送入 <code>BEV Encoder</code> 中进行 <code>BEV</code> 视角下的 <code>3D</code> 目标检测</li>
+<li><code>BEVDet</code> 论文中的 <code>image encoder + view transformer</code> 完全保持不变</li>
+<li>由于有两帧的信息，所以对速度的预测相较于单帧有较大提升</li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<h3 id="整体流程"><a class="markdownIt-Anchor" href="#整体流程"></a> 整体流程</h3>
+<p><img src="https://s2.loli.net/2023/08/06/XwCSmtKiFWJEzQk.png" alt="bevdet4d.png" /><br />
+在 <code>BEV Feature</code> 层面（<code>View Transformer</code> 的输出）融合两帧信息</p>
+<h3 id="算法的伪代码表示"><a class="markdownIt-Anchor" href="#算法的伪代码表示"></a> 算法的伪代码表示</h3>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">BEVDet4D</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self</span>):</span></span><br><span class="line">        <span class="comment"># 初始化相关的编码器、转换器和其他必要的组件</span></span><br><span class="line">        self.image_view_encoder = ImageViewEncoder()</span><br><span class="line">        self.view_transformer = ViewTransformer()</span><br><span class="line">        self.bev_encoder = BEVEncoder()</span><br><span class="line">        self.head = DetectionHead()</span><br><span class="line">        self.previous_bev_feature = <span class="literal">None</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">spatial_alignment</span>(<span class="params">self, feature</span>):</span></span><br><span class="line">        <span class="comment"># 这里执行空间对齐操作，具体细节可能需要根据原始论文进行补充</span></span><br><span class="line">        <span class="comment"># 实际代码中这里似乎没有开，即上一帧的 BEV feature 直接和本帧 BEV feature map concat</span></span><br><span class="line">        aligned_feature = ... </span><br><span class="line">        <span class="keyword">return</span> aligned_feature</span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">self, current_image</span>):</span></span><br><span class="line">        <span class="comment"># 使用图像视图编码器和视图转换器处理当前图像</span></span><br><span class="line">        image_feature = self.image_view_encoder(current_image)</span><br><span class="line">        transformed_feature = self.view_transformer(image_feature)</span><br><span class="line">        <span class="comment"># 使用BEV编码器获取当前帧的BEV特征</span></span><br><span class="line">        current_bev_feature = self.bev_encoder(transformed_feature)</span><br><span class="line">        <span class="comment"># 如果存在前一帧的BEV特征，则进行空间对齐和融合</span></span><br><span class="line">        <span class="keyword">if</span> self.previous_bev_feature:</span><br><span class="line">            aligned_previous_feature = self.spatial_alignment(self.previous_bev_feature)</span><br><span class="line">            fused_feature = concatenate(aligned_previous_feature, current_bev_feature)</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            fused_feature = current_bev_feature</span><br><span class="line">        <span class="comment"># 使用检测头部进行3D物体检测</span></span><br><span class="line">        detections = self.head(fused_feature)</span><br><span class="line">        <span class="comment"># 保存当前帧的BEV特征以供下一帧使用</span></span><br><span class="line">        self.previous_bev_feature = current_bev_feature</span><br><span class="line">        <span class="keyword">return</span> detections</span><br><span class="line"><span class="comment"># 实例化BEVDet4D并进行前向传递</span></span><br><span class="line">bevdet4d = BEVDet4D()</span><br><span class="line">detections = bevdet4d.forward(current_image)</span><br></pre></td></tr></table></figure>
+<h3 id="result"><a class="markdownIt-Anchor" href="#result"></a> result</h3>
+<p><img src="https://s2.loli.net/2023/08/06/TgX7qpHDZUjsEGn.png" alt="BEVdet4D2.png" /></p>
+<blockquote>
+<p>效果比 <code>BEVDet</code> 好了不少，尤其是 <code>mAVE</code> (速度误差)</p>
+</blockquote>
+<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
+<ul>
+<li>没有很大的创新点，更像是 <code>BEVDet</code> 的一个使用 <code>trick</code></li>
+<li><code>BEVDet</code> 的计算量主要分布在 <code>image encoder</code> 和 <code>view transformer</code>，所以复用上一帧的 <code>BEV feature</code> 即充分利用了上一帧的计算量，对当前帧引入的额外计算量也比较可控（<code>BEV encoder</code> 和 <code>task head</code> 都比较轻量）</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2023/08/06/BEVDet-High-Performance-Multi-Camera-3D-Object-Detection-in-Bird-Eye-View/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/08/06/BEVDet-High-Performance-Multi-Camera-3D-Object-Detection-in-Bird-Eye-View/" class="post-title-link" itemprop="url">BEVDet: High-Performance Multi-Camera 3D Object Detection in Bird-Eye-View</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-08-06 09:57:25" itemprop="dateCreated datePublished" datetime="2023-08-06T09:57:25+08:00">2023-08-06</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-10-08 16:11:14" itemprop="dateModified" datetime="2024-10-08T16:11:14+08:00">2024-10-08</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/BEV/" itemprop="url" rel="index"><span itemprop="name">BEV</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2023/08/06/BEVDet-High-Performance-Multi-Camera-3D-Object-Detection-in-Bird-Eye-View/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2023/08/06/BEVDet-High-Performance-Multi-Camera-3D-Object-Detection-in-Bird-Eye-View/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2112.11790.pdf">https://arxiv.org/pdf/2112.11790.pdf</a></li>
+<li>code: <a target="_blank" rel="noopener" href="https://github.com/HuangJunJie2017/BEVDet">https://github.com/HuangJunJie2017/BEVDet</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li>本文介绍了一种 <code>BEV</code> 视角下的 <code>3D</code> 障碍物检测算法，该算法的输入是由多张（6张）图片组成的车身环视视角，输出为车身周围障碍物的 <code>3D bbox</code></li>
+<li>与 <code>LSS（lift-splat-shoot）</code> 算法较为相似，但任务不同，<code>LSS</code> 想要解决的是 <code>BEV</code> 视角下的分割问题，<code>BEVDet</code> 想要解决的是 <code>3D</code> 障碍物检测问题</li>
+<li>与 <code>FCOS3D</code> 等单目 <code>3D</code> 障碍物检测的任务类型相似，区别在于：单目 <code>3D</code> 障碍物检测对每个视角做 <code>3D</code> 障碍物检测后，需要使用后处理融合跨视角的物体，<code>BEVDet</code> 可以将跨视角融合问题内嵌到模型中（<code>BEV</code>）</li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<h3 id="总体结构"><a class="markdownIt-Anchor" href="#总体结构"></a> 总体结构</h3>
+<p><img src="https://s2.loli.net/2023/08/06/pEmYIytkViZeRrv.png" alt="BevDet.png" /><br />
+由上图可以看出，模型主要由四个部分组成，分别是：</p>
+<ul>
+<li><strong><code>Image-view Encoder</code></strong>：图像特征提取（<code>backbone + neck</code>），6个视角分别做特征提取，不做视角间特征融合</li>
+<li><strong><code>View Transformer</code></strong>：视角变换（同时也实现了图像间信息融合），从图像视角转换为 <code>BEV</code> 视角，使用的方法和 <code>LSS</code> 方法一样，输出为 <code>BEV feature</code></li>
+<li><strong><code>BEV Encoder</code></strong>：对 <code>BEV feature</code> 用一个较小的 <code>BEV backbone</code> 做特征提取</li>
+<li><strong><code>Head</code></strong>：任务头，预测 <code>3D bbox</code> 等，本文使用了 <code>CenterPoint Head</code></li>
+</ul>
+<h3 id="算法流程的伪代码表示"><a class="markdownIt-Anchor" href="#算法流程的伪代码表示"></a> 算法流程的伪代码表示</h3>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 定义输入，shape: (8, 6, 256, 704, 3) [batch, camera, H, W, C]</span></span><br><span class="line">input_images = get_input_images()</span><br><span class="line"><span class="comment"># 图像视图编码器，输出shape: (8, 6, 16, 44, 256) [batch, camera, H//16, W//16, C]</span></span><br><span class="line">image_view_features = image_view_encoder(input_images)</span><br><span class="line"><span class="comment"># 视图变换器，输出shape: (8, 64, 128, 128) [batch, C, Bev_H, Bev_W]</span></span><br><span class="line">transformed_features = view_transformer(image_view_features)</span><br><span class="line"><span class="comment"># BEV编码器，输出shape: (8, 256, 64, 64) [batch, C, Bev_H//2, Bev_W//2]</span></span><br><span class="line">encoded_bev_features = bev_encoder(transformed_features)</span><br><span class="line"><span class="comment"># 任务特定头部进行3D物体检测，输出shape: (8, num_objects, object_info)</span></span><br><span class="line">detection_results = task_specific_head(encoded_bev_features)</span><br><span class="line"><span class="comment"># 返回3D物体检测结果</span></span><br><span class="line"><span class="keyword">return</span> detection_results</span><br></pre></td></tr></table></figure>
+<h3 id="数据增广方法"><a class="markdownIt-Anchor" href="#数据增广方法"></a> 数据增广方法</h3>
+<ul>
+<li><strong>独立图片空间数据增广</strong>：图片的翻转、裁剪和旋转可以用 <code>3x3</code> 矩阵表示，在 <code>View Transformer</code> 的时候需要做对应逆变换，即 <em>同时更改图片和 View Transformer 过程</em></li>
+<li><strong>BEV视角下的数据增广</strong>：在BEV空间的学习中，数据量少于图像视图空间，因为每个样本包含多个摄像机图像，所以更容易过拟合；该增广方法遵循常见的 <code>LiDAR</code> 方法，采用了 <code>2D</code> 空间中的常见数据增广操作，如翻转、缩放和旋转，需要对应修改目标 <code>3D bbox</code>，即 <em>同时更改 BEV Feature 和 3D bbox GT</em></li>
+</ul>
+<h3 id="scale-nms"><a class="markdownIt-Anchor" href="#scale-nms"></a> <code>Scale-NMS</code></h3>
+<ul>
+<li>由于 <code>BEV</code> 空间中不同类别的空间分布与图像视图空间中的分布非常不同，所以作者提出了 <code>Scale-NMS</code>，在执行经典的 <code>NMS</code> 算法之前根据每个对象的类别来缩放每个对象的大小，可显著提高了对小面积类别（如行人和交通锥）的预测性能</li>
+</ul>
+<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
+<ul>
+<li>从模型结构和数据增广方式看 <code>BEVDet</code> 本质是一个二阶段算法：
+<ul>
+<li><code>image Encode + View Transformer</code>：环视图像编码到 <code>BEV</code> 空间</li>
+<li><code>BEV Encoder + Task Head</code>：<code>BEV</code> 空间下的 <code>3D</code> 障碍物检测</li>
+</ul>
+</li>
+<li>但第一阶段输出的 <code>BEV Feature</code> 没有用 <code>LiDAR</code> 点云监督就有点怪…（后续的改进算法加了）</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2023/07/29/MOTR-End-to-End-Multiple-Object-Tracking-with-Transformer/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -903,589 +1427,10 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2023/05/25/Segment-Anything/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/05/25/Segment-Anything/" class="post-title-link" itemprop="url">Segment Anything</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-05-25 12:34:05" itemprop="dateCreated datePublished" datetime="2023-05-25T12:34:05+08:00">2023-05-25</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-10-08 16:11:47" itemprop="dateModified" datetime="2024-10-08T16:11:47+08:00">2024-10-08</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Semantic-Segmentation/" itemprop="url" rel="index"><span itemprop="name">Semantic Segmentation</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2023/05/25/Segment-Anything/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2023/05/25/Segment-Anything/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
-<ul>
-<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2304.02643.pdf">https://arxiv.org/pdf/2304.02643.pdf</a></li>
-<li>code: <a target="_blank" rel="noopener" href="https://github.com/facebookresearch/segment-anything">https://github.com/facebookresearch/segment-anything</a></li>
-<li>demo: <a target="_blank" rel="noopener" href="https://segment-anything.com/demo">https://segment-anything.com/demo</a></li>
-</ul>
-<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
-<ul>
-<li>本文提出一种类似 <code>chatGPT</code> 的交互式 <code>Zero-shot</code> 分割算法，用户给出一个 <code>prompt</code>（支持 point / box / mask / text），模型会根据 <code>Prompt</code> 语义完成分割，无需在特定分割任务数据上 <code>fine-tuning</code>（类似于 <code>GPT2</code> 和之后的系列模型）</li>
-<li>本文一个非常重要的理念是 <code>Data Centric</code>，即以数据为中心而不是以模型为中心，这一点和 <code>GPT</code> 系列也不谋而合
-<ul>
-<li>传统视觉算法是在固定的数据集上修改模型结构实现模型效果的提升，实际是以模型为中心</li>
-<li>数据为中心的算法通常固定模型结构，通过例如 <code>RLHF（reinforcement learning from human feedback）</code> 的方法，使用模型辅助标注员高效标注大量数据（11 亿个 mask 区域），重复迭代提高效果</li>
-</ul>
-</li>
-<li>模型本身由三部分组成：
-<ul>
-<li><code>image_encoder</code>：提取图片特征，使用的是 <code>ViT</code> 模型，在交互过程中只需要推理一次</li>
-<li><code>prompt_encoder</code>： 提取 <code>prompt</code> 特征，将人的输入（例如点或框）编码到特征空间</li>
-<li><code>mask_decoder</code>： 输入为图片特征和 <code>prompt</code> 特征，融合后输出分割 <code>mask</code></li>
-</ul>
-</li>
-</ul>
-<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
-<h3 id="任务定义"><a class="markdownIt-Anchor" href="#任务定义"></a> 任务定义</h3>
-<p><img src="https://s2.loli.net/2023/05/25/VG4amYwQoBSdZy6.png" alt="sam3.png" /></p>
-<blockquote>
-<p>理论上支持 point / box / mask / text，但 demo 和 code 都只包含了 point / box / mask</p>
-</blockquote>
-<h3 id="模型结构"><a class="markdownIt-Anchor" href="#模型结构"></a> 模型结构</h3>
-<p><img src="https://s2.loli.net/2023/05/25/1sqlX4fCx7dJzGB.png" alt="sam4.png" /></p>
-<blockquote>
-<p>image encoder 是 VIT<br />
-prompt encoder 对于 box / point prompt 只是简单的位置编码；对于 mask 是几层简单的卷积<br />
-lightweight mask decoder 是轻量级 transformer</p>
-</blockquote>
-<h3 id="data-centric"><a class="markdownIt-Anchor" href="#data-centric"></a> Data centric</h3>
-<p><img src="https://s2.loli.net/2023/05/25/Ih4ijawrJHqYBxX.png" alt="sam2.png" /></p>
-<blockquote>
-<p>模型为中心和数据为中心的对比</p>
-</blockquote>
-<h3 id="使用效果"><a class="markdownIt-Anchor" href="#使用效果"></a> 使用效果</h3>
-<p><img src="https://s2.loli.net/2023/05/25/zQ5CE9bZKotV1wB.png" alt="sam1.png" /></p>
-<blockquote>
-<p>图中的框为用户输入的 <code>prompt</code>，模型会根据 <code>prompt</code> 输出分割结果</p>
-</blockquote>
-<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
-<ul>
-<li><code>Data centric</code> 感觉一定是未来，但形式一定不会以 <code>RLHF</code> 形式存在，而更多的以自监督形式存在</li>
-<li><code>prompt</code> 未来会取代 <code>fine-tuning</code> 这个词</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2023/05/16/GPT2-Language-Models-are-Unsupervised-Multitask-Learners/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/05/16/GPT2-Language-Models-are-Unsupervised-Multitask-Learners/" class="post-title-link" itemprop="url">GPT2: Language Models are Unsupervised Multitask Learners</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-05-16 11:43:57" itemprop="dateCreated datePublished" datetime="2023-05-16T11:43:57+08:00">2023-05-16</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-10-08 16:11:14" itemprop="dateModified" datetime="2024-10-08T16:11:14+08:00">2024-10-08</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Self-Supervised-Learning/" itemprop="url" rel="index"><span itemprop="name">Self-Supervised Learning</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2023/05/16/GPT2-Language-Models-are-Unsupervised-Multitask-Learners/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2023/05/16/GPT2-Language-Models-are-Unsupervised-Multitask-Learners/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
-<ul>
-<li>paper: <a target="_blank" rel="noopener" href="https://d4mucfpksywv.cloudfront.net/better-language-models/language_models_are_unsupervised_multitask_learners.pdf">https://d4mucfpksywv.cloudfront.net/better-language-models/language_models_are_unsupervised_multitask_learners.pdf</a></li>
-<li>code: <a target="_blank" rel="noopener" href="https://github.com/openai/gpt-2">https://github.com/openai/gpt-2</a></li>
-<li>demo code: <a target="_blank" rel="noopener" href="https://github.com/karpathy/minGPT">https://github.com/karpathy/minGPT</a></li>
-</ul>
-<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
-<ul>
-<li>继 <code>Bert</code> 全方位打败 <code>GPT</code> 之后，<code>OpenAI</code> 推出了参数量更大的 <code>GPT2</code></li>
-<li>但 <code>GPT2</code> 与之前所有的 <code>NLP</code> 预训练模型使用的 <em>自监督预训练 + 任务相关 fine-tuning</em> 范式不同，<code>GPT2</code> 不再需要任何数据相关 <code>fine-tuning</code>，而是使用 <strong><code>prompt</code>（提示词）</strong></li>
-<li><strong><code>prompt</code>（提示词）</strong> 是一段在模型推理阶段用于描述任务的文本，通常加在问题之前，起到提示模型的作用</li>
-</ul>
-<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
-<p><code>GPT2</code> 很大程度上只是 <code>GPT</code> 的放大版，所引入的创新并不多</p>
-<ul>
-<li>使用了 <code>Byte Pair Encoding（BPE）</code> 分词算法，本质是一种贪心算法</li>
-<li>由于自回归（<code>auto-regression</code>）模型推理容易出现死循环，所以本文提出一种 <code>top-k</code> 输出按 <code>softmax</code> 概率采样的 <code>trick</code>，增加模型的随机性</li>
-</ul>
-<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
-<ul>
-<li><code>GPT2</code> 最重要的作用是提出了使用 <code>Prompt</code> 替代 <code>fine-tuning</code> 的范式，为之后的 <code>AIGC</code> 大面积推广扫平了障碍</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2023/04/19/FCOS3D-Fully-Convolutional-One-Stage-Monocular-3D-Object-Detection/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/04/19/FCOS3D-Fully-Convolutional-One-Stage-Monocular-3D-Object-Detection/" class="post-title-link" itemprop="url">FCOS3D: Fully Convolutional One-Stage Monocular 3D Object Detection</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-04-19 10:00:53" itemprop="dateCreated datePublished" datetime="2023-04-19T10:00:53+08:00">2023-04-19</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-10-08 16:11:47" itemprop="dateModified" datetime="2024-10-08T16:11:47+08:00">2024-10-08</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Monocular-3D-Object-Detection/" itemprop="url" rel="index"><span itemprop="name">Monocular 3D Object Detection</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2023/04/19/FCOS3D-Fully-Convolutional-One-Stage-Monocular-3D-Object-Detection/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2023/04/19/FCOS3D-Fully-Convolutional-One-Stage-Monocular-3D-Object-Detection/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
-<ul>
-<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2104.10956.pdf">https://arxiv.org/pdf/2104.10956.pdf</a></li>
-<li>code: <a target="_blank" rel="noopener" href="https://github.com/open-mmlab/mmdetection3d/blob/main/mmdet3d/models/dense_heads/fcos_mono3d_head.py">https://github.com/open-mmlab/mmdetection3d/blob/main/mmdet3d/models/dense_heads/fcos_mono3d_head.py</a></li>
-</ul>
-<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
-<ul>
-<li>本文基于 <code>FCOS</code> 论文提出一种架构简单的 <code>Anchor Free</code> 的单目 <code>3D</code> 检测算法 <code>FCOS3D</code>，在 <code>NeurIPS 2020</code> 的 <code>nuScenes 3D</code> 检测比赛纯视觉赛道上取得了第一名。</li>
-</ul>
-<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
-<h3 id="问题定义"><a class="markdownIt-Anchor" href="#问题定义"></a> 问题定义</h3>
-<ul>
-<li>
-<p>本文提出的 <code>FCOS3D</code> 要解决的核心问题是一个 <strong>图片到 7-DoF 属性（x, y, z, w, l, h, yaw+dir）的预测</strong>。</p>
-<ul>
-<li><code>DoF</code> 是指 <code>degree of freedom</code>（自由度）。</li>
-<li><code>(x, y, z, w, l, h, yaw+dir)</code> 分别表示物体在相机坐标系下的 3 维坐标和长宽高（单位都是米），和偏航角（俯视图角度，单位是弧度）和方向 2 分类共同构成朝向。</li>
-</ul>
-</li>
-<li>
-<p>对于 <code>nuScenes 3D</code> 检测比赛，还需要解决的非核心问题包括：</p>
-<ul>
-<li>预测出的 <code>3D</code> 框物体的类别（10类物体）</li>
-<li>预测出的 <code>3D</code> 框物体的属性（9种属性）</li>
-<li>预测出的 <code>3D</code> 框物体的 <code>x, y</code> 轴速度（不是 “病态” 问题了，已经属于癌症问题了…）</li>
-</ul>
-</li>
-</ul>
-<h3 id="网络结构"><a class="markdownIt-Anchor" href="#网络结构"></a> 网络结构</h3>
-<p><img src="https://s2.loli.net/2023/04/19/oysj5k6Z3IKvNnr.png" alt="fcos3d.png" /></p>
-<ul>
-<li>
-<p><code>backbone</code> 和 <code>FPN</code> 比较常规</p>
-</li>
-<li>
-<p><code>decode head</code> 和 <code>FCOS</code> 一样，使用了不同 <code>level feature</code> 的参数共享（反正是全卷积，不存在 shape 问题）</p>
-</li>
-<li>
-<p><code>decode head</code> 中包括：</p>
-<ul>
-<li>
-<p>分类分支：</p>
-<ul>
-<li>class: <code>output_shape = (N, 10, H, W)</code>，使用 <code>FocalLoss</code></li>
-<li>attribute: <code>output_shape = (N, 9, H, W)</code>，使用 <code>CrossEntropyLoss</code></li>
-</ul>
-</li>
-<li>
-<p>回归分支：</p>
-<ul>
-<li>box:  <code>output_shape = (N, 9, H, W)</code>， <code>(dx, dy, log(z), log(w), log(l), log(h), yaw, vx, vy)</code>，使用 <code>SmoothL1Loss</code></li>
-<li>centerness: <code>output_shape = (N, 1, H, W)</code>，使用 <code>BCEWithLogitsLoss</code></li>
-<li>direction: <code>output_shape = (N, 2, H, W)</code>，使用 <code>CrossEntropyLoss</code></li>
-</ul>
-</li>
-</ul>
-</li>
-</ul>
-<h3 id="target-设置"><a class="markdownIt-Anchor" href="#target-设置"></a> target 设置</h3>
-<ul>
-<li>target 设置中使用了很多 <strong>2D 引导 3D</strong> 的思想。</li>
-</ul>
-<h4 id="x-y-z-target-设置"><a class="markdownIt-Anchor" href="#x-y-z-target-设置"></a> <code>(x, y, z)</code> target 设置</h4>
-<ul>
-<li>由于是 3D 检测，所以 GT 的 3D 框坐标（x, y, z, w, l, h）单位都是米，这对神经网络是不友好的（因为神经网络看到的是像素，预测以像素为单位更容易）。</li>
-<li>因此，<strong>本文实际是一个 <code>2.5D</code> 的预测<code>（xy 2D, z 3D）</code>，实际预测的 <code>x, y</code> 是像素坐标系下相对于 feature map 每一个点的偏移量（由相机坐标系和相机内参可计算得到像素坐标系），<code>z, w, l, h</code> 的预测是相机坐标系下的米为单位的真值取 <code>log</code>。</strong></li>
-</ul>
-<h4 id="centerness-target-设置"><a class="markdownIt-Anchor" href="#centerness-target-设置"></a> centerness target 设置</h4>
-<ul>
-<li>与 <code>FCOS</code> 不同，<code>FCOS3D centerness</code>: <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>c</mi><mo>=</mo><msup><mi>e</mi><mrow><mo>−</mo><mi>α</mi><mo stretchy="false">(</mo><mo stretchy="false">(</mo><mi mathvariant="normal">Δ</mi><mi>x</mi><msup><mo stretchy="false">)</mo><mn>2</mn></msup><mo>+</mo><mo stretchy="false">(</mo><mi mathvariant="normal">Δ</mi><mi>y</mi><msup><mo stretchy="false">)</mo><mn>2</mn></msup><mo stretchy="false">)</mo></mrow></msup></mrow><annotation encoding="application/x-tex">c = e^{-\alpha((\Delta x)^2+(\Delta y)^2)}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathnormal">c</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:0.9869199999999998em;vertical-align:0em;"></span><span class="mord"><span class="mord mathnormal">e</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.9869199999999998em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">−</span><span class="mord mathnormal mtight" style="margin-right:0.0037em;">α</span><span class="mopen mtight">(</span><span class="mopen mtight">(</span><span class="mord mtight">Δ</span><span class="mord mathnormal mtight">x</span><span class="mclose mtight"><span class="mclose mtight">)</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8913142857142857em;"><span style="top:-2.931em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mbin mtight">+</span><span class="mopen mtight">(</span><span class="mord mtight">Δ</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span><span class="mclose mtight"><span class="mclose mtight">)</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8913142857142857em;"><span style="top:-2.931em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mclose mtight">)</span></span></span></span></span></span></span></span></span></span></span></span> ，<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mo>=</mo><mn>2.5</mn></mrow><annotation encoding="application/x-tex">\alpha=2.5</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathnormal" style="margin-right:0.0037em;">α</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:0.64444em;vertical-align:0em;"></span><span class="mord">2</span><span class="mord">.</span><span class="mord">5</span></span></span></span></li>
-</ul>
-<h4 id="yaw-target-设置"><a class="markdownIt-Anchor" href="#yaw-target-设置"></a> yaw target 设置</h4>
-<ul>
-<li>本文将 yaw （0 ~ <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mi>π</mi></mrow><annotation encoding="application/x-tex">2\pi</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.64444em;vertical-align:0em;"></span><span class="mord">2</span><span class="mord mathnormal" style="margin-right:0.03588em;">π</span></span></span></span>）编码成 yaw （0 ~ <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>π</mi></mrow><annotation encoding="application/x-tex">\pi</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathnormal" style="margin-right:0.03588em;">π</span></span></span></span>）和方向</li>
-</ul>
-<h3 id="正样本选择"><a class="markdownIt-Anchor" href="#正样本选择"></a> 正样本选择</h3>
-<ul>
-<li><code>FCOS</code> 是将 <code>feature map</code> 上的每个位置到 GT 中心点的距离小于 <code>1.5 * stride</code> 的点作为正样本。</li>
-<li>但 <code>FCOS3D</code> 是 <code>3D</code> 检测，没办法直接使用 <code>FCOS</code> 提出的方法；解决方法和 <code>x, y</code> 坐标回归方法类似，如果 <code>2.5D</code> 坐标下的 <code>x, y</code> 和 <code>feature map</code> 位置距离小于 <code>1.5 * stride</code>，则算作正例。</li>
-</ul>
-<h3 id="gt-尺度分配"><a class="markdownIt-Anchor" href="#gt-尺度分配"></a> GT 尺度分配</h3>
-<ul>
-<li>和 <code>FCOS</code> 思想一样</li>
-</ul>
-<h3 id="不同尺度-feature-map-缩放"><a class="markdownIt-Anchor" href="#不同尺度-feature-map-缩放"></a> 不同尺度 feature map 缩放</h3>
-<ul>
-<li>和 <code>FCOS</code> 思想一样，只是更丰富 <strong><code>scale.shape == (num_of_level, 3)，分别表示 scale_offset(for xy) / scale_depth(for z) / scale_size(for wlh)</code></strong></li>
-</ul>
-<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
-<ul>
-<li>本文极大程度的借鉴了 <code>FCOS</code>，相当于 <code>FCOS</code> 的 <code>2.5D</code> 版</li>
-<li>加入了很多 <code>trick</code>: log(z), centerness target 定义，encode yaw 等，很 work</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2023/04/17/FCOS-A-Simple-and-Strong-Anchor-free-Object-Detector/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/04/17/FCOS-A-Simple-and-Strong-Anchor-free-Object-Detector/" class="post-title-link" itemprop="url">FCOS: A Simple and Strong Anchor-free Object Detector</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-04-17 10:29:57" itemprop="dateCreated datePublished" datetime="2023-04-17T10:29:57+08:00">2023-04-17</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-10-08 16:11:47" itemprop="dateModified" datetime="2024-10-08T16:11:47+08:00">2024-10-08</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Object-Detection/" itemprop="url" rel="index"><span itemprop="name">Object Detection</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2023/04/17/FCOS-A-Simple-and-Strong-Anchor-free-Object-Detector/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2023/04/17/FCOS-A-Simple-and-Strong-Anchor-free-Object-Detector/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
-<ul>
-<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2006.09214.pdf">https://arxiv.org/pdf/2006.09214.pdf</a></li>
-<li>code: <a target="_blank" rel="noopener" href="https://github.com/open-mmlab/mmdetection/blob/main/mmdet/models/dense_heads/fcos_head.py">https://github.com/open-mmlab/mmdetection/blob/main/mmdet/models/dense_heads/fcos_head.py</a></li>
-</ul>
-<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
-<ul>
-<li><code>Faster RCNN</code> 系列、<code>SSD</code>、<code>YOLOv2~v5</code>（注意 <code>YOLOv1</code> 不包括在内）都是基于 <code>Anchor</code> 进行预测的。</li>
-<li>本文提出一种 Anchor Free 的 one stage 目标检测方法，整个模型结构非常轻量，效果强大。</li>
-<li>由于没有了 anchor，所以 fcos 可方便拓展到其他任务。</li>
-</ul>
-<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
-<h3 id="网络结构"><a class="markdownIt-Anchor" href="#网络结构"></a> 网络结构</h3>
-<p><img src="https://s2.loli.net/2023/04/17/PqfYI2Ka5zEULT1.png" alt="fcos.png" /></p>
-<ul>
-<li><code>backbone + FPN</code> 输出了 5 种尺度的 <code>feature map</code> 用于预测，由于是全卷积网络，所以 <strong>5 个输出头共享一份参数</strong>，<strong>对于每个尺度的 <code>feature map</code> 上的每一个位置</strong> 预测包括类别（N，Cls，H，W）、框的位置（N，4，H，W）和一个中心置信度（N，1，H，W）。</li>
-<li>由于共享输出头，所以本文作者 <strong>为每个输出头增加了不共享的 scale 参数，scale.shape == (num_of_level, 1)</strong><br />
-<img src="https://s2.loli.net/2023/04/17/zuh6ilv4jT1xOyp.png" alt="fcos_2.png" /></li>
-<li>其中位置参数模型预测的是如上图所示的（l，t，b，r），即相对于 feature map 上的点到 GT 的上下左右偏移量。</li>
-</ul>
-<h3 id="centerness"><a class="markdownIt-Anchor" href="#centerness"></a> centerness</h3>
-<ul>
-<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>c</mi><mi>e</mi><mi>n</mi><mi>t</mi><mi>e</mi><mi>r</mi><mi>n</mi><mi>e</mi><mi>s</mi><mi>s</mi><mo>=</mo><msqrt><mrow><mfrac><mrow><mi>m</mi><mi>i</mi><mi>n</mi><mo stretchy="false">(</mo><msup><mi>l</mi><mo>⋆</mo></msup><mo separator="true">,</mo><msup><mi>r</mi><mo>⋆</mo></msup><mo stretchy="false">)</mo></mrow><mrow><mi>m</mi><mi>a</mi><mi>x</mi><mo stretchy="false">(</mo><msup><mi>l</mi><mo>⋆</mo></msup><mo separator="true">,</mo><msup><mi>r</mi><mo>⋆</mo></msup><mo stretchy="false">)</mo></mrow></mfrac><mo>×</mo><mfrac><mrow><mi>m</mi><mi>i</mi><mi>n</mi><mo stretchy="false">(</mo><msup><mi>t</mi><mo>⋆</mo></msup><mo separator="true">,</mo><msup><mi>b</mi><mo>⋆</mo></msup><mo stretchy="false">)</mo></mrow><mrow><mi>m</mi><mi>a</mi><mi>x</mi><mo stretchy="false">(</mo><msup><mi>t</mi><mo>⋆</mo></msup><mo separator="true">,</mo><msup><mi>b</mi><mo>⋆</mo></msup><mo stretchy="false">)</mo></mrow></mfrac></mrow></msqrt></mrow><annotation encoding="application/x-tex">centerness=\sqrt{\frac{min(l^\star,r^\star)}{max(l^\star,r^\star)}\times \frac{min(t^\star,b^\star)}{max(t^\star,b^\star)}}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.61508em;vertical-align:0em;"></span><span class="mord mathnormal">c</span><span class="mord mathnormal">e</span><span class="mord mathnormal">n</span><span class="mord mathnormal">t</span><span class="mord mathnormal">e</span><span class="mord mathnormal" style="margin-right:0.02778em;">r</span><span class="mord mathnormal">n</span><span class="mord mathnormal">e</span><span class="mord mathnormal">s</span><span class="mord mathnormal">s</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:1.84em;vertical-align:-0.6100000000000001em;"></span><span class="mord sqrt"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.23em;"><span class="svg-align" style="top:-3.8em;"><span class="pstrut" style="height:3.8em;"></span><span class="mord" style="padding-left:1em;"><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.01em;"><span style="top:-2.655em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">m</span><span class="mord mathnormal mtight">a</span><span class="mord mathnormal mtight">x</span><span class="mopen mtight">(</span><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.01968em;">l</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6183428571428571em;"><span style="top:-2.786em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mbin mtight">⋆</span></span></span></span></span></span></span></span><span class="mpunct mtight">,</span><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.02778em;">r</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6183428571428571em;"><span style="top:-2.786em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mbin mtight">⋆</span></span></span></span></span></span></span></span><span class="mclose mtight">)</span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.485em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">m</span><span class="mord mathnormal mtight">i</span><span class="mord mathnormal mtight">n</span><span class="mopen mtight">(</span><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.01968em;">l</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6183428571428571em;"><span style="top:-2.786em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mbin mtight">⋆</span></span></span></span></span></span></span></span><span class="mpunct mtight">,</span><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.02778em;">r</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6183428571428571em;"><span style="top:-2.786em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mbin mtight">⋆</span></span></span></span></span></span></span></span><span class="mclose mtight">)</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.52em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.01em;"><span style="top:-2.655em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">m</span><span class="mord mathnormal mtight">a</span><span class="mord mathnormal mtight">x</span><span class="mopen mtight">(</span><span class="mord mtight"><span class="mord mathnormal mtight">t</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6183428571428571em;"><span style="top:-2.786em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mbin mtight">⋆</span></span></span></span></span></span></span></span><span class="mpunct mtight">,</span><span class="mord mtight"><span class="mord mathnormal mtight">b</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6183428571428571em;"><span style="top:-2.786em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mbin mtight">⋆</span></span></span></span></span></span></span></span><span class="mclose mtight">)</span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.485em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">m</span><span class="mord mathnormal mtight">i</span><span class="mord mathnormal mtight">n</span><span class="mopen mtight">(</span><span class="mord mtight"><span class="mord mathnormal mtight">t</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6183428571428571em;"><span style="top:-2.786em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mbin mtight">⋆</span></span></span></span></span></span></span></span><span class="mpunct mtight">,</span><span class="mord mtight"><span class="mord mathnormal mtight">b</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6183428571428571em;"><span style="top:-2.786em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mbin mtight">⋆</span></span></span></span></span></span></span></span><span class="mclose mtight">)</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.52em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span><span style="top:-3.1899999999999995em;"><span class="pstrut" style="height:3.8em;"></span><span class="hide-tail" style="min-width:1.02em;height:1.8800000000000001em;"><svg width='400em' height='1.8800000000000001em' viewBox='0 0 400000 1944' preserveAspectRatio='xMinYMin slice'><path d='M983 90
-l0 -0
-c4,-6.7,10,-10,18,-10 H400000v40
-H1013.1s-83.4,268,-264.1,840c-180.7,572,-277,876.3,-289,913c-4.7,4.7,-12.7,7,-24,7
-s-12,0,-12,0c-1.3,-3.3,-3.7,-11.7,-7,-25c-35.3,-125.3,-106.7,-373.3,-214,-744
-c-10,12,-21,25,-33,39s-32,39,-32,39c-6,-5.3,-15,-14,-27,-26s25,-30,25,-30
-c26.7,-32.7,52,-63,76,-91s52,-60,52,-60s208,722,208,722
-c56,-175.3,126.3,-397.3,211,-666c84.7,-268.7,153.8,-488.2,207.5,-658.5
-c53.7,-170.3,84.5,-266.8,92.5,-289.5z
-M1001 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.6100000000000001em;"><span></span></span></span></span></span></span></span></span> ，即 <code>GT bbox</code> 内的点越靠近中心越大，越远离中心越小，取值范围 <code>[0, 1]</code>，可视化 <code>centerness</code> 热力图如上图所示。</li>
-<li>最终预测时，score 阈值过滤的是 <code>centerness * score</code>。</li>
-</ul>
-<h3 id="损失函数"><a class="markdownIt-Anchor" href="#损失函数"></a> 损失函数</h3>
-<p><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>L</mi><mo stretchy="false">(</mo><mo stretchy="false">{</mo><msub><mi>p</mi><mrow><mi>x</mi><mo separator="true">,</mo><mi>y</mi></mrow></msub><mo stretchy="false">}</mo><mo separator="true">,</mo><mo stretchy="false">{</mo><msub><mi>t</mi><mrow><mi>x</mi><mo separator="true">,</mo><mi>y</mi></mrow></msub><mo stretchy="false">}</mo><mo stretchy="false">)</mo><mo>=</mo><mfrac><mn>1</mn><msub><mi>N</mi><mrow><mi>p</mi><mi>o</mi><mi>s</mi></mrow></msub></mfrac><msub><mo>∑</mo><mrow><mi>x</mi><mo separator="true">,</mo><mi>y</mi></mrow></msub><msub><mi>L</mi><mrow><mi>c</mi><mi>l</mi><mi>s</mi></mrow></msub><mo stretchy="false">(</mo><msub><mi>p</mi><mrow><mi>x</mi><mo separator="true">,</mo><mi>y</mi></mrow></msub><mo separator="true">,</mo><msubsup><mi>c</mi><mrow><mi>x</mi><mo separator="true">,</mo><mi>y</mi></mrow><mo>⋆</mo></msubsup><mo stretchy="false">)</mo><mo>+</mo><mfrac><mi>λ</mi><msub><mi>N</mi><mrow><mi>p</mi><mi>o</mi><mi>s</mi></mrow></msub></mfrac><msub><mo>∑</mo><mrow><mi>x</mi><mo separator="true">,</mo><mi>y</mi></mrow></msub><msub><mi mathvariant="double-struck">I</mi><mrow><msubsup><mi>c</mi><mrow><mi>x</mi><mo separator="true">,</mo><mi>y</mi></mrow><mo>⋆</mo></msubsup><mo>&gt;</mo><mn>0</mn></mrow></msub><msub><mi>L</mi><mrow><mi>r</mi><mi>e</mi><mi>g</mi></mrow></msub><mo stretchy="false">(</mo><msub><mi>t</mi><mrow><mi>x</mi><mo separator="true">,</mo><mi>y</mi></mrow></msub><mo separator="true">,</mo><msubsup><mi>t</mi><mrow><mi>x</mi><mo separator="true">,</mo><mi>y</mi></mrow><mo>⋆</mo></msubsup><mo stretchy="false">)</mo><mo>+</mo><mfrac><mi>γ</mi><msub><mi>N</mi><mrow><mi>p</mi><mi>o</mi><mi>s</mi></mrow></msub></mfrac><msub><mo>∑</mo><mrow><mi>x</mi><mo separator="true">,</mo><mi>y</mi></mrow></msub><msub><mi mathvariant="double-struck">I</mi><mrow><msubsup><mi>c</mi><mrow><mi>x</mi><mo separator="true">,</mo><mi>y</mi></mrow><mo>⋆</mo></msubsup><mo>&gt;</mo><mn>0</mn></mrow></msub><msub><mi>L</mi><mrow><mi>c</mi><mi>t</mi><mi>r</mi></mrow></msub><mo stretchy="false">(</mo><msub><mi>s</mi><mrow><mi>x</mi><mo separator="true">,</mo><mi>y</mi></mrow></msub><mo separator="true">,</mo><msubsup><mi>s</mi><mrow><mi>x</mi><mo separator="true">,</mo><mi>y</mi></mrow><mo>⋆</mo></msubsup><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">L(\{p_{x,y}\},\{t_{x,y}\})=\frac{1}{N_{pos}}\sum_{x,y}L_{cls}(p_{x,y},c^\star_{x,y})+\frac{\lambda}{N_{pos}}\sum_{x,y}\mathbb{I}_{c_{x,y}^\star&gt;0}L_{reg}(t_{x,y},t^\star_{x,y})+\frac{\gamma}{N_{pos}}\sum_{x,y}\mathbb{I}_{c_{x,y}^\star&gt;0}L_{ctr}(s_{x,y},s^\star_{x,y})</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.036108em;vertical-align:-0.286108em;"></span><span class="mord mathnormal">L</span><span class="mopen">(</span><span class="mopen">{</span><span class="mord"><span class="mord mathnormal">p</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.15139200000000003em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span><span class="mclose">}</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mopen">{</span><span class="mord"><span class="mord mathnormal">t</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.15139200000000003em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span><span class="mclose">}</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:1.3874279999999999em;vertical-align:-0.5423199999999999em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.845108em;"><span style="top:-2.655em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.10903em;">N</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.16454285714285716em;"><span style="top:-2.357em;margin-left:-0.10903em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">p</span><span class="mord mathnormal mtight">o</span><span class="mord mathnormal mtight">s</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2818857142857143em;"><span></span></span></span></span></span></span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.394em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.5423199999999999em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mop"><span class="mop op-symbol small-op" style="position:relative;top:-0.0000050000000000050004em;">∑</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.0016819999999999613em;"><span style="top:-2.40029em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.43581800000000004em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathnormal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.33610799999999996em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">c</span><span class="mord mathnormal mtight" style="margin-right:0.01968em;">l</span><span class="mord mathnormal mtight">s</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">p</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.15139200000000003em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathnormal">c</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.688696em;"><span style="top:-2.4530000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span></span></span></span><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mbin mtight">⋆</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.383108em;"><span></span></span></span></span></span></span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:1.4224279999999998em;vertical-align:-0.5423199999999999em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.8801079999999999em;"><span style="top:-2.655em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.10903em;">N</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.16454285714285716em;"><span style="top:-2.357em;margin-left:-0.10903em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">p</span><span class="mord mathnormal mtight">o</span><span class="mord mathnormal mtight">s</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2818857142857143em;"><span></span></span></span></span></span></span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.394em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">λ</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.5423199999999999em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mop"><span class="mop op-symbol small-op" style="position:relative;top:-0.0000050000000000050004em;">∑</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.0016819999999999613em;"><span style="top:-2.40029em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.43581800000000004em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord"><span class="mord mathbb">I</span></span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.30110799999999993em;"><span style="top:-2.55em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathnormal mtight">c</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.6183428571428571em;"><span style="top:-2.214em;margin-left:0em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span></span></span></span><span style="top:-2.786em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mbin mtight">⋆</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.42488571428571426em;"><span></span></span></span></span></span></span><span class="mrel mtight">&gt;</span><span class="mord mtight">0</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.44741999999999993em;"><span></span></span></span></span></span></span><span class="mord"><span class="mord mathnormal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.15139200000000003em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.02778em;">r</span><span class="mord mathnormal mtight">e</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">g</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">t</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.15139200000000003em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathnormal">t</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.688696em;"><span style="top:-2.4530000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span></span></span></span><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mbin mtight">⋆</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.383108em;"><span></span></span></span></span></span></span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:1.29232em;vertical-align:-0.5423199999999999em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.7475em;"><span style="top:-2.655em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.10903em;">N</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.16454285714285716em;"><span style="top:-2.357em;margin-left:-0.10903em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">p</span><span class="mord mathnormal mtight">o</span><span class="mord mathnormal mtight">s</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2818857142857143em;"><span></span></span></span></span></span></span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.446108em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.05556em;">γ</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.5423199999999999em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mop"><span class="mop op-symbol small-op" style="position:relative;top:-0.0000050000000000050004em;">∑</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.0016819999999999613em;"><span style="top:-2.40029em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.43581800000000004em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord"><span class="mord mathbb">I</span></span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.30110799999999993em;"><span style="top:-2.55em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathnormal mtight">c</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.6183428571428571em;"><span style="top:-2.214em;margin-left:0em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span></span></span></span><span style="top:-2.786em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mbin mtight">⋆</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.42488571428571426em;"><span></span></span></span></span></span></span><span class="mrel mtight">&gt;</span><span class="mord mtight">0</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.44741999999999993em;"><span></span></span></span></span></span></span><span class="mord"><span class="mord mathnormal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2805559999999999em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">c</span><span class="mord mathnormal mtight">t</span><span class="mord mathnormal mtight" style="margin-right:0.02778em;">r</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">s</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.15139200000000003em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathnormal">s</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.688696em;"><span style="top:-2.4530000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span></span></span></span><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mbin mtight">⋆</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.383108em;"><span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span></p>
-<ul>
-<li>其中 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>p</mi><mrow><mi>x</mi><mo separator="true">,</mo><mi>y</mi></mrow></msub></mrow><annotation encoding="application/x-tex">p_{x,y}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.716668em;vertical-align:-0.286108em;"></span><span class="mord"><span class="mord mathnormal">p</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.15139200000000003em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span></span></span></span> 表示在特征图点（x,y）处预测的每个类别的 score</li>
-<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>c</mi><mrow><mi>x</mi><mo separator="true">,</mo><mi>y</mi></mrow><mo>⋆</mo></msubsup></mrow><annotation encoding="application/x-tex">c^\star_{x,y}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.071804em;vertical-align:-0.383108em;"></span><span class="mord"><span class="mord mathnormal">c</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.688696em;"><span style="top:-2.4530000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span></span></span></span><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mbin mtight">⋆</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.383108em;"><span></span></span></span></span></span></span></span></span></span> 表示在特征图点（x,y）处的真实类别（<strong>负样本类别为 0</strong>）</li>
-<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>t</mi><mrow><mi>x</mi><mo separator="true">,</mo><mi>y</mi></mrow></msub></mrow><annotation encoding="application/x-tex">t_{x,y}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.9011879999999999em;vertical-align:-0.286108em;"></span><span class="mord"><span class="mord mathnormal">t</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.15139200000000003em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span></span></span></span> 表示在特征图点（x,y）处预测的目标边界信息</li>
-<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>s</mi><mrow><mi>x</mi><mo separator="true">,</mo><mi>y</mi></mrow></msub></mrow><annotation encoding="application/x-tex">s_{x,y}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.716668em;vertical-align:-0.286108em;"></span><span class="mord"><span class="mord mathnormal">s</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.15139200000000003em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span></span></span></span> 表示在特征图点处预测的centerness</li>
-<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>L</mi><mrow><mi>c</mi><mi>l</mi><mi>s</mi></mrow></msub></mrow><annotation encoding="application/x-tex">L_{cls}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.33610799999999996em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">c</span><span class="mord mathnormal mtight" style="margin-right:0.01968em;">l</span><span class="mord mathnormal mtight">s</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> 使用 <code>focal loss</code> 以平衡正负样本</li>
-<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>L</mi><mrow><mi>r</mi><mi>e</mi><mi>g</mi></mrow></msub></mrow><annotation encoding="application/x-tex">L_{reg}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.969438em;vertical-align:-0.286108em;"></span><span class="mord"><span class="mord mathnormal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.15139200000000003em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.02778em;">r</span><span class="mord mathnormal mtight">e</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">g</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span></span></span></span> 使用 <code>GIOU loss</code>，<strong>且只对正样本计算</strong></li>
-<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>L</mi><mrow><mi>c</mi><mi>t</mi><mi>r</mi></mrow></msub></mrow><annotation encoding="application/x-tex">L_{ctr}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2805559999999999em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">c</span><span class="mord mathnormal mtight">t</span><span class="mord mathnormal mtight" style="margin-right:0.02778em;">r</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> 使用 <code>focal loss</code>，<strong>且只对正样本计算</strong></li>
-</ul>
-<h3 id="正样本选择策略"><a class="markdownIt-Anchor" href="#正样本选择策略"></a> 正样本选择策略</h3>
-<ul>
-<li>与 <code>anchor base</code> 方法不同，<code>fcos</code> 对正样本的选择较为苛刻，<strong>仅当 feature map 上的某个点落入 gt bbox 中心区域（sub-box）时才被当做正样本</strong> 。</li>
-<li><code>sub-box</code> 的定义： <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false">(</mo><msub><mi>c</mi><mi>x</mi></msub><mo>−</mo><mi>r</mi><mi>s</mi><mo separator="true">,</mo><msub><mi>c</mi><mi>y</mi></msub><mo>−</mo><mi>r</mi><mi>s</mi><mo separator="true">,</mo><msub><mi>c</mi><mi>x</mi></msub><mo>+</mo><mi>r</mi><mi>s</mi><mo separator="true">,</mo><msub><mi>c</mi><mi>y</mi></msub><mo>+</mo><mi>r</mi><mi>s</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">(c_x-rs,c_y-rs,c_x+rs,c_y+rs)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">c</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">x</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.8694379999999999em;vertical-align:-0.286108em;"></span><span class="mord mathnormal" style="margin-right:0.02778em;">r</span><span class="mord mathnormal">s</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathnormal">c</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.15139200000000003em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.7777700000000001em;vertical-align:-0.19444em;"></span><span class="mord mathnormal" style="margin-right:0.02778em;">r</span><span class="mord mathnormal">s</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathnormal">c</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">x</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.8694379999999999em;vertical-align:-0.286108em;"></span><span class="mord mathnormal" style="margin-right:0.02778em;">r</span><span class="mord mathnormal">s</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathnormal">c</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.15139200000000003em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.02778em;">r</span><span class="mord mathnormal">s</span><span class="mclose">)</span></span></span></span> ，其中 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false">(</mo><msub><mi>c</mi><mi>x</mi></msub><mo separator="true">,</mo><msub><mi>c</mi><mi>y</mi></msub><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">(c_x,c_y)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.036108em;vertical-align:-0.286108em;"></span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">c</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">x</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathnormal">c</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.15139200000000003em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span> 表示 <code>gt bbox</code> 中心点在原始图上的坐标；<code>s</code> 表示 <code>stride</code> 即当前 <code>feature map</code> 相较于原图下采样倍数；<code>r</code> 表示 <code>radius</code> 半径超参数，在 <code>coco</code> 数据集上取 <code>1.5</code>。</li>
-<li>除了正样本之外，其他样本的 <code>cls</code> 类别都被置为 <code>0（background）</code>，负样本只计算 <code>cls loss</code>，不计算 <code>reg loss</code> 和 <code>centerness loss</code>（也没法计算，有框才能计算）。</li>
-</ul>
-<h3 id="ambiguous-sample"><a class="markdownIt-Anchor" href="#ambiguous-sample"></a> Ambiguous sample</h3>
-<ul>
-<li><code>anchor free</code> 的检测方法绕不开一个天然的问题：如果一个 <code>feature map</code> 的特征点（x,y）同时是两个 <code>GT bbox</code> 的正例，应该如何预测，毕竟 <code>fcos</code> 每个特征点只预测一个框。</li>
-<li>本文缓解该问题的方法是：<strong>使用 FPN box 尺度分配 + center sampling</strong>。
-<ul>
-<li><code>FPN bbox</code> 尺度分配是一个常用的解决 <code>Ambiguity</code> 问题的方法，越大的 <code>feature map</code> 负责检测越小的框。（将 <code>Ambiguity</code> 出现的概率从 <code>23.16%</code> 降低到 <code>7.24%</code>）</li>
-<li><code>center sampling</code>：即上面提到的 sub-box 采样方法，<strong>radius = 1.5</strong>。（将 <code>Ambiguity</code> 出现的概率从 <code>7.24%</code> 降低到 <code>2.66%</code>）</li>
-</ul>
-</li>
-</ul>
-<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
-<ul>
-<li><code>FCOS</code> 是一种很简单高效的 <code>2D anchor free</code> 物体检测算法，迁移性强，启发了后面的 <code>FCOS3D</code> 单目 <code>3D</code> 检测。</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/4/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/4/">4</a><span class="page-number current">5</span><a class="page-number" href="/page/6/">6</a><span class="space">&hellip;</span><a class="page-number" href="/page/12/">12</a><a class="extend next" rel="next" href="/page/6/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
+    <a class="extend prev" rel="prev" href="/page/4/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/4/">4</a><span class="page-number current">5</span><a class="page-number" href="/page/6/">6</a><span class="space">&hellip;</span><a class="page-number" href="/page/13/">13</a><a class="extend next" rel="next" href="/page/6/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
   </nav>
 
 
@@ -1550,20 +1495,20 @@ M1001 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">119</span>
+          <span class="site-state-item-count">123</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">40</span>
+        <span class="site-state-item-count">41</span>
         <span class="site-state-item-name">categories</span></a>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">62</span>
+        <span class="site-state-item-count">66</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
