@@ -180,6 +180,143 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/07/18/FlashAttention-2-Faster-Attention-with-Better-Parallelism-and-Work-Partitioning/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2024/07/18/FlashAttention-2-Faster-Attention-with-Better-Parallelism-and-Work-Partitioning/" class="post-title-link" itemprop="url">FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-07-18 12:50:28" itemprop="dateCreated datePublished" datetime="2024-07-18T12:50:28+08:00">2024-07-18</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-10-08 16:23:27" itemprop="dateModified" datetime="2024-10-08T16:23:27+08:00">2024-10-08</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Transformer/" itemprop="url" rel="index"><span itemprop="name">Transformer</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2024/07/18/FlashAttention-2-Faster-Attention-with-Better-Parallelism-and-Work-Partitioning/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2024/07/18/FlashAttention-2-Faster-Attention-with-Better-Parallelism-and-Work-Partitioning/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2307.08691">https://arxiv.org/pdf/2307.08691</a></li>
+<li>code: <a target="_blank" rel="noopener" href="https://github.com/kyegomez/FlashAttention20/blob/main/attention.py">https://github.com/kyegomez/FlashAttention20/blob/main/attention.py</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li><code>FlashAttention-2</code> 是 <code>FlashAttention</code> 一作对前一版的更新，基本思想不变，只优化了部分算法流程，可以比 <code>V1</code> 提速一倍</li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<p><img src="https://s2.loli.net/2024/07/18/FkzaMcX5VhjnQWo.png" alt="flash_attention_2.png" /></p>
+<ul>
+<li><code>Flash Attention 2</code> 前向过程主要优化了几个方面：
+<ol>
+<li><code>Flash Attention v1</code> 中计算 <code>P_ij</code> 计算过程很绕，需要更新两次全局信息，<code>v2</code> 中进行了优化</li>
+<li><code>Flash Attention v1</code> 中内外层循环设置不合理，<code>v2</code> 对调了内外层循环，这样做的好处是：</li>
+<li>不再需要重复读入写出 <code>O</code></li>
+<li><code>max_value</code> 信息变成一个计算中间变量，不再需要读入写出，<code>backward</code> 过程也无需依赖</li>
+</ol>
+</li>
+<li><code>Flash Attention v2</code> 和 <code>Flash Attention v1</code> 的 <code>IO</code> 量对比
+<ul>
+<li><code>v1</code>：
+<ul>
+<li>读：<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mi>N</mi><mi>d</mi><mo>+</mo><mn>2</mn><msub><mi>T</mi><mi>c</mi></msub><mi>N</mi><mi>d</mi></mrow><annotation encoding="application/x-tex">2Nd+2T_cNd</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.77777em;vertical-align:-0.08333em;"></span><span class="mord">2</span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="mord mathnormal">d</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.84444em;vertical-align:-0.15em;"></span><span class="mord">2</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">T</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">c</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="mord mathnormal">d</span></span></span></span></li>
+<li>写：<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>T</mi><mi>c</mi></msub><mi>N</mi><mi>d</mi><mo>+</mo><mn>2</mn><msub><mi>T</mi><mi>c</mi></msub><mi>N</mi></mrow><annotation encoding="application/x-tex">T_cNd+2T_cN</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.84444em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">T</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">c</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="mord mathnormal">d</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord">2</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">T</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">c</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span></span></span></span></li>
+</ul>
+</li>
+<li><code>v2</code>：
+<ul>
+<li>读：<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>N</mi><mi>d</mi><mo>+</mo><mn>2</mn><msub><mi>T</mi><mi>r</mi></msub><mi>N</mi><mi>d</mi></mrow><annotation encoding="application/x-tex">Nd+2T_rNd</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.77777em;vertical-align:-0.08333em;"></span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="mord mathnormal">d</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.84444em;vertical-align:-0.15em;"></span><span class="mord">2</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">T</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.02778em;">r</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="mord mathnormal">d</span></span></span></span></li>
+<li>写：<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>N</mi><mi>d</mi><mo>+</mo><mi>N</mi></mrow><annotation encoding="application/x-tex">Nd+N</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.77777em;vertical-align:-0.08333em;"></span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="mord mathnormal">d</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span></span></span></span></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> torch</span><br><span class="line"><span class="keyword">import</span> math</span><br><span class="line">BLOCK_SIZE = <span class="number">1024</span></span><br><span class="line">NEG_INF = -<span class="number">1e10</span>  <span class="comment"># -infinity</span></span><br><span class="line">EPSILON = <span class="number">1e-10</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">flash_attention2_forward</span>(<span class="params">Q, K, V</span>):</span></span><br><span class="line">    batch, seq_len, dim = Q.shape</span><br><span class="line">    O = torch.zeros_like(Q, requires_grad=<span class="literal">True</span>, device=Q.device)</span><br><span class="line">    l = torch.zeros((batch, seq_len, <span class="number">1</span>), device=Q.device)  <span class="comment"># 1 for broadcasting</span></span><br><span class="line">    m = torch.ones((batch, seq_len, <span class="number">1</span>), device=Q.device) * NEG_INF</span><br><span class="line">    Q = <span class="built_in">list</span>(torch.split(Q, BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    K = <span class="built_in">list</span>(torch.split(K, BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    V = <span class="built_in">list</span>(torch.split(V, BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    O = <span class="built_in">list</span>(torch.split(O, BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    l = <span class="built_in">list</span>(torch.split(l, BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    m = <span class="built_in">list</span>(torch.split(m, BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    Tr = <span class="built_in">len</span>(Q)</span><br><span class="line">    Tc = <span class="built_in">len</span>(K)</span><br><span class="line">    scale = <span class="number">1</span> / math.sqrt(dim)</span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(Tr):</span><br><span class="line">        Qi_scaled = Q[i] * scale</span><br><span class="line">        <span class="keyword">for</span> j <span class="keyword">in</span> <span class="built_in">range</span>(Tc):</span><br><span class="line">            S_ij = torch.einsum(<span class="string">&quot;bnd,bmd-&gt;bnm&quot;</span>, Qi_scaled, K[j])</span><br><span class="line">            m_ij, _ = torch.<span class="built_in">max</span>(S_ij, dim=-<span class="number">1</span>, keepdim=<span class="literal">True</span>)</span><br><span class="line">            mi_new = torch.maximum(m_ij, m[i])</span><br><span class="line">            P_ij = torch.exp(S_ij - mi_new)</span><br><span class="line">            P_ijV_j = torch.einsum(<span class="string">&quot;bnm,bmd-&gt;bnd&quot;</span>, P_ij, V[j])</span><br><span class="line">            exp_row_max_diff = torch.exp(m[i] - mi_new)</span><br><span class="line">            li_new = l[i] * exp_row_max_diff + P_ij.<span class="built_in">sum</span>(dim=-<span class="number">1</span>, keepdim=<span class="literal">True</span>)</span><br><span class="line">            O[i] = O[i] * exp_row_max_diff + P_ijV_j</span><br><span class="line">            m[i] = mi_new</span><br><span class="line">            l[i] = li_new</span><br><span class="line">        O[i] = O[i] / l[i]</span><br><span class="line">    O = torch.cat(O, dim=<span class="number">1</span>)</span><br><span class="line">    l = torch.cat(l, dim=<span class="number">1</span>)</span><br><span class="line">    <span class="keyword">return</span> O, l</span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">flash_attention2_backward</span>(<span class="params">Q, K, V, O, l, dO</span>):</span></span><br><span class="line">    <span class="comment"># 参考代码中进行了实现，但这里省略，重点关注一下 backward 过程的输入</span></span><br><span class="line">    <span class="keyword">pass</span></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">&quot;__main__&quot;</span>:</span><br><span class="line">    torch.random.manual_seed(<span class="number">0</span>)</span><br><span class="line">    device = torch.device(<span class="string">&quot;cuda&quot;</span>) <span class="keyword">if</span> torch.cuda.is_available() <span class="keyword">else</span> torch.device(<span class="string">&quot;cpu&quot;</span>)</span><br><span class="line">    <span class="comment"># batch, seq_len, dim</span></span><br><span class="line">    Q = torch.randn(<span class="number">2</span>, <span class="number">4096</span>, <span class="number">128</span>, requires_grad=<span class="literal">True</span>).to(device)</span><br><span class="line">    K = torch.randn(<span class="number">2</span>, <span class="number">4096</span>, <span class="number">128</span>, requires_grad=<span class="literal">True</span>).to(device)</span><br><span class="line">    V = torch.randn(<span class="number">2</span>, <span class="number">4096</span>, <span class="number">128</span>, requires_grad=<span class="literal">True</span>).to(device)</span><br><span class="line">    flash2_out = flash_attention2_forward(Q, K, V)</span><br><span class="line">    <span class="built_in">print</span>(flash2_out[<span class="number">0</span>].<span class="built_in">sum</span>().item())</span><br></pre></td></tr></table></figure>
+<ul>
+<li><code>backward</code> 过程在 <code>v2</code> 论文中详细的写出来了，如下：<br />
+<img src="https://s2.loli.net/2024/07/18/X7e8OgNiIAaysLk.png" alt="flash2_2.png" /></li>
+<li>速度效果提升很明显<br />
+<img src="https://s2.loli.net/2024/07/18/kQVDHWJI7eAFLXR.png" alt="flash2_3.png" /></li>
+</ul>
+<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
+<ul>
+<li><code>Flash Attention v2</code> 看起来特别像 <code>Flash Attention</code> 的紧急修复版本，把之前写的冗余删掉了</li>
+<li>甚至完全不了解 <code>Flash Attention</code> 思想的人看 <code>Flash Attention</code> 的实现代码，都可以将其优化到 <code>Flash Attention v2</code>，就是简单的代码优化…</li>
+<li><code>Flash Attention v2</code> 彻底把这个 <code>tiling</code> 思路的优势发挥出来了</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/07/17/FlashAttention-Fast-and-Memory-Efficient-Exact-Attention-with-IO-Awareness/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -3631,144 +3768,6 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2023/09/07/A-Keypoint-based-Global-Association-Network-for-Lane-Detection/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/09/07/A-Keypoint-based-Global-Association-Network-for-Lane-Detection/" class="post-title-link" itemprop="url">A Keypoint-based Global Association Network for Lane Detection</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-09-07 16:20:10" itemprop="dateCreated datePublished" datetime="2023-09-07T16:20:10+08:00">2023-09-07</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-10-08 16:11:47" itemprop="dateModified" datetime="2024-10-08T16:11:47+08:00">2024-10-08</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Autopilot/" itemprop="url" rel="index"><span itemprop="name">Autopilot</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2023/09/07/A-Keypoint-based-Global-Association-Network-for-Lane-Detection/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2023/09/07/A-Keypoint-based-Global-Association-Network-for-Lane-Detection/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
-<ul>
-<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2204.07335.pdf">https://arxiv.org/pdf/2204.07335.pdf</a></li>
-<li>code: <a target="_blank" rel="noopener" href="https://github.com/Wolfwjs/GANet">https://github.com/Wolfwjs/GANet</a></li>
-</ul>
-<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
-<ul>
-<li>传统基于关键点检测的车道线检测网络通常需要根据任务的定义设计模型输出头结构，比如 <code>UFLD</code> 算法每条车道线需要占据一个输出 <code>channel</code> 。</li>
-<li>本论文提出一种新颖的车道线检测范式，解耦了任务和网络，仅使用固定的输出通道数即可检测任意多条车道线。</li>
-</ul>
-<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
-<h3 id="总体思路"><a class="markdownIt-Anchor" href="#总体思路"></a> 总体思路</h3>
-<p><img src="https://s2.loli.net/2023/09/07/rTU59Ca6tMz24QD.png" alt="ganet2.png" /></p>
-<ul>
-<li>如何实现只用一个 <code>channel</code> 输出即可检测任意多条车道线？一个可以想到的简单方法是：
-<ol>
-<li>输出一个 <code>channel = 1</code> 的 <code>heat map</code>，其中每个位置的 <code>heat map value</code> 依旧表示该位置是车道线关键点的概率。</li>
-<li>使用阈值过滤得到所有车道线的关键点坐标（每条车道线关键点数量应 &gt;= 2）。</li>
-<li>使用聚类的方式将一堆关键点分成若干组，每组关键点表示一条车道线。聚类中的 “距离” 判定逻辑需要根据一些先验知识进行设计（比如：因为车道线在图片中更接近竖直方向，因此水平距离权重小于垂直距离）。</li>
-</ol>
-</li>
-<li>上述操作中的聚类过程包含了很多人为总结的先验知识，非常不 “机器学习”，于是我们可以改进这个过程：
-<ol>
-<li>输出一个 <code>channel = 1</code> 的 <code>heat map</code> 和一个 <code>channel = 2</code> 的 <code>offset map</code>，其中每个位置的 <code>heat map value</code> 依旧表示该位置是车道线关键点的概率，每个位置的 <code>offset map value</code> 表示 <strong>如果该点是关键点，那么该点相对于本条车道线起始点的偏移（x, y）</strong>，起始点表示一条车道线关键点中最靠近图片下方的点。</li>
-<li>使用阈值过滤得到所有关键点，将关键点对应位置的偏移 <code>offset</code> 得到新的点 <code>p'</code>，理论上同一条车道线的每一个关键点偏移后得到的新位置 <code>p'</code> 都一致，都是车道线起始点。</li>
-<li>因为神经网络不太能拟合到 <code>loss == 0</code>，因此还需要对所有的 <code>p'</code> 进行聚类，每个类表示一条车道线实例，本质相当于将聚类中的距离判定逻辑吸到神经网络内部。</li>
-</ol>
-</li>
-<li>以上就是本论文提出的 <code>GANet</code> 算法的核心思想：用固定的有限个输出通道去预测任意条车道线。</li>
-</ul>
-<h3 id="网络结构"><a class="markdownIt-Anchor" href="#网络结构"></a> 网络结构</h3>
-<p><img src="https://s2.loli.net/2023/09/07/nfbWKHOtFgjp6oz.png" alt="ganet1.png" /></p>
-<h3 id="lfalane-aware-feature-aggregator"><a class="markdownIt-Anchor" href="#lfalane-aware-feature-aggregator"></a> LFA（Lane-aware Feature Aggregator）</h3>
-<p><img src="https://s2.loli.net/2023/09/07/nk9NbMJztSWQRrq.png" alt="ganet3.png" /></p>
-<h4 id="动机"><a class="markdownIt-Anchor" href="#动机"></a> 动机</h4>
-<ul>
-<li>传统的2D卷积在固定的网格状区域内采样特征，这不适用于处理车道线的狭长形状。</li>
-<li>因此作者使用如下步骤改进各关键点上的局部特征：
-<ol>
-<li>预测该关键点同一条车道线紧邻的 <code>num_adjacent_keypoints</code> 个点的 <code>offset</code>，进行显式监督。</li>
-<li>用预测的 <code>offset</code> 引导可变形卷积改进关键点局部特征。</li>
-</ol>
-</li>
-</ul>
-<h4 id="代码实现"><a class="markdownIt-Anchor" href="#代码实现"></a> 代码实现</h4>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> torch</span><br><span class="line"><span class="keyword">import</span> torch.nn <span class="keyword">as</span> nn</span><br><span class="line"><span class="keyword">from</span> torchvision.ops <span class="keyword">import</span> deform_conv2d</span><br><span class="line"><span class="keyword">import</span> math</span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">LFA</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, in_channels, out_channels, num_adjacent_keypoints=<span class="number">5</span></span>):</span></span><br><span class="line">        <span class="built_in">super</span>(LFA, self).__init__()</span><br><span class="line">        self.offset_conv = nn.Conv2d(in_channels, <span class="number">2</span> * num_adjacent_keypoints, kernel_size=<span class="number">1</span>)</span><br><span class="line">        self.deform_conv_weight = nn.Parameter(torch.Tensor(out_channels, in_channels, <span class="number">3</span>, <span class="number">3</span>))</span><br><span class="line">        nn.init.kaiming_uniform_(self.deform_conv_weight, a=math.sqrt(<span class="number">5</span>))</span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">self, x</span>):</span></span><br><span class="line">        <span class="comment"># x: input feature map with shape [batch_size, in_channels, height, width]</span></span><br><span class="line">        </span><br><span class="line">        <span class="comment"># Step 1: Predict the offsets for adjacent keypoints</span></span><br><span class="line">        offsets = self.offset_conv(x)  <span class="comment"># shape: [batch_size, 2 * num_adjacent_keypoints, height, width]</span></span><br><span class="line">        </span><br><span class="line">        <span class="comment"># Step 2: Perform deformable convolution to aggregate features</span></span><br><span class="line">        aggregated_features = deform_conv2d(x, offsets, self.deform_conv_weight, stride=<span class="number">1</span>, padding=<span class="number">1</span>)</span><br><span class="line">        </span><br><span class="line">        <span class="keyword">return</span> aggregated_features, offsets  <span class="comment"># Return both aggregated features and offsets</span></span><br><span class="line"><span class="comment"># Initialize LFA module</span></span><br><span class="line">lfa = LFA(in_channels=<span class="number">64</span>, out_channels=<span class="number">128</span>, num_adjacent_keypoints=<span class="number">5</span>)</span><br><span class="line"><span class="comment"># Dummy input feature map with shape [batch_size, in_channels, height, width]</span></span><br><span class="line">input_feature_map = torch.randn(<span class="number">16</span>, <span class="number">64</span>, <span class="number">128</span>, <span class="number">128</span>)</span><br><span class="line"><span class="comment"># Forward pass</span></span><br><span class="line">aggregated_features, predicted_offsets = lfa(input_feature_map)</span><br><span class="line"><span class="comment"># aggregated_features 是特征输出</span></span><br><span class="line"><span class="comment"># predicted_offsets 是预测的相邻的 num_adjacent_keypoints 个车道线的偏移量，显式监督</span></span><br></pre></td></tr></table></figure>
-<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
-<ul>
-<li>提出了一种灵活的车道线检测范式，具有较好的可拓展性，目前在车道线榜单上比较靠前。</li>
-<li>另外一个创新点是<code>LFA module</code>，主要是用到了可形变卷积，对于大多数动态性较差的端侧芯片来说，不容易部署。</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -3837,7 +3836,7 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">123</span>
+          <span class="site-state-item-count">124</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -3850,7 +3849,7 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">66</span>
+        <span class="site-state-item-count">67</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
