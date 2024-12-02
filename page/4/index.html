@@ -180,6 +180,139 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/08/05/ALiBi-Train-short-test-long-Attention-with-linear-biases-enables-input-length-extrapolation/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2024/08/05/ALiBi-Train-short-test-long-Attention-with-linear-biases-enables-input-length-extrapolation/" class="post-title-link" itemprop="url">ALiBi: Train short, test long: Attention with linear biases enables input length extrapolation</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-08-05 19:02:10" itemprop="dateCreated datePublished" datetime="2024-08-05T19:02:10+08:00">2024-08-05</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-10-15 19:45:31" itemprop="dateModified" datetime="2024-10-15T19:45:31+08:00">2024-10-15</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Position-embedding/" itemprop="url" rel="index"><span itemprop="name">Position embedding</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2024/08/05/ALiBi-Train-short-test-long-Attention-with-linear-biases-enables-input-length-extrapolation/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2024/08/05/ALiBi-Train-short-test-long-Attention-with-linear-biases-enables-input-length-extrapolation/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2108.12409">https://arxiv.org/pdf/2108.12409</a></li>
+<li>code: <a target="_blank" rel="noopener" href="https://github.com/ofirpress/attention_with_linear_biases/blob/a35aaca144e0eb6b789dfcb46784c4b8e31b7983/fairseq/models/transformer.py#L742">https://github.com/ofirpress/attention_with_linear_biases/blob/a35aaca144e0eb6b789dfcb46784c4b8e31b7983/fairseq/models/transformer.py#L742</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li>本文提出一种比 <code>T5 bias</code> 更简单的 <code>position embedding</code> 方法叫做 <code>ALiBi (Attention with Linear Bias)</code>，简单好用</li>
+<li>可以在短数据集上训练，在长数据集上测试，即具有外推性</li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<h3 id="t5-bias"><a class="markdownIt-Anchor" href="#t5-bias"></a> T5 bias</h3>
+<ul>
+<li>先讲一下 <code>T5 bias</code> 是如何实现 <code>position embedding</code> 的，主要分三步：
+<ol>
+<li>计算 <code>query / key</code> 的 <code>n * n</code> 相对位置矩阵，形如： <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">[[ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9],</span><br><span class="line"> [-1,  0,  1,  2,  3,  4,  5,  6,  7,  8],</span><br><span class="line"> [-2, -1,  0,  1,  2,  3,  4,  5,  6,  7],</span><br><span class="line"> [-3, -2, -1,  0,  1,  2,  3,  4,  5,  6],</span><br><span class="line"> [-4, -3, -2, -1,  0,  1,  2,  3,  4,  5],</span><br><span class="line"> [-5, -4, -3, -2, -1,  0,  1,  2,  3,  4],</span><br><span class="line"> [-6, -5, -4, -3, -2, -1,  0,  1,  2,  3],</span><br><span class="line"> [-7, -6, -5, -4, -3, -2, -1,  0,  1,  2],</span><br><span class="line"> [-8, -7, -6, -5, -4, -3, -2, -1,  0,  1],</span><br><span class="line"> [-9, -8, -7, -6, -5, -4, -3, -2, -1,  0]]</span><br></pre></td></tr></table></figure>
+</li>
+<li>将相对位置矩阵分桶（超过 <code>num_buckets</code> 的饱和到 <code>num_buckets</code>） <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">[[ 0, 17, 18, 19, 20, 21, 22, 23, 24, 24],</span><br><span class="line"> [ 1,  0, 17, 18, 19, 20, 21, 22, 23, 24],</span><br><span class="line"> [ 2,  1,  0, 17, 18, 19, 20, 21, 22, 23],</span><br><span class="line"> [ 3,  2,  1,  0, 17, 18, 19, 20, 21, 22],</span><br><span class="line"> [ 4,  3,  2,  1,  0, 17, 18, 19, 20, 21],</span><br><span class="line"> [ 5,  4,  3,  2,  1,  0, 17, 18, 19, 20],</span><br><span class="line"> [ 6,  5,  4,  3,  2,  1,  0, 17, 18, 19],</span><br><span class="line"> [ 7,  6,  5,  4,  3,  2,  1,  0, 17, 18],</span><br><span class="line"> [ 8,  7,  6,  5,  4,  3,  2,  1,  0, 17],</span><br><span class="line"> [ 8,  8,  7,  6,  5,  4,  3,  2,  1,  0]]</span><br></pre></td></tr></table></figure>
+<blockquote>
+<p>这里上三角和下三角都有值是因为 <code>encoder bidirection=True</code>，如果是 <code>decoder</code>，则如下：</p>
+</blockquote>
+ <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">[[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],</span><br><span class="line"> [1, 0, 0, 0, 0, 0, 0, 0, 0, 0],</span><br><span class="line"> [2, 1, 0, 0, 0, 0, 0, 0, 0, 0],</span><br><span class="line"> [3, 2, 1, 0, 0, 0, 0, 0, 0, 0],</span><br><span class="line"> [4, 3, 2, 1, 0, 0, 0, 0, 0, 0],</span><br><span class="line"> [5, 4, 3, 2, 1, 0, 0, 0, 0, 0],</span><br><span class="line"> [6, 5, 4, 3, 2, 1, 0, 0, 0, 0],</span><br><span class="line"> [7, 6, 5, 4, 3, 2, 1, 0, 0, 0],</span><br><span class="line"> [8, 7, 6, 5, 4, 3, 2, 1, 0, 0],</span><br><span class="line"> [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]]</span><br></pre></td></tr></table></figure>
+</li>
+<li>最后是将此 <code>n * n</code> 的 <code>relative position bucket</code> 通过可学习的 <code>embedding</code> 函数变成 <code>n * n * num_heads</code> 的向量，和每个头的 <code>attention score（softmax 之前）</code> 相加，然后通过逐行 <code>softmax</code> 得到 <code>attention weight</code></li>
+</ol>
+</li>
+</ul>
+<h3 id="alibi"><a class="markdownIt-Anchor" href="#alibi"></a> ALiBi</h3>
+<p><img src="https://s2.loli.net/2024/08/05/R3DH5fENoz8AYQn.png" alt="alibi_1.png" /></p>
+<ul>
+<li>用数学公式表示：<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mi>o</mi><mi>f</mi><mi>t</mi><mi>m</mi><mi>a</mi><mi>x</mi><mo stretchy="false">(</mo><msub><mi>q</mi><mi>i</mi></msub><msup><mi>K</mi><mi>T</mi></msup><mo>+</mo><mi>m</mi><mo>⋅</mo><mo stretchy="false">[</mo><mo>−</mo><mo stretchy="false">(</mo><mi>i</mi><mo>−</mo><mn>1</mn><mo stretchy="false">)</mo><mo separator="true">,</mo><mi mathvariant="normal">.</mi><mi mathvariant="normal">.</mi><mi mathvariant="normal">.</mi><mo separator="true">,</mo><mo>−</mo><mn>2</mn><mo separator="true">,</mo><mo>−</mo><mn>1</mn><mo separator="true">,</mo><mn>0</mn><mo stretchy="false">]</mo><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">softmax(q_iK^T+m\cdot[-(i-1),...,-2,-1,0])</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.0913309999999998em;vertical-align:-0.25em;"></span><span class="mord mathnormal">s</span><span class="mord mathnormal">o</span><span class="mord mathnormal" style="margin-right:0.10764em;">f</span><span class="mord mathnormal">t</span><span class="mord mathnormal">m</span><span class="mord mathnormal">a</span><span class="mord mathnormal">x</span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.03588em;">q</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.31166399999999994em;"><span style="top:-2.5500000000000003em;margin-left:-0.03588em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.07153em;">K</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8413309999999999em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.13889em;">T</span></span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.44445em;vertical-align:0em;"></span><span class="mord mathnormal">m</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">⋅</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">[</span><span class="mord">−</span><span class="mopen">(</span><span class="mord mathnormal">i</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">1</span><span class="mclose">)</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord">.</span><span class="mord">.</span><span class="mord">.</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord">−</span><span class="mord">2</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord">−</span><span class="mord">1</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord">0</span><span class="mclose">]</span><span class="mclose">)</span></span></span></span></li>
+<li><code>ALiBi</code> 的计算和 <code>T5 bias</code> 的前两步几乎一模一样</li>
+<li>第三步不再使用可学习的 <code>embedding</code> 函数映射到每个头上，而是将距离矩阵的值和每个头独立的 <strong>不可学习的</strong> 常量 <code>m</code> 值相乘，然后和 <code>attention score</code> 相加</li>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>m</mi><mi>h</mi></msub><mo>=</mo><mfrac><mi>b</mi><mrow><mo stretchy="false">(</mo><msup><mn>2</mn><mrow><mo stretchy="false">(</mo><mn>8</mn><mi mathvariant="normal">/</mi><mi>H</mi><mo stretchy="false">)</mo></mrow></msup><mo>⋅</mo><mi>b</mi><msup><mo stretchy="false">)</mo><mi>h</mi></msup></mrow></mfrac></mrow><annotation encoding="application/x-tex">m_h = \frac{b}{(2^{(8/H)} \cdot b)^h}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.58056em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">m</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.33610799999999996em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">h</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:1.4405329999999998em;vertical-align:-0.560425em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.8801079999999999em;"><span style="top:-2.614575em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mopen mtight">(</span><span class="mord mtight"><span class="mord mtight">2</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8220357142857143em;"><span style="top:-2.8220357142857138em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5357142857142856em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mopen mtight">(</span><span class="mord mtight">8</span><span class="mord mtight">/</span><span class="mord mathnormal mtight" style="margin-right:0.08125em;">H</span><span class="mclose mtight">)</span></span></span></span></span></span></span></span></span><span class="mbin mtight">⋅</span><span class="mord mathnormal mtight">b</span><span class="mclose mtight"><span class="mclose mtight">)</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.7820285714285713em;"><span style="top:-2.786em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mathnormal mtight">h</span></span></span></span></span></span></span></span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.394em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">b</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.560425em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span>
+<ul>
+<li><code>b</code> 是一个基数</li>
+<li><code>H</code> 是注意力头的数量</li>
+<li><code>h</code> 是注意力头的索引（从 <code>0</code> 到 <code>H-1</code>）</li>
+</ul>
+</li>
+</ul>
+<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
+<ul>
+<li>标准 <code>attention</code> 的 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mi>e</mi><mo>∈</mo><msup><mi mathvariant="double-struck">R</mi><mrow><mi>n</mi><mo>×</mo><mi>d</mi></mrow></msup></mrow><annotation encoding="application/x-tex">pe \in \mathbb{R}^{n\times d}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7335400000000001em;vertical-align:-0.19444em;"></span><span class="mord mathnormal">p</span><span class="mord mathnormal">e</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">∈</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:0.8491079999999999em;vertical-align:0em;"></span><span class="mord"><span class="mord"><span class="mord mathbb">R</span></span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8491079999999999em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">n</span><span class="mbin mtight">×</span><span class="mord mathnormal mtight">d</span></span></span></span></span></span></span></span></span></span></span></span> 已经慢慢被淘汰了，不管是 <code>RoPE / T5 Bias / ALiBi</code> 都已经逐渐演变成 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mi>e</mi><mo>∈</mo><msup><mi mathvariant="double-struck">R</mi><mrow><mi>n</mi><mo>×</mo><mi>n</mi></mrow></msup></mrow><annotation encoding="application/x-tex">pe \in \mathbb{R}^{n\times n}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7335400000000001em;vertical-align:-0.19444em;"></span><span class="mord mathnormal">p</span><span class="mord mathnormal">e</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">∈</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:0.771331em;vertical-align:0em;"></span><span class="mord"><span class="mord"><span class="mord mathbb">R</span></span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.771331em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">n</span><span class="mbin mtight">×</span><span class="mord mathnormal mtight">n</span></span></span></span></span></span></span></span></span></span></span></span> 直接作用在 <code>attention score</code> 上了</li>
+<li><code>ALiBi</code> 的外推性其实本质是强行饱和掉远距离，有点过于粗暴了…</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/07/30/KV-Cache-Transformer/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -211,7 +344,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-10-08 16:11:47" itemprop="dateModified" datetime="2024-10-08T16:11:47+08:00">2024-10-08</time>
+                <time title="Modified: 2024-12-02 15:14:41" itemprop="dateModified" datetime="2024-12-02T15:14:41+08:00">2024-12-02</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -277,7 +410,7 @@
 </ol>
 </li>
 </ul>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> torch</span><br><span class="line"><span class="keyword">import</span> torch.nn <span class="keyword">as</span> nn</span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">SelfAttention</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, dim, layer_idx</span>):</span></span><br><span class="line">        <span class="built_in">super</span>(SelfAttention, self).__init__()</span><br><span class="line">        self.dim = dim</span><br><span class="line">        self.layer_idx = layer_idx</span><br><span class="line">        self.query = nn.Linear(dim, dim)</span><br><span class="line">        self.key = nn.Linear(dim, dim)</span><br><span class="line">        self.value = nn.Linear(dim, dim)</span><br><span class="line">        self.softmax = nn.Softmax(dim=-<span class="number">1</span>)  <span class="comment"># 重点是这里，逐行进行 softmax，而不是全局</span></span><br><span class="line">        self.dropout = nn.Dropout(<span class="number">0.1</span>)</span><br><span class="line">        self.layer_norm = nn.LayerNorm(dim)</span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">self, x, attn_mask=<span class="literal">None</span></span>):</span></span><br><span class="line">        q = self.query(x)</span><br><span class="line">        k = self.key(x)</span><br><span class="line">        v = self.value(x)</span><br><span class="line">        scores = torch.matmul(q, k.transpose(-<span class="number">2</span>, -<span class="number">1</span>))</span><br><span class="line">        scores = scores / torch.sqrt(torch.tensor(self.dim).<span class="built_in">float</span>())</span><br><span class="line">        <span class="keyword">if</span> attn_mask <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span>:</span><br><span class="line">            scores = scores.masked_fill(attn_mask == <span class="number">0</span>, <span class="built_in">float</span>(<span class="string">&quot;-inf&quot;</span>))</span><br><span class="line">        attention_weights = self.softmax(scores)</span><br><span class="line">        attention_weights = self.dropout(attention_weights)</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;layer_idx:&quot;</span>, self.layer_idx)</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;q.sum(-1) =&quot;</span>, q.squeeze().<span class="built_in">abs</span>().<span class="built_in">sum</span>(-<span class="number">1</span>).tolist())</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;k.sum(-1) =&quot;</span>, k.squeeze().<span class="built_in">abs</span>().<span class="built_in">sum</span>(-<span class="number">1</span>).tolist())</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;v.sum(-1) =&quot;</span>, v.squeeze().<span class="built_in">abs</span>().<span class="built_in">sum</span>(-<span class="number">1</span>).tolist())</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;attention_weights =\n&quot;</span>, attention_weights.squeeze())</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;#&quot;</span> * <span class="number">100</span>)</span><br><span class="line">        output = torch.matmul(attention_weights, v)</span><br><span class="line">        output = self.layer_norm(output + x)</span><br><span class="line">        <span class="keyword">return</span> output</span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">GPTModel</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, dim, num_layers</span>):</span></span><br><span class="line">        <span class="built_in">super</span>(GPTModel, self).__init__()</span><br><span class="line">        self.dim = dim</span><br><span class="line">        self.num_layers = num_layers</span><br><span class="line">        self.attentions = nn.ModuleList(</span><br><span class="line">            [SelfAttention(dim, i) <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(num_layers)]</span><br><span class="line">        )</span><br><span class="line">        self.linear1 = nn.Linear(dim, dim)</span><br><span class="line">        self.linear2 = nn.Linear(dim, dim)</span><br><span class="line">        self.dropout = nn.Dropout(<span class="number">0.1</span>)</span><br><span class="line">        self.layer_norm = nn.LayerNorm(dim)</span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">self, x, attn_mask=<span class="literal">None</span></span>):</span></span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(self.num_layers):</span><br><span class="line">            x = x + self.attentions[i](x, attn_mask=attn_mask)</span><br><span class="line">            x = self.layer_norm(x)</span><br><span class="line">            x = x + self.linear2(self.dropout(torch.relu(self.linear1(x))))</span><br><span class="line">            x = self.layer_norm(x)</span><br><span class="line">        <span class="keyword">return</span> x</span><br><span class="line">torch.random.manual_seed(<span class="number">0</span>)</span><br><span class="line"><span class="comment"># Example usage</span></span><br><span class="line">model = GPTModel(dim=<span class="number">64</span>, num_layers=<span class="number">2</span>)</span><br><span class="line">model.<span class="built_in">eval</span>()</span><br><span class="line">input_data = torch.randn(</span><br><span class="line">    <span class="number">1</span>, <span class="number">3</span>, <span class="number">64</span></span><br><span class="line">)  <span class="comment"># Example input data with shape (batch_size, sequence_length, dim)</span></span><br><span class="line">attn_mask = torch.tril(torch.ones(<span class="number">3</span>, <span class="number">3</span>))  <span class="comment"># Lower triangular attention mask</span></span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;time step 1:&quot;</span>)</span><br><span class="line">output = model(input_data, attn_mask=attn_mask)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;\n\ntime step 2:&quot;</span>)</span><br><span class="line">input_data = torch.cat((input_data, torch.randn(<span class="number">1</span>, <span class="number">1</span>, <span class="number">64</span>)), <span class="number">1</span>)</span><br><span class="line">attn_mask = torch.tril(torch.ones(<span class="number">4</span>, <span class="number">4</span>))  <span class="comment"># Lower triangular attention mask</span></span><br><span class="line">output = model(input_data, attn_mask=attn_mask)</span><br><span class="line"><span class="comment"># 输出结果：</span></span><br><span class="line"><span class="comment"># time step 1:</span></span><br><span class="line"><span class="comment"># layer_idx: 0</span></span><br><span class="line"><span class="comment"># q.sum(-1) = [31.20478057861328, 34.04328536987305, 33.6611328125]</span></span><br><span class="line"><span class="comment"># k.sum(-1) = [31.446550369262695, 29.15508460998535, 29.265644073486328]</span></span><br><span class="line"><span class="comment"># v.sum(-1) = [30.789640426635742, 33.80058670043945, 32.4859619140625]</span></span><br><span class="line"><span class="comment"># attention_weights =</span></span><br><span class="line"><span class="comment">#  tensor([[1.0000, 0.0000, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.6760, 0.3240, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.2452, 0.4188, 0.3360]], grad_fn=&lt;SqueezeBackward0&gt;)</span></span><br><span class="line"><span class="comment"># ####################################################################################################</span></span><br><span class="line"><span class="comment"># layer_idx: 1</span></span><br><span class="line"><span class="comment"># q.sum(-1) = [30.214162826538086, 34.45262145996094, 26.357181549072266]</span></span><br><span class="line"><span class="comment"># k.sum(-1) = [29.88446617126465, 31.186325073242188, 31.727235794067383]</span></span><br><span class="line"><span class="comment"># v.sum(-1) = [23.99290657043457, 35.66062545776367, 33.28850173950195]</span></span><br><span class="line"><span class="comment"># attention_weights =</span></span><br><span class="line"><span class="comment">#  tensor([[1.0000, 0.0000, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.3310, 0.6690, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.4525, 0.3270, 0.2204]], grad_fn=&lt;SqueezeBackward0&gt;)</span></span><br><span class="line"><span class="comment"># ####################################################################################################</span></span><br><span class="line"><span class="comment"># time step 2:</span></span><br><span class="line"><span class="comment"># layer_idx: 0</span></span><br><span class="line"><span class="comment"># q.sum(-1) = [31.20478057861328, 34.04328536987305, 33.6611328125, 27.077472686767578]</span></span><br><span class="line"><span class="comment"># k.sum(-1) = [31.446550369262695, 29.15508460998535, 29.265644073486328, 27.211992263793945]</span></span><br><span class="line"><span class="comment"># v.sum(-1) = [30.789640426635742, 33.80058670043945, 32.4859619140625, 29.695066452026367]</span></span><br><span class="line"><span class="comment"># attention_weights =</span></span><br><span class="line"><span class="comment">#  tensor([[1.0000, 0.0000, 0.0000, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.6760, 0.3240, 0.0000, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.2452, 0.4188, 0.3360, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.1818, 0.2616, 0.2813, 0.2752]], grad_fn=&lt;SqueezeBackward0&gt;)</span></span><br><span class="line"><span class="comment"># ####################################################################################################</span></span><br><span class="line"><span class="comment"># layer_idx: 1</span></span><br><span class="line"><span class="comment"># q.sum(-1) = [30.214162826538086, 34.45262145996094, 26.357181549072266, 29.209003448486328]</span></span><br><span class="line"><span class="comment"># k.sum(-1) = [29.88446617126465, 31.186325073242188, 31.727235794067383, 26.988731384277344]</span></span><br><span class="line"><span class="comment"># v.sum(-1) = [23.99290657043457, 35.66062545776367, 33.28850173950195, 27.92920684814453]</span></span><br><span class="line"><span class="comment"># attention_weights =</span></span><br><span class="line"><span class="comment">#  tensor([[1.0000, 0.0000, 0.0000, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.3310, 0.6690, 0.0000, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.4525, 0.3270, 0.2204, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.2740, 0.0698, 0.4069, 0.2492]], grad_fn=&lt;SqueezeBackward0&gt;)</span></span><br><span class="line"><span class="comment"># ####################################################################################################</span></span><br></pre></td></tr></table></figure>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> torch</span><br><span class="line"><span class="keyword">import</span> torch.nn <span class="keyword">as</span> nn</span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">SelfAttention</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, dim, layer_idx</span>):</span></span><br><span class="line">        <span class="built_in">super</span>(SelfAttention, self).__init__()</span><br><span class="line">        self.dim = dim</span><br><span class="line">        self.layer_idx = layer_idx</span><br><span class="line">        self.query = nn.Linear(dim, dim)</span><br><span class="line">        self.key = nn.Linear(dim, dim)</span><br><span class="line">        self.value = nn.Linear(dim, dim)</span><br><span class="line">        self.softmax = nn.Softmax(dim=-<span class="number">1</span>)  <span class="comment"># 重点是这里，逐行进行 softmax，而不是全局</span></span><br><span class="line">        self.dropout = nn.Dropout(<span class="number">0.1</span>)</span><br><span class="line">        self.layer_norm = nn.LayerNorm(dim)</span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">self, x, attn_mask=<span class="literal">None</span></span>):</span></span><br><span class="line">        q = self.query(x)</span><br><span class="line">        k = self.key(x)</span><br><span class="line">        v = self.value(x)</span><br><span class="line">        scores = torch.matmul(q, k.transpose(-<span class="number">2</span>, -<span class="number">1</span>))</span><br><span class="line">        scores = scores / torch.sqrt(torch.tensor(self.dim).<span class="built_in">float</span>())</span><br><span class="line">        <span class="keyword">if</span> attn_mask <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span>:</span><br><span class="line">            scores = scores.masked_fill(attn_mask == <span class="number">0</span>, <span class="built_in">float</span>(<span class="string">&quot;-inf&quot;</span>))</span><br><span class="line">        attention_weights = self.softmax(scores)</span><br><span class="line">        attention_weights = self.dropout(attention_weights)</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;layer_idx:&quot;</span>, self.layer_idx)</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;q.sum(-1) =&quot;</span>, q.squeeze().<span class="built_in">abs</span>().<span class="built_in">sum</span>(-<span class="number">1</span>).tolist())</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;k.sum(-1) =&quot;</span>, k.squeeze().<span class="built_in">abs</span>().<span class="built_in">sum</span>(-<span class="number">1</span>).tolist())</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;v.sum(-1) =&quot;</span>, v.squeeze().<span class="built_in">abs</span>().<span class="built_in">sum</span>(-<span class="number">1</span>).tolist())</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;attention_weights =\n&quot;</span>, attention_weights.squeeze())</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;#&quot;</span> * <span class="number">100</span>)</span><br><span class="line">        output = torch.matmul(attention_weights, v)</span><br><span class="line">        output = self.layer_norm(output + x)</span><br><span class="line">        <span class="keyword">return</span> output</span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">GPTModel</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, dim, num_layers</span>):</span></span><br><span class="line">        <span class="built_in">super</span>(GPTModel, self).__init__()</span><br><span class="line">        self.dim = dim</span><br><span class="line">        self.num_layers = num_layers</span><br><span class="line">        self.attentions = nn.ModuleList(</span><br><span class="line">            [SelfAttention(dim, i) <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(num_layers)]</span><br><span class="line">        )</span><br><span class="line">        self.linear1 = nn.Linear(dim, dim)</span><br><span class="line">        self.linear2 = nn.Linear(dim, dim)</span><br><span class="line">        self.dropout = nn.Dropout(<span class="number">0.1</span>)</span><br><span class="line">        self.layer_norm = nn.LayerNorm(dim)</span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">self, x, attn_mask=<span class="literal">None</span></span>):</span></span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(self.num_layers):</span><br><span class="line">            x = x + self.attentions[i](x, attn_mask=attn_mask)</span><br><span class="line">            x = self.layer_norm(x)</span><br><span class="line">            x = x + self.linear2(self.dropout(torch.relu(self.linear1(x))))</span><br><span class="line">            x = self.layer_norm(x)</span><br><span class="line">        <span class="keyword">return</span> x</span><br><span class="line"><span class="comment"># Example usage</span></span><br><span class="line">model = GPTModel(dim=<span class="number">64</span>, num_layers=<span class="number">2</span>)</span><br><span class="line">model.<span class="built_in">eval</span>()</span><br><span class="line">input_data = torch.randn(</span><br><span class="line">    <span class="number">1</span>, <span class="number">3</span>, <span class="number">64</span></span><br><span class="line">)  <span class="comment"># Example input data with shape (batch_size, sequence_length, dim)</span></span><br><span class="line">attn_mask = torch.tril(torch.ones(<span class="number">3</span>, <span class="number">3</span>))  <span class="comment"># Lower triangular attention mask</span></span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;time step 1:&quot;</span>)</span><br><span class="line">output = model(input_data, attn_mask=attn_mask)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;\n\ntime step 2:&quot;</span>)</span><br><span class="line">input_data = torch.cat((input_data, torch.randn(<span class="number">1</span>, <span class="number">1</span>, <span class="number">64</span>)), <span class="number">1</span>)</span><br><span class="line">attn_mask = torch.tril(torch.ones(<span class="number">4</span>, <span class="number">4</span>))  <span class="comment"># Lower triangular attention mask</span></span><br><span class="line">output = model(input_data, attn_mask=attn_mask)</span><br><span class="line"><span class="comment"># 输出结果：</span></span><br><span class="line"><span class="comment"># time step 1:</span></span><br><span class="line"><span class="comment"># layer_idx: 0</span></span><br><span class="line"><span class="comment"># q.sum(-1) = [31.20478057861328, 34.04328536987305, 33.6611328125]</span></span><br><span class="line"><span class="comment"># k.sum(-1) = [31.446550369262695, 29.15508460998535, 29.265644073486328]</span></span><br><span class="line"><span class="comment"># v.sum(-1) = [30.789640426635742, 33.80058670043945, 32.4859619140625]</span></span><br><span class="line"><span class="comment"># attention_weights =</span></span><br><span class="line"><span class="comment">#  tensor([[1.0000, 0.0000, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.6760, 0.3240, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.2452, 0.4188, 0.3360]], grad_fn=&lt;SqueezeBackward0&gt;)</span></span><br><span class="line"><span class="comment"># ####################################################################################################</span></span><br><span class="line"><span class="comment"># layer_idx: 1</span></span><br><span class="line"><span class="comment"># q.sum(-1) = [30.214162826538086, 34.45262145996094, 26.357181549072266]</span></span><br><span class="line"><span class="comment"># k.sum(-1) = [29.88446617126465, 31.186325073242188, 31.727235794067383]</span></span><br><span class="line"><span class="comment"># v.sum(-1) = [23.99290657043457, 35.66062545776367, 33.28850173950195]</span></span><br><span class="line"><span class="comment"># attention_weights =</span></span><br><span class="line"><span class="comment">#  tensor([[1.0000, 0.0000, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.3310, 0.6690, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.4525, 0.3270, 0.2204]], grad_fn=&lt;SqueezeBackward0&gt;)</span></span><br><span class="line"><span class="comment"># ####################################################################################################</span></span><br><span class="line"><span class="comment"># time step 2:</span></span><br><span class="line"><span class="comment"># layer_idx: 0</span></span><br><span class="line"><span class="comment"># q.sum(-1) = [31.20478057861328, 34.04328536987305, 33.6611328125, 27.077472686767578]</span></span><br><span class="line"><span class="comment"># k.sum(-1) = [31.446550369262695, 29.15508460998535, 29.265644073486328, 27.211992263793945]</span></span><br><span class="line"><span class="comment"># v.sum(-1) = [30.789640426635742, 33.80058670043945, 32.4859619140625, 29.695066452026367]</span></span><br><span class="line"><span class="comment"># attention_weights =</span></span><br><span class="line"><span class="comment">#  tensor([[1.0000, 0.0000, 0.0000, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.6760, 0.3240, 0.0000, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.2452, 0.4188, 0.3360, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.1818, 0.2616, 0.2813, 0.2752]], grad_fn=&lt;SqueezeBackward0&gt;)</span></span><br><span class="line"><span class="comment"># ####################################################################################################</span></span><br><span class="line"><span class="comment"># layer_idx: 1</span></span><br><span class="line"><span class="comment"># q.sum(-1) = [30.214162826538086, 34.45262145996094, 26.357181549072266, 29.209003448486328]</span></span><br><span class="line"><span class="comment"># k.sum(-1) = [29.88446617126465, 31.186325073242188, 31.727235794067383, 26.988731384277344]</span></span><br><span class="line"><span class="comment"># v.sum(-1) = [23.99290657043457, 35.66062545776367, 33.28850173950195, 27.92920684814453]</span></span><br><span class="line"><span class="comment"># attention_weights =</span></span><br><span class="line"><span class="comment">#  tensor([[1.0000, 0.0000, 0.0000, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.3310, 0.6690, 0.0000, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.4525, 0.3270, 0.2204, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.2740, 0.0698, 0.4069, 0.2492]], grad_fn=&lt;SqueezeBackward0&gt;)</span></span><br><span class="line"><span class="comment"># ####################################################################################################</span></span><br></pre></td></tr></table></figure>
 <blockquote>
 <p>可以看到随着时间步的推移，每一层的 <code>x / q / k / v / attention weight</code> 的前 <code>n-1</code> 个 <code>token feature</code> 都和上一个时间步相同，因此可以缓存</p>
 </blockquote>
@@ -336,7 +469,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-10-08 16:23:27" itemprop="dateModified" datetime="2024-10-08T16:23:27+08:00">2024-10-08</time>
+                <time title="Modified: 2024-12-02 15:15:00" itemprop="dateModified" datetime="2024-12-02T15:15:00+08:00">2024-12-02</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -410,7 +543,7 @@
 </ul>
 </li>
 </ul>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> torch</span><br><span class="line"><span class="keyword">import</span> math</span><br><span class="line">BLOCK_SIZE = <span class="number">1024</span></span><br><span class="line">NEG_INF = -<span class="number">1e10</span>  <span class="comment"># -infinity</span></span><br><span class="line">EPSILON = <span class="number">1e-10</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">flash_attention2_forward</span>(<span class="params">Q, K, V</span>):</span></span><br><span class="line">    batch, seq_len, dim = Q.shape</span><br><span class="line">    O = torch.zeros_like(Q, requires_grad=<span class="literal">True</span>, device=Q.device)</span><br><span class="line">    l = torch.zeros((batch, seq_len, <span class="number">1</span>), device=Q.device)  <span class="comment"># 1 for broadcasting</span></span><br><span class="line">    m = torch.ones((batch, seq_len, <span class="number">1</span>), device=Q.device) * NEG_INF</span><br><span class="line">    Q = <span class="built_in">list</span>(torch.split(Q, BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    K = <span class="built_in">list</span>(torch.split(K, BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    V = <span class="built_in">list</span>(torch.split(V, BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    O = <span class="built_in">list</span>(torch.split(O, BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    l = <span class="built_in">list</span>(torch.split(l, BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    m = <span class="built_in">list</span>(torch.split(m, BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    Tr = <span class="built_in">len</span>(Q)</span><br><span class="line">    Tc = <span class="built_in">len</span>(K)</span><br><span class="line">    scale = <span class="number">1</span> / math.sqrt(dim)</span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(Tr):</span><br><span class="line">        Qi_scaled = Q[i] * scale</span><br><span class="line">        <span class="keyword">for</span> j <span class="keyword">in</span> <span class="built_in">range</span>(Tc):</span><br><span class="line">            S_ij = torch.einsum(<span class="string">&quot;bnd,bmd-&gt;bnm&quot;</span>, Qi_scaled, K[j])</span><br><span class="line">            m_ij, _ = torch.<span class="built_in">max</span>(S_ij, dim=-<span class="number">1</span>, keepdim=<span class="literal">True</span>)</span><br><span class="line">            mi_new = torch.maximum(m_ij, m[i])</span><br><span class="line">            P_ij = torch.exp(S_ij - mi_new)</span><br><span class="line">            P_ijV_j = torch.einsum(<span class="string">&quot;bnm,bmd-&gt;bnd&quot;</span>, P_ij, V[j])</span><br><span class="line">            exp_row_max_diff = torch.exp(m[i] - mi_new)</span><br><span class="line">            li_new = l[i] * exp_row_max_diff + P_ij.<span class="built_in">sum</span>(dim=-<span class="number">1</span>, keepdim=<span class="literal">True</span>)</span><br><span class="line">            O[i] = O[i] * exp_row_max_diff + P_ijV_j</span><br><span class="line">            m[i] = mi_new</span><br><span class="line">            l[i] = li_new</span><br><span class="line">        O[i] = O[i] / l[i]</span><br><span class="line">    O = torch.cat(O, dim=<span class="number">1</span>)</span><br><span class="line">    l = torch.cat(l, dim=<span class="number">1</span>)</span><br><span class="line">    <span class="keyword">return</span> O, l</span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">flash_attention2_backward</span>(<span class="params">Q, K, V, O, l, dO</span>):</span></span><br><span class="line">    <span class="comment"># 参考代码中进行了实现，但这里省略，重点关注一下 backward 过程的输入</span></span><br><span class="line">    <span class="keyword">pass</span></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">&quot;__main__&quot;</span>:</span><br><span class="line">    torch.random.manual_seed(<span class="number">0</span>)</span><br><span class="line">    device = torch.device(<span class="string">&quot;cuda&quot;</span>) <span class="keyword">if</span> torch.cuda.is_available() <span class="keyword">else</span> torch.device(<span class="string">&quot;cpu&quot;</span>)</span><br><span class="line">    <span class="comment"># batch, seq_len, dim</span></span><br><span class="line">    Q = torch.randn(<span class="number">2</span>, <span class="number">4096</span>, <span class="number">128</span>, requires_grad=<span class="literal">True</span>).to(device)</span><br><span class="line">    K = torch.randn(<span class="number">2</span>, <span class="number">4096</span>, <span class="number">128</span>, requires_grad=<span class="literal">True</span>).to(device)</span><br><span class="line">    V = torch.randn(<span class="number">2</span>, <span class="number">4096</span>, <span class="number">128</span>, requires_grad=<span class="literal">True</span>).to(device)</span><br><span class="line">    flash2_out = flash_attention2_forward(Q, K, V)</span><br><span class="line">    <span class="built_in">print</span>(flash2_out[<span class="number">0</span>].<span class="built_in">sum</span>().item())</span><br></pre></td></tr></table></figure>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> torch</span><br><span class="line"><span class="keyword">import</span> math</span><br><span class="line">BLOCK_SIZE = <span class="number">1024</span></span><br><span class="line">NEG_INF = -<span class="number">1e10</span>  <span class="comment"># -infinity</span></span><br><span class="line">EPSILON = <span class="number">1e-10</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">flash_attention2_forward</span>(<span class="params">Q, K, V</span>):</span></span><br><span class="line">    batch, seq_len, dim = Q.shape</span><br><span class="line">    O = torch.zeros_like(Q, requires_grad=<span class="literal">True</span>, device=Q.device)</span><br><span class="line">    l = torch.zeros((batch, seq_len, <span class="number">1</span>), device=Q.device)  <span class="comment"># 1 for broadcasting</span></span><br><span class="line">    m = torch.ones((batch, seq_len, <span class="number">1</span>), device=Q.device) * NEG_INF</span><br><span class="line">    Q = <span class="built_in">list</span>(torch.split(Q, BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    K = <span class="built_in">list</span>(torch.split(K, BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    V = <span class="built_in">list</span>(torch.split(V, BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    O = <span class="built_in">list</span>(torch.split(O, BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    l = <span class="built_in">list</span>(torch.split(l, BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    m = <span class="built_in">list</span>(torch.split(m, BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    Tr = <span class="built_in">len</span>(Q)</span><br><span class="line">    Tc = <span class="built_in">len</span>(K)</span><br><span class="line">    scale = <span class="number">1</span> / math.sqrt(dim)</span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(Tr):</span><br><span class="line">        Qi_scaled = Q[i] * scale</span><br><span class="line">        <span class="keyword">for</span> j <span class="keyword">in</span> <span class="built_in">range</span>(Tc):</span><br><span class="line">            S_ij = torch.einsum(<span class="string">&quot;bnd,bmd-&gt;bnm&quot;</span>, Qi_scaled, K[j])</span><br><span class="line">            m_ij, _ = torch.<span class="built_in">max</span>(S_ij, dim=-<span class="number">1</span>, keepdim=<span class="literal">True</span>)</span><br><span class="line">            mi_new = torch.maximum(m_ij, m[i])</span><br><span class="line">            P_ij = torch.exp(S_ij - mi_new)</span><br><span class="line">            P_ijV_j = torch.einsum(<span class="string">&quot;bnm,bmd-&gt;bnd&quot;</span>, P_ij, V[j])</span><br><span class="line">            exp_row_max_diff = torch.exp(m[i] - mi_new)</span><br><span class="line">            li_new = l[i] * exp_row_max_diff + P_ij.<span class="built_in">sum</span>(dim=-<span class="number">1</span>, keepdim=<span class="literal">True</span>)</span><br><span class="line">            O[i] = O[i] * exp_row_max_diff + P_ijV_j</span><br><span class="line">            m[i] = mi_new</span><br><span class="line">            l[i] = li_new</span><br><span class="line">        O[i] = O[i] / l[i]</span><br><span class="line">    O = torch.cat(O, dim=<span class="number">1</span>)</span><br><span class="line">    l = torch.cat(l, dim=<span class="number">1</span>)</span><br><span class="line">    <span class="keyword">return</span> O, l</span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">flash_attention2_backward</span>(<span class="params">Q, K, V, O, l, dO</span>):</span></span><br><span class="line">    <span class="comment"># 参考代码中进行了实现，但这里省略，重点关注一下 backward 过程的输入</span></span><br><span class="line">    <span class="keyword">pass</span></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">&quot;__main__&quot;</span>:</span><br><span class="line">    device = torch.device(<span class="string">&quot;cuda&quot;</span>) <span class="keyword">if</span> torch.cuda.is_available() <span class="keyword">else</span> torch.device(<span class="string">&quot;cpu&quot;</span>)</span><br><span class="line">    <span class="comment"># batch, seq_len, dim</span></span><br><span class="line">    Q = torch.randn(<span class="number">2</span>, <span class="number">4096</span>, <span class="number">128</span>, requires_grad=<span class="literal">True</span>).to(device)</span><br><span class="line">    K = torch.randn(<span class="number">2</span>, <span class="number">4096</span>, <span class="number">128</span>, requires_grad=<span class="literal">True</span>).to(device)</span><br><span class="line">    V = torch.randn(<span class="number">2</span>, <span class="number">4096</span>, <span class="number">128</span>, requires_grad=<span class="literal">True</span>).to(device)</span><br><span class="line">    flash2_out = flash_attention2_forward(Q, K, V)</span><br><span class="line">    <span class="built_in">print</span>(flash2_out[<span class="number">0</span>].<span class="built_in">sum</span>().item())</span><br></pre></td></tr></table></figure>
 <ul>
 <li><code>backward</code> 过程在 <code>v2</code> 论文中详细的写出来了，如下：<br />
 <img src="https://s2.loli.net/2024/07/18/X7e8OgNiIAaysLk.png" alt="flash2_2.png" /></li>
@@ -473,7 +606,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-10-15 16:49:36" itemprop="dateModified" datetime="2024-10-15T16:49:36+08:00">2024-10-15</time>
+                <time title="Modified: 2024-12-02 15:14:49" itemprop="dateModified" datetime="2024-12-02T15:14:49+08:00">2024-12-02</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -606,7 +739,7 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
 </ul>
 </li>
 </ul>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> torch</span><br><span class="line"><span class="keyword">import</span> math</span><br><span class="line">BLOCK_SIZE = <span class="number">1024</span></span><br><span class="line">NEG_INF = -<span class="number">1e10</span>  <span class="comment"># -infinity</span></span><br><span class="line">EPSILON = <span class="number">1e-10</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">flash_attention_forward</span>(<span class="params">Q, K, V</span>):</span></span><br><span class="line">    batch, seq_len, dim = Q.shape</span><br><span class="line">    O = torch.zeros_like(Q, requires_grad=<span class="literal">True</span>, device=Q.device)</span><br><span class="line">    l = torch.zeros((batch, seq_len, <span class="number">1</span>), device=Q.device)  <span class="comment"># 1 for broadcasting</span></span><br><span class="line">    m = torch.ones((batch, seq_len, <span class="number">1</span>), device=Q.device) * NEG_INF</span><br><span class="line">    Q_BLOCK_SIZE = <span class="built_in">min</span>(BLOCK_SIZE, dim)</span><br><span class="line">    KV_BLOCK_SIZE = BLOCK_SIZE</span><br><span class="line">    Q = torch.split(Q, Q_BLOCK_SIZE, dim=<span class="number">1</span>)</span><br><span class="line">    K = torch.split(K, KV_BLOCK_SIZE, dim=<span class="number">1</span>)</span><br><span class="line">    V = torch.split(V, KV_BLOCK_SIZE, dim=<span class="number">1</span>)</span><br><span class="line">    O = <span class="built_in">list</span>(torch.split(O, Q_BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    l = <span class="built_in">list</span>(torch.split(l, Q_BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    m = <span class="built_in">list</span>(torch.split(m, Q_BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    Tr = <span class="built_in">len</span>(Q)</span><br><span class="line">    Tc = <span class="built_in">len</span>(K)</span><br><span class="line">    scale = <span class="number">1</span> / math.sqrt(dim)</span><br><span class="line">    <span class="keyword">for</span> j <span class="keyword">in</span> <span class="built_in">range</span>(Tc):</span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(Tr):</span><br><span class="line">            Qi_scaled = Q[i] * scale</span><br><span class="line">            S_ij = torch.einsum(<span class="string">&quot;... i d, ... j d -&gt; ... i j&quot;</span>, Qi_scaled, K[j])</span><br><span class="line">            m_ij, _ = torch.<span class="built_in">max</span>(S_ij, dim=-<span class="number">1</span>, keepdim=<span class="literal">True</span>)</span><br><span class="line">            P_ij = torch.exp(S_ij - m_ij)</span><br><span class="line">            mi_new = torch.maximum(m_ij, m[i])</span><br><span class="line">            l_ij = (</span><br><span class="line">                torch.<span class="built_in">sum</span>(P_ij * torch.exp(m_ij - mi_new), dim=-<span class="number">1</span>, keepdim=<span class="literal">True</span>)</span><br><span class="line">                + EPSILON</span><br><span class="line">            )</span><br><span class="line">            P_ij_Vj = torch.einsum(</span><br><span class="line">                <span class="string">&quot;... i j, ... j d -&gt; ... i d&quot;</span>, P_ij * torch.exp(m_ij - mi_new), V[j]</span><br><span class="line">            )</span><br><span class="line">            li_new = torch.exp(m[i] - mi_new) * l[i] + l_ij</span><br><span class="line">            O[i] = (O[i] * l[i] * torch.exp(m[i] - mi_new) + P_ij_Vj) / li_new</span><br><span class="line">            l[i] = li_new</span><br><span class="line">            m[i] = mi_new</span><br><span class="line">    O = torch.cat(O, dim=<span class="number">1</span>)</span><br><span class="line">    l = torch.cat(l, dim=<span class="number">1</span>)</span><br><span class="line">    m = torch.cat(m, dim=<span class="number">1</span>)</span><br><span class="line">    <span class="keyword">return</span> O, l, m</span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">flash_attention_backward</span>(<span class="params">Q, K, V, O, l, m, dO</span>):</span></span><br><span class="line">    <span class="comment"># 参考代码中进行了实现，但这里省略，重点关注一下 backward 过程的输入</span></span><br><span class="line">    <span class="keyword">pass</span></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">&quot;__main__&quot;</span>:</span><br><span class="line">    torch.random.manual_seed(<span class="number">0</span>)</span><br><span class="line">    <span class="comment"># batch, seq_len, dim</span></span><br><span class="line">    Q = torch.randn(<span class="number">2</span>, <span class="number">4096</span>, <span class="number">128</span>, requires_grad=<span class="literal">True</span>).to(device=<span class="string">&quot;cuda&quot;</span>)</span><br><span class="line">    K = torch.randn(<span class="number">2</span>, <span class="number">4096</span>, <span class="number">128</span>, requires_grad=<span class="literal">True</span>).to(device=<span class="string">&quot;cuda&quot;</span>)</span><br><span class="line">    V = torch.randn(<span class="number">2</span>, <span class="number">4096</span>, <span class="number">128</span>, requires_grad=<span class="literal">True</span>).to(device=<span class="string">&quot;cuda&quot;</span>)</span><br><span class="line">    out = flash_attention_forward(Q, K, V)</span><br><span class="line">    <span class="built_in">print</span>(out[<span class="number">0</span>].<span class="built_in">sum</span>().item())</span><br></pre></td></tr></table></figure>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> torch</span><br><span class="line"><span class="keyword">import</span> math</span><br><span class="line">BLOCK_SIZE = <span class="number">1024</span></span><br><span class="line">NEG_INF = -<span class="number">1e10</span>  <span class="comment"># -infinity</span></span><br><span class="line">EPSILON = <span class="number">1e-10</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">flash_attention_forward</span>(<span class="params">Q, K, V</span>):</span></span><br><span class="line">    batch, seq_len, dim = Q.shape</span><br><span class="line">    O = torch.zeros_like(Q, requires_grad=<span class="literal">True</span>, device=Q.device)</span><br><span class="line">    l = torch.zeros((batch, seq_len, <span class="number">1</span>), device=Q.device)  <span class="comment"># 1 for broadcasting</span></span><br><span class="line">    m = torch.ones((batch, seq_len, <span class="number">1</span>), device=Q.device) * NEG_INF</span><br><span class="line">    Q_BLOCK_SIZE = <span class="built_in">min</span>(BLOCK_SIZE, dim)</span><br><span class="line">    KV_BLOCK_SIZE = BLOCK_SIZE</span><br><span class="line">    Q = torch.split(Q, Q_BLOCK_SIZE, dim=<span class="number">1</span>)</span><br><span class="line">    K = torch.split(K, KV_BLOCK_SIZE, dim=<span class="number">1</span>)</span><br><span class="line">    V = torch.split(V, KV_BLOCK_SIZE, dim=<span class="number">1</span>)</span><br><span class="line">    O = <span class="built_in">list</span>(torch.split(O, Q_BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    l = <span class="built_in">list</span>(torch.split(l, Q_BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    m = <span class="built_in">list</span>(torch.split(m, Q_BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    Tr = <span class="built_in">len</span>(Q)</span><br><span class="line">    Tc = <span class="built_in">len</span>(K)</span><br><span class="line">    scale = <span class="number">1</span> / math.sqrt(dim)</span><br><span class="line">    <span class="keyword">for</span> j <span class="keyword">in</span> <span class="built_in">range</span>(Tc):</span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(Tr):</span><br><span class="line">            Qi_scaled = Q[i] * scale</span><br><span class="line">            S_ij = torch.einsum(<span class="string">&quot;... i d, ... j d -&gt; ... i j&quot;</span>, Qi_scaled, K[j])</span><br><span class="line">            m_ij, _ = torch.<span class="built_in">max</span>(S_ij, dim=-<span class="number">1</span>, keepdim=<span class="literal">True</span>)</span><br><span class="line">            P_ij = torch.exp(S_ij - m_ij)</span><br><span class="line">            mi_new = torch.maximum(m_ij, m[i])</span><br><span class="line">            l_ij = (</span><br><span class="line">                torch.<span class="built_in">sum</span>(P_ij * torch.exp(m_ij - mi_new), dim=-<span class="number">1</span>, keepdim=<span class="literal">True</span>)</span><br><span class="line">                + EPSILON</span><br><span class="line">            )</span><br><span class="line">            P_ij_Vj = torch.einsum(</span><br><span class="line">                <span class="string">&quot;... i j, ... j d -&gt; ... i d&quot;</span>, P_ij * torch.exp(m_ij - mi_new), V[j]</span><br><span class="line">            )</span><br><span class="line">            li_new = torch.exp(m[i] - mi_new) * l[i] + l_ij</span><br><span class="line">            O[i] = (O[i] * l[i] * torch.exp(m[i] - mi_new) + P_ij_Vj) / li_new</span><br><span class="line">            l[i] = li_new</span><br><span class="line">            m[i] = mi_new</span><br><span class="line">    O = torch.cat(O, dim=<span class="number">1</span>)</span><br><span class="line">    l = torch.cat(l, dim=<span class="number">1</span>)</span><br><span class="line">    m = torch.cat(m, dim=<span class="number">1</span>)</span><br><span class="line">    <span class="keyword">return</span> O, l, m</span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">flash_attention_backward</span>(<span class="params">Q, K, V, O, l, m, dO</span>):</span></span><br><span class="line">    <span class="comment"># 参考代码中进行了实现，但这里省略，重点关注一下 backward 过程的输入</span></span><br><span class="line">    <span class="keyword">pass</span></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">&quot;__main__&quot;</span>:</span><br><span class="line">    <span class="comment"># batch, seq_len, dim</span></span><br><span class="line">    Q = torch.randn(<span class="number">2</span>, <span class="number">4096</span>, <span class="number">128</span>, requires_grad=<span class="literal">True</span>).to(device=<span class="string">&quot;cuda&quot;</span>)</span><br><span class="line">    K = torch.randn(<span class="number">2</span>, <span class="number">4096</span>, <span class="number">128</span>, requires_grad=<span class="literal">True</span>).to(device=<span class="string">&quot;cuda&quot;</span>)</span><br><span class="line">    V = torch.randn(<span class="number">2</span>, <span class="number">4096</span>, <span class="number">128</span>, requires_grad=<span class="literal">True</span>).to(device=<span class="string">&quot;cuda&quot;</span>)</span><br><span class="line">    out = flash_attention_forward(Q, K, V)</span><br><span class="line">    <span class="built_in">print</span>(out[<span class="number">0</span>].<span class="built_in">sum</span>().item())</span><br></pre></td></tr></table></figure>
 <ul>
 <li>这里最重要也最难理解的一行代码是：<code>O[i] = (O[i] * l[i] * torch.exp(m[i] - mi_new) + P_ij_Vj) / li_new</code>，这个仔细分析一下
 <ul>
@@ -3218,502 +3351,6 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/02/20/%E5%85%B3%E9%94%AE%E8%B7%A8%E8%B6%8A/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2024/02/20/%E5%85%B3%E9%94%AE%E8%B7%A8%E8%B6%8A/" class="post-title-link" itemprop="url">关键跨越</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-02-20 20:52:50" itemprop="dateCreated datePublished" datetime="2024-02-20T20:52:50+08:00">2024-02-20</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-10-08 16:11:14" itemprop="dateModified" datetime="2024-10-08T16:11:14+08:00">2024-10-08</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E9%A2%86%E5%AF%BC%E5%8A%9B/" itemprop="url" rel="index"><span itemprop="name">领导力</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2024/02/20/%E5%85%B3%E9%94%AE%E8%B7%A8%E8%B6%8A/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2024/02/20/%E5%85%B3%E9%94%AE%E8%B7%A8%E8%B6%8A/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="新手管理者的关键跨越"><a class="markdownIt-Anchor" href="#新手管理者的关键跨越"></a> 新手管理者的关键跨越</h1>
-<h2 id="1-新手管理者会遇到的-9-个管理难题和需要完成的-3-个关键跨越"><a class="markdownIt-Anchor" href="#1-新手管理者会遇到的-9-个管理难题和需要完成的-3-个关键跨越"></a> 1. 新手管理者会遇到的 9 个管理难题和需要完成的 3 个关键跨越</h2>
-<h3 id="11-九个管理难题"><a class="markdownIt-Anchor" href="#11-九个管理难题"></a> 1.1 九个管理难题</h3>
-<ol>
-<li>从同时变为管理者，接受和适应“管理者”的身份。</li>
-<li>空降到团队做管理者，被团队接纳和认可。</li>
-<li>给团队成员分配合理的任务，提出合理的要求。</li>
-<li>让员工承担更多或更有挑战性的工作，付出额外的努力。</li>
-<li>让员工理解和认同管理者的要求，真正承担起责任。</li>
-<li>处理团队搞不定的问题和突发状况。</li>
-<li>及时掌握团队的任务执行情况，提前干预。</li>
-<li>用恰当的方式给予员工反馈。</li>
-<li>根据员工的不同情况，因材施教。</li>
-</ol>
-<h3 id="12-三个关键跨越"><a class="markdownIt-Anchor" href="#12-三个关键跨越"></a> 1.2 三个关键跨越</h3>
-<ol>
-<li>获得团队的认可和信任，完成“承担管理责任”的跨越。</li>
-<li>让团队稳定可靠地交付工作成果，完成“推动执行”的跨越。</li>
-<li>帮助团队改进和提升，完成“辅导他人”的跨越。</li>
-</ol>
-<h2 id="2-新手管理者为何难以完成关键跨越"><a class="markdownIt-Anchor" href="#2-新手管理者为何难以完成关键跨越"></a> 2. 新手管理者为何难以完成关键跨越</h2>
-<h3 id="21-新手管理者普遍存在的现象"><a class="markdownIt-Anchor" href="#21-新手管理者普遍存在的现象"></a> 2.1 新手管理者普遍存在的现象</h3>
-<ul>
-<li>通常当前在任的一线管理者在“承担管理责任”和“推动执行”方面表现良好，但在“辅导他人”方面表现很差，同时这也是相对最不受企业重视的能力。</li>
-</ul>
-<h3 id="22-管理者难以完成管理跨越的原因"><a class="markdownIt-Anchor" href="#22-管理者难以完成管理跨越的原因"></a> 2.2 管理者难以完成管理跨越的原因</h3>
-<ol>
-<li>从关注“事”到关注“人”，管理工作需要把工作对象和重心从“事”转移到“人”，这会挑战一部分管理者的工作习惯。</li>
-<li>从“短期”到“长期”，管理工作相对需要更长的时间的投入才能看到成效，一部分管理者会等不及。</li>
-<li>从“优势”变成“陷阱”，管理者习惯用过去自己习惯和擅长的方式解决问题，也更喜欢做自己擅长的事情。</li>
-</ol>
-<h3 id="23-新手管理者应该怎么做"><a class="markdownIt-Anchor" href="#23-新手管理者应该怎么做"></a> 2.3 新手管理者应该怎么做</h3>
-<ol>
-<li>需要做好的心态准备是“空杯心态”。</li>
-<li>对“我过去这样成功过”的想法保持警惕。</li>
-<li>列出一个反向待办事项清单，训练自己少做和不做过去自己擅长的事。</li>
-</ol>
-<h2 id="3-成功跨越在行动中改变"><a class="markdownIt-Anchor" href="#3-成功跨越在行动中改变"></a> 3. 成功跨越：在行动中改变</h2>
-<h3 id="31-新手管理者在进行管理发展时需要先理解两个问题"><a class="markdownIt-Anchor" href="#31-新手管理者在进行管理发展时需要先理解两个问题"></a> 3.1 新手管理者在进行管理发展时，需要先理解两个问题</h3>
-<ol>
-<li>某些人可能更具有管理潜力，更适合做管理。具备潜力的人有更高的起点和更好的准备状态，但无论多有管理潜力，都与管理岗位的要求存在差距，而缩小差距的唯一办法就是进行管理实践。</li>
-<li>“知行不合一”是常态，管理者能采取有效的管理行动却未必具备相应的素质能力，同样，不具备一定优势的管理者，仍然可以先努力使自己的行为贴近团队管理者应有的表现。</li>
-</ol>
-<h3 id="32-新手管理者若想获得发展需要采取的发展原则是从自身优势出发先行动起来"><a class="markdownIt-Anchor" href="#32-新手管理者若想获得发展需要采取的发展原则是从自身优势出发先行动起来"></a> 3.2 新手管理者若想获得发展，需要采取的发展原则是从自身优势出发，先行动起来</h3>
-<ol>
-<li>了解自己的优势，把自己的优势作为一个支撑点和发力点。</li>
-<li>行动起来，在行动中学习和发展。</li>
-<li>通过管理历练和具体的时间，发展出相应的素质和能力。</li>
-</ol>
-<h3 id="33-新手管理者可以采用-apple-发展策略"><a class="markdownIt-Anchor" href="#33-新手管理者可以采用-apple-发展策略"></a> 3.3 新手管理者可以采用 APPLE 发展策略</h3>
-<p><strong>APPLE 发展策略：</strong></p>
-<ol>
-<li><code>Awareness</code>: 认知管理者的要求，以及自身优势。</li>
-<li><code>Path</code>: 制定一个最小化的发展路线图。从优势出发，给自己建立一个支撑点，并制定一个包括发展目标，具体行动和检验方法的计划。</li>
-<li><code>Practice</code>: 付诸行动，通过刻意和反复的练习，跟过去的习惯已建立好的脑区地图抢夺资源，建立起新的通往目的地的路径。</li>
-<li><code>Learn</code>: 学习知识，结合实践总结和反思。在实践中先有体验，学习就是带着问题寻找答案的主动过程。</li>
-<li><code>Evaluation</code>: 定期评估，学会重新看待“评价”，把评价看做反映某一阶段性状态的中性动作。</li>
-</ol>
-<h1 id="关键跨越一承担管理责任"><a class="markdownIt-Anchor" href="#关键跨越一承担管理责任"></a> 关键跨越一：承担管理责任</h1>
-<h2 id="4-信任的基石承担管理责任"><a class="markdownIt-Anchor" href="#4-信任的基石承担管理责任"></a> 4. 信任的基石：承担管理责任</h2>
-<h3 id="41-新手管理者上任后的首要任务是取得团队的认可和信任"><a class="markdownIt-Anchor" href="#41-新手管理者上任后的首要任务是取得团队的认可和信任"></a> 4.1 新手管理者上任后的首要任务是取得团队的认可和信任</h3>
-<ol>
-<li>必须表现出一个管理者该有的样子，承担起管理的责任。</li>
-<li>承担管理责任有三个关键要点：表率垂范、为结果负责和组织意识。</li>
-</ol>
-<h3 id="42-表率垂范包括以身作则和身先士卒"><a class="markdownIt-Anchor" href="#42-表率垂范包括以身作则和身先士卒"></a> 4.2 表率垂范包括以身作则和身先士卒</h3>
-<ol>
-<li>以身作则的核心是，要求下属的管理者自己要先做到。</li>
-<li>身先士卒主要是，管理者在困难或关键时刻能顶上，冲在最前面。</li>
-<li>要做到表率垂范，态度和勇气比能力更重要，是愿不愿的问题，而非能不能到问题。</li>
-</ol>
-<h3 id="43-为结果负责包括为所做决定负责和为团队的工作结果负责"><a class="markdownIt-Anchor" href="#43-为结果负责包括为所做决定负责和为团队的工作结果负责"></a> 4.3 为结果负责包括为所做决定负责和为团队的工作结果负责</h3>
-<ol>
-<li>要做到为决定负责，得学会适应两个常态：一是会犯错，二是不能两全其美。</li>
-<li>为团队的工作结果负责要区分“好”的和“坏”的结果。取得坏结果时要帮团队“背锅”，取得好结果时则要把舞台和聚光灯留给下属。</li>
-</ol>
-<h3 id="44-组织意识包括遵守和代表组织的规则以及团队的利益为先"><a class="markdownIt-Anchor" href="#44-组织意识包括遵守和代表组织的规则以及团队的利益为先"></a> 4.4 组织意识包括遵守和代表组织的规则，以及团队的利益为先</h3>
-<ol>
-<li>在建章立制之前，应先适应和符合现有的规则。</li>
-<li>团队利益为先是指你要为团队和公司着想，把个人利益放在团队之后。</li>
-</ol>
-<h2 id="5-新手管理者容易走进的误区"><a class="markdownIt-Anchor" href="#5-新手管理者容易走进的误区"></a> 5. 新手管理者容易走进的误区</h2>
-<h3 id="51-新手管理者在取得下属认可和信任时容易走入的第一类误区"><a class="markdownIt-Anchor" href="#51-新手管理者在取得下属认可和信任时容易走入的第一类误区"></a> 5.1 新手管理者在取得下属认可和信任时，容易走入的第一类误区</h3>
-<ol>
-<li>过于依赖个人的专业能力，想要靠专业征服团队。这会带来的主要问题是管理者成为团队能力的上限，限制员工的发展。</li>
-<li>认为可以完全不靠专业，发挥领导力即可。这会带来的问题是管理浮于表面，无法获得实质性的成效。</li>
-</ol>
-<h3 id="52-在进入管理岗位后管理者需要在个人能力上实现两个转换"><a class="markdownIt-Anchor" href="#52-在进入管理岗位后管理者需要在个人能力上实现两个转换"></a> 5.2 在进入管理岗位后，管理者需要在个人能力上实现两个转换</h3>
-<ol>
-<li>从运用自己的专业能力解决具体问题，转换为将专业优势赋能于团队。</li>
-<li>从运用自己的个人实力去带领团队，转换为培养和成就团队。</li>
-</ol>
-<h3 id="53-第二类误区是让下属满意还是让上级满意的问题"><a class="markdownIt-Anchor" href="#53-第二类误区是让下属满意还是让上级满意的问题"></a> 5.3 第二类误区是让下属满意，还是让上级满意的问题</h3>
-<ol>
-<li>唯下”的管理者通常用两种方式取悦下属：一是让下属尽量少吃苦，二是滥用物质奖励。本质上都只是满足了保障性因素，只能让下属处于“不是不满意，也不是满意”的中性状态。</li>
-<li>“唯上”的管理者围绕上级开展工作，不太关心员工的感受。这类管理者的个人发展极为有限，更易受领导更换或组织环境变化影响。</li>
-</ol>
-<h3 id="54-管理者只需要让客户满意这本质上是对绩效负责"><a class="markdownIt-Anchor" href="#54-管理者只需要让客户满意这本质上是对绩效负责"></a> 5.4 管理者只需要让客户满意，这本质上是对绩效负责</h3>
-<ol>
-<li>管理者需要为此而帮助下属改进和挑战下属突破。这是管理者与团队建立信任的正确方式。</li>
-</ol>
-<h3 id="55-第三类误区是关于与下属的距离和关系"><a class="markdownIt-Anchor" href="#55-第三类误区是关于与下属的距离和关系"></a> 5.5 第三类误区是关于与下属的距离和关系</h3>
-<p>管理者易走入的两个极端：</p>
-<ol>
-<li>制造距离感，以树立个人领导权威。</li>
-<li>过于注重经营关系，导致为关系所累，或是只运用人际和影响技巧而不交心，变成对下属的操纵控制。</li>
-</ol>
-<h3 id="56-管理者需要把握不同场合的交往分寸"><a class="markdownIt-Anchor" href="#56-管理者需要把握不同场合的交往分寸"></a> 5.6 管理者需要把握不同场合的交往分寸</h3>
-<ul>
-<li>管理者需要把握不同场合的交往分寸，做到“工作时严肃立规矩，私下可称兄道弟”。“事务”导向和“人际”导向的管理者所需要的努力不同，前者需要增加交流和互动，后者需要把握好情感投入的度。这样管理者与下属之间才能既有信任，也有温度。</li>
-</ul>
-<h2 id="6-真诚是最好的套路"><a class="markdownIt-Anchor" href="#6-真诚是最好的套路"></a> 6. 真诚是最好的套路</h2>
-<h3 id="61-真诚是赢得信任的终极套路包括真诚坦率和展现真我"><a class="markdownIt-Anchor" href="#61-真诚是赢得信任的终极套路包括真诚坦率和展现真我"></a> 6.1 真诚是赢得信任的终极套路，包括真诚坦率和展现真我</h3>
-<h3 id="62-真诚坦率包括两个维度"><a class="markdownIt-Anchor" href="#62-真诚坦率包括两个维度"></a> 6.2 真诚坦率包括两个维度</h3>
-<ol>
-<li>管理者能分享真实的信息，不隐瞒、不遮掩、不欺骗。</li>
-<li>管理者能站在员工的角度理解员工，照顾员工的感受，真正为员工着想。根据这两个维度，管理者与下属相处有四种方式。
-<ul>
-<li>虚伪应付：不告知员工信息或不讲真话，同时也不在乎员工的感受。这是最不真诚的，管理者展现的是一种高高在上地掌控一切的傲慢。</li>
-<li>真情假意：因为担心员工受伤害，而遮遮掩掩，不直接沟通。这样反而会弄巧成拙，员工会感觉到管理者有话不明说，因而会有各种猜测，从而造成很多误会。</li>
-<li>直言不讳：有话明说，但不太考虑员工的感受。尽管可能会让员工感觉不舒服，但这种方式比虚伪应付和真情假意更真诚。</li>
-<li>真诚坦率：既讲真话、实话，又能照顾到员工的感受。</li>
-</ul>
-</li>
-</ol>
-<h3 id="63-做到真诚坦率要注意五点"><a class="markdownIt-Anchor" href="#63-做到真诚坦率要注意五点"></a> 6.3 做到真诚坦率要注意五点</h3>
-<ol>
-<li>就事论事</li>
-<li>讲具体的事</li>
-<li>多分析背景信息</li>
-<li>不带着情绪</li>
-<li>多给建议和指导</li>
-</ol>
-<h3 id="64-为了满足各种社会期待每个人都会包装自己"><a class="markdownIt-Anchor" href="#64-为了满足各种社会期待每个人都会包装自己"></a> 6.4 为了满足各种社会期待，每个人都会包装自己</h3>
-<p>但如果包装后的公众自我与你的内在自我差别很大，就会出现问题。</p>
-<ol>
-<li>虚张声势很容易会被看出来，让管理者看起来不值得被信赖。</li>
-<li>过度假装会让管理者自己很不开心。</li>
-</ol>
-<h3 id="65-展现真我要做到三点"><a class="markdownIt-Anchor" href="#65-展现真我要做到三点"></a> 6.5 展现真我要做到三点</h3>
-<ol>
-<li>认识你自己</li>
-<li>建立你内心的准则</li>
-<li>适当地暴露弱点</li>
-</ol>
-<h1 id="关键跨越二推动执行"><a class="markdownIt-Anchor" href="#关键跨越二推动执行"></a> 关键跨越二：推动执行</h1>
-<h2 id="7-新手管理者的执行力-20"><a class="markdownIt-Anchor" href="#7-新手管理者的执行力-20"></a> 7. 新手管理者的执行力 2.0</h2>
-<h3 id="71-新手管理者需要将个人执行力升级为团队执行力"><a class="markdownIt-Anchor" href="#71-新手管理者需要将个人执行力升级为团队执行力"></a> 7.1 新手管理者需要将个人执行力升级为团队执行力</h3>
-<ul>
-<li>新手管理者需要将个人执行力升级为团队执行力，把最大化团队产出作为自己的工作目标，投入精力完成管理工作。</li>
-</ul>
-<h3 id="72-新手管理者要充分发挥团队成员的能力"><a class="markdownIt-Anchor" href="#72-新手管理者要充分发挥团队成员的能力"></a> 7.2 新手管理者要充分发挥团队成员的能力</h3>
-<ul>
-<li>新手管理者要充分发挥团队成员的能力，激发团队成员的工作动力，并提供必要的支持，为团队成员减少工作阻力。</li>
-</ul>
-<h3 id="73-新手管理者需要警惕常见的六大误区"><a class="markdownIt-Anchor" href="#73-新手管理者需要警惕常见的六大误区"></a> 7.3 新手管理者需要警惕常见的六大误区</h3>
-<ul>
-<li>新手管理者需要警惕常见的六大误区，规避不适用的思维模式和行为模式，完成管理角色转型。
-<ul>
-<li>误区一：超人心态</li>
-<li>误区二：完美主义</li>
-<li>误区三：想当然</li>
-<li>误区四：控制狂</li>
-<li>误区五：疏离旁观</li>
-<li>误区六：安于现状</li>
-</ul>
-</li>
-</ul>
-<h2 id="8-做该做的事把猴子还给下属"><a class="markdownIt-Anchor" href="#8-做该做的事把猴子还给下属"></a> 8. 做该做的事，把“猴子”还给下属</h2>
-<h3 id="81-管理者要多做自己该做的事少做或不做不该做的事"><a class="markdownIt-Anchor" href="#81-管理者要多做自己该做的事少做或不做不该做的事"></a> 8.1 管理者要多做自己该做的事，少做或不做不该做的事</h3>
-<ol>
-<li>员工现有能力可以完成的任务，要坚定不移地交给员工去做。</li>
-<li>员工“跳一跳”能完成的任务也可以交给员工去做，同时管理者要提供必要的辅导和资源支持。</li>
-<li>员工能力差距较大但有意愿去挑战的任务，如果有试错的空间，管理者可以和员工一起做，并承担失败的风险。</li>
-</ol>
-<h3 id="82-忍住让员工去思考和解决问题避免接过原本属于员工的猴子"><a class="markdownIt-Anchor" href="#82-忍住让员工去思考和解决问题避免接过原本属于员工的猴子"></a> 8.2 忍住，让员工去思考和解决问题，避免接过原本属于员工的“猴子”</h3>
-<ol>
-<li>不要直接给员工答案。</li>
-<li>用提问的方式启发员工，让员工思考下一步如何行动。</li>
-<li>让员工为工作任务负起责任来。</li>
-</ol>
-<h3 id="83-不要做超人放平心态"><a class="markdownIt-Anchor" href="#83-不要做超人放平心态"></a> 8.3 不要做“超人”，放平心态</h3>
-<ol>
-<li>对团队多一些耐心，不要为了快速达成目标而代替员工完成工作。</li>
-<li>通过帮助团队成长获得新的成就感，不要因为无法站在舞台中央的失落感，就选择自己做事，和下属竞争站回舞台中央的机会。</li>
-<li>不要因为害怕失败就不敢冒险放手让下属尝试，要给员工犯错空间，并学会把失败当成自己和团队学习的机会。</li>
-<li>不需要通过代替员工做事去刻意讨好下属，得有把任务派给员工后被讨厌的勇气。</li>
-</ol>
-<h2 id="9-要事第一目标取舍的智慧和勇气"><a class="markdownIt-Anchor" href="#9-要事第一目标取舍的智慧和勇气"></a> 9. 要事第一：目标取舍的智慧和勇气</h2>
-<h3 id="91-良好的开端是成功的一半在明确目标阶段管理者要做到要事第一"><a class="markdownIt-Anchor" href="#91-良好的开端是成功的一半在明确目标阶段管理者要做到要事第一"></a> 9.1 良好的开端是成功的一半，在明确目标阶段管理者要做到“要事第一”</h3>
-<ol>
-<li>到重要的20%，重点投入。</li>
-<li>跟上级充分沟通，让上级帮助明确不同目标的重要性和优先级排序。</li>
-<li>不要追求面面俱到，得学会取舍，避免目标平均主义。</li>
-</ol>
-<h3 id="92-管理者在完成短期目标的同时需要考虑如何实现年度目标逐步建立长期思维"><a class="markdownIt-Anchor" href="#92-管理者在完成短期目标的同时需要考虑如何实现年度目标逐步建立长期思维"></a> 9.2 管理者在完成短期目标的同时，需要考虑如何实现年度目标，逐步建立长期思维</h3>
-<ol>
-<li>管理工作本身就是在为长期目标负责。</li>
-<li>学会拉长时间维度去评估投入与收益。</li>
-<li>根据业务紧迫性和团队成熟度对目标的优先级进行动态调整。</li>
-</ol>
-<h2 id="10-人事匹配让对的人去做对的事"><a class="markdownIt-Anchor" href="#10-人事匹配让对的人去做对的事"></a> 10. 人事匹配：让对的人去做对的事</h2>
-<h3 id="101-根据意愿能力四象限完成人事匹配"><a class="markdownIt-Anchor" href="#101-根据意愿能力四象限完成人事匹配"></a> 10.1 根据意愿能力四象限，完成人事匹配</h3>
-<ol>
-<li>对于高意愿高能力的明星员工，可以把有难度的重要工作交给他们。</li>
-<li>对于低意愿低能力的问题员工，需要进行绩效反馈，明确绩效改进方向。</li>
-<li>对于高意愿低能力的“潜力股”员工，应以能胜任的工作任务为主，同时分配一些“跳起来”可以够得着的挑战性任务来提升其能力。</li>
-<li>对于低意愿高能力的“精明人”员工，需要适当激发，并保证团队内部任务分配和激励回报的公平性。</li>
-</ol>
-<h3 id="102-可以通过观察-询问-实战三个环节来判断员工的意愿和能力"><a class="markdownIt-Anchor" href="#102-可以通过观察-询问-实战三个环节来判断员工的意愿和能力"></a> 10.2 可以通过观察、询问、实战三个环节来判断员工的意愿和能力</h3>
-<h3 id="103-在进行任务沟通时管理者要做到四点"><a class="markdownIt-Anchor" href="#103-在进行任务沟通时管理者要做到四点"></a> 10.3 在进行任务沟通时，管理者要做到四点</h3>
-<ul>
-<li>第一，将工作“翻译”成员工更容易听懂的语言，解释清楚“为什么”。</li>
-<li>第二，清晰无误地说明任务要求，不遗漏必要信息。</li>
-<li>第三，进行双向沟通，获得员工及时反馈。</li>
-<li>第四，与员工沟通不同工作的优先级。</li>
-</ul>
-<h3 id="104-管理者要避免陷入想当然误区"><a class="markdownIt-Anchor" href="#104-管理者要避免陷入想当然误区"></a> 10.4 管理者要避免陷入“想当然”误区</h3>
-<ul>
-<li>管理者要避免陷入“想当然”误区，主动反思自己是否以己度人，忽略了人与人之间的差异，或低估了任务的难度。</li>
-</ul>
-<h3 id="105-管理者要避免想当然应该在行动上向员工展现出欢迎提问的姿态也需要在工作中多观察员工的行为了解员工的意愿和能力"><a class="markdownIt-Anchor" href="#105-管理者要避免想当然应该在行动上向员工展现出欢迎提问的姿态也需要在工作中多观察员工的行为了解员工的意愿和能力"></a> 10.5 管理者要避免“想当然”，应该在行动上向员工展现出欢迎提问的姿态，也需要在工作中多观察员工的行为，了解员工的意愿和能力</h3>
-<h2 id="11-过程管理把握尺度"><a class="markdownIt-Anchor" href="#11-过程管理把握尺度"></a> 11. 过程管理：把握尺度</h2>
-<h3 id="111-根据任务容错率和员工成熟度选择不同的管控方式避免一刀切"><a class="markdownIt-Anchor" href="#111-根据任务容错率和员工成熟度选择不同的管控方式避免一刀切"></a> 11.1 根据任务容错率和员工成熟度选择不同的管控方式，避免一刀切</h3>
-<ol>
-<li>对于容错率高的任务，如果员工成熟度高，可以让员工放手去做；如果员工成熟度低，则需要加强过程辅导。</li>
-<li>对于容错率低的任务，即使员工成熟度高，管理者仍需要管理过程中的关键节点；如果员工成熟度低，这项任务应该由管理者自己负责，带着员工一起完成。</li>
-</ol>
-<h3 id="112-在过程管理中要避免陷入微观管理变成控制狂也不能放手不管做一个远离团队的甩手掌柜"><a class="markdownIt-Anchor" href="#112-在过程管理中要避免陷入微观管理变成控制狂也不能放手不管做一个远离团队的甩手掌柜"></a> 11.2 在过程管理中要避免陷入微观管理，变成“控制狂”，也不能放手不管，做一个远离团队的“甩手掌柜”</h3>
-<h3 id="113-过程管理更有效的方式是设置合理的信息沟通反馈机制"><a class="markdownIt-Anchor" href="#113-过程管理更有效的方式是设置合理的信息沟通反馈机制"></a> 11.3 过程管理更有效的方式是设置合理的信息沟通反馈机制</h3>
-<ul>
-<li>管理者可以通过以下方式获取需要的信息：
-<ul>
-<li>定期开例会</li>
-<li>建立抄送邮件的规则</li>
-<li>工作进度可视化</li>
-<li>开展专项会议讨论</li>
-<li>加强非正式沟通</li>
-</ul>
-</li>
-</ul>
-<h2 id="12-vuca时代需要敏捷执行"><a class="markdownIt-Anchor" href="#12-vuca时代需要敏捷执行"></a> 12. VUCA时代需要敏捷执行</h2>
-<h3 id="121-vuca时代需要敏捷执行核心是以终为始抓住关键矛盾"><a class="markdownIt-Anchor" href="#121-vuca时代需要敏捷执行核心是以终为始抓住关键矛盾"></a> 12.1 VUCA时代需要敏捷执行，核心是以终为始，抓住关键矛盾</h3>
-<h3 id="122-产出最小化可交付成果尽早获得最终用户的反馈通过多次迭代来更聪明-高效地工作完成比完美更重要"><a class="markdownIt-Anchor" href="#122-产出最小化可交付成果尽早获得最终用户的反馈通过多次迭代来更聪明-高效地工作完成比完美更重要"></a> 12.2 产出最小化可交付成果，尽早获得最终用户的反馈，通过多次迭代来更聪明、高效地工作，完成比完美更重要</h3>
-<h3 id="123-制订有弹性的工作计划给自己预留20的时间用于应对临时出现的重要任务或者就用于思考避免被不重要的事情塞满日程表"><a class="markdownIt-Anchor" href="#123-制订有弹性的工作计划给自己预留20的时间用于应对临时出现的重要任务或者就用于思考避免被不重要的事情塞满日程表"></a> 12.3 制订有弹性的工作计划，给自己预留20%的时间用于应对临时出现的重要任务或者就用于思考，避免被不重要的事情塞满日程表</h3>
-<h3 id="124-管理者要敢于说不赢回自己的时间"><a class="markdownIt-Anchor" href="#124-管理者要敢于说不赢回自己的时间"></a> 12.4 管理者要敢于说“不”，赢回自己的时间</h3>
-<p>具体可以参考以下三个步骤：</p>
-<ul>
-<li>复述对方的要求</li>
-<li>解释拒绝的原因</li>
-<li>坦诚说“不”</li>
-</ul>
-<h2 id="13-复盘让管理实现闭环"><a class="markdownIt-Anchor" href="#13-复盘让管理实现闭环"></a> 13. 复盘让管理实现闭环</h2>
-<h3 id="131-复盘让管理形成闭环为管理者提供思考的空间也是团队改进和提升的原点"><a class="markdownIt-Anchor" href="#131-复盘让管理形成闭环为管理者提供思考的空间也是团队改进和提升的原点"></a> 13.1 复盘让管理形成闭环，为管理者提供思考的空间，也是团队改进和提升的原点</h3>
-<h3 id="132-成功的复盘要求管理者和团队成员建立信任保持开放-包容的心态并有能力从过往的实践中提炼出规律性的结论指导行动"><a class="markdownIt-Anchor" href="#132-成功的复盘要求管理者和团队成员建立信任保持开放-包容的心态并有能力从过往的实践中提炼出规律性的结论指导行动"></a> 13.2 成功的复盘要求管理者和团队成员建立信任，保持开放、包容的心态，并有能力从过往的实践中提炼出规律性的结论，指导行动</h3>
-<h3 id="133-复盘可以作为日常管理的工具要做到及时和精要才能保证良好的复盘效果"><a class="markdownIt-Anchor" href="#133-复盘可以作为日常管理的工具要做到及时和精要才能保证良好的复盘效果"></a> 13.3 复盘可以作为日常管理的工具，要做到及时和精要，才能保证良好的复盘效果</h3>
-<h3 id="134-专项复盘可以帮助团队及时总结失败教训沉淀成功经验"><a class="markdownIt-Anchor" href="#134-专项复盘可以帮助团队及时总结失败教训沉淀成功经验"></a> 13.4 专项复盘可以帮助团队及时总结失败教训，沉淀成功经验</h3>
-<p>专项复盘分为三步曲：</p>
-<ul>
-<li>还原事实</li>
-<li>分析问题根因</li>
-<li>制订行动计划</li>
-</ul>
-<h1 id="关键跨越三辅导他人"><a class="markdownIt-Anchor" href="#关键跨越三辅导他人"></a> 关键跨越三：辅导他人</h1>
-<h2 id="14-辅导他人亟待提升"><a class="markdownIt-Anchor" href="#14-辅导他人亟待提升"></a> 14. 辅导他人，亟待提升</h2>
-<h3 id="141-辅导员工的关键四步"><a class="markdownIt-Anchor" href="#141-辅导员工的关键四步"></a> 14.1 .辅导员工的关键四步</h3>
-<ul>
-<li>投入时间：坚持在辅导上投入时间，切实帮助团队提升。</li>
-<li>明确目标：以绩效目标为导向，了解员工现状，和员工就发展目标达成共识。</li>
-<li>反馈与指导：在辅导现场，直面挑战，提升员工的积极性，帮助员工解决问题。</li>
-<li>跟进与评价：跟进与评价员工的表现，评价他们的行为进展，并通过正确地批评和表扬他们，帮助他们更好地提升。</li>
-</ul>
-<h3 id="142-新手管理者在辅导上容易陷入的三个误区"><a class="markdownIt-Anchor" href="#142-新手管理者在辅导上容易陷入的三个误区"></a> 14.2 新手管理者在辅导上容易陷入的三个误区</h3>
-<ul>
-<li>理想化：辅导形式大于内容，不考虑业务需求和员工现状。</li>
-<li>以自我为中心：只从自己的想法出发，忽视员工与自己的差异，遇到问题不是从自身寻找原因。</li>
-<li>急于求成：对员工的成长没有耐心，辅导员工时容易急躁，急于给员工下定论，难以持续投入。</li>
-</ul>
-<h2 id="15-辅导的开始如何投入时间"><a class="markdownIt-Anchor" href="#15-辅导的开始如何投入时间"></a> 15. 辅导的开始：如何投入时间</h2>
-<p>管理者进行辅导的第一步：切实有效地在辅导上投入时间。管理者要注意：</p>
-<h3 id="151-不为自己没有在辅导上投入找借口"><a class="markdownIt-Anchor" href="#151-不为自己没有在辅导上投入找借口"></a> 15.1 不为自己没有在辅导上投入找借口</h3>
-<ol>
-<li>正视自己没有辅导员工的现状，思考自己要如何改变。</li>
-<li>相信自己可以决定自己的时间，并为自己的时间负责。</li>
-</ol>
-<h3 id="152-找到问题的症结所在避免陷入越努力越忙碌的处境"><a class="markdownIt-Anchor" href="#152-找到问题的症结所在避免陷入越努力越忙碌的处境"></a> 15.2 找到问题的症结所在，避免陷入“越努力，越忙碌”的处境</h3>
-<ol>
-<li>管理者面对的问题是系统性问题，单一的问题解决思路会起到反效果。</li>
-<li>评估自己的行为会对团队产生的影响，通过辅导提升团队能力，从而建立自己在工作中的正向循环。</li>
-</ol>
-<h3 id="153-坚持在辅导上进行投入"><a class="markdownIt-Anchor" href="#153-坚持在辅导上进行投入"></a> 15.3 坚持在辅导上进行投入</h3>
-<ol>
-<li>辅导更需要细水长流的投入，考验的是管理者是否能坚持。</li>
-<li>管理者需要有意识地培养自己的辅导习惯，可以通过诸如“辅导他人行为清单”的方式提醒自己。</li>
-</ol>
-<h3 id="154-基于二八原则分配自己的时间"><a class="markdownIt-Anchor" href="#154-基于二八原则分配自己的时间"></a> 15.4 基于二八原则分配自己的时间</h3>
-<ol>
-<li>管理者辅导员工时需要以团队的产出最大化为目标。</li>
-<li>表现优秀的员工更值得，也更需要管理者的辅导。</li>
-<li>只关注绩效表现不佳的员工，容易让其他员工感到不公平。</li>
-<li>有效分配时间的关键在于准确地对员工进行分类。</li>
-<li>管理者在评估员工时，要同时关注当下工作和未来工作的要求。</li>
-</ol>
-<h2 id="16-明确目标促进绩效达成"><a class="markdownIt-Anchor" href="#16-明确目标促进绩效达成"></a> 16. 明确目标，促进绩效达成</h2>
-<p>管理者在和员工制定辅导目标时，需要遵循以下三个原则：</p>
-<h3 id="161-促进绩效提升"><a class="markdownIt-Anchor" href="#161-促进绩效提升"></a> 16.1 促进绩效提升</h3>
-<ol>
-<li>基于对绩效目标的分析，结合员工当下的重点工作，初步找出可能需要提升的地方。</li>
-<li>还原工作现场，通过行为观察、他人反馈、情境模拟等多种方式，了解员工实际的工作情况。</li>
-<li>深入分析，找到员工表现背后的原因，制定有针对性的辅导方向。</li>
-</ol>
-<h3 id="162-和员工达成共识"><a class="markdownIt-Anchor" href="#162-和员工达成共识"></a> 16.2 和员工达成共识</h3>
-<ol>
-<li>在与员工沟通前，管理者和员工都需要做好充分的准备。</li>
-<li>鼓励员工发表意见，认真倾听员工的想法，并且即使遇到冲突也就事论事，不强求员工听取自己的意见，也不和员工去争一时的对错。</li>
-</ol>
-<h3 id="163-辅导目标可评估-可实现"><a class="markdownIt-Anchor" href="#163-辅导目标可评估-可实现"></a> 16.3 辅导目标可评估、可实现</h3>
-<ol>
-<li>辅导目标要注重可行性，不要好高骛远。</li>
-<li>辅导目标中应该包含具体的行为，有助于管理者和员工达成共识。</li>
-</ol>
-<h2 id="17-信任-激发与赋能"><a class="markdownIt-Anchor" href="#17-信任-激发与赋能"></a> 17. 信任、激发与赋能</h2>
-<p>在成功辅导员工的过程中，管理者要做到三件事情：与员工建立相互信任的辅导关系；激发员工不断提升自我的积极性；赋能员工，提升员工解决问题的能力。</p>
-<h3 id="171-建立相互信任的辅导关系"><a class="markdownIt-Anchor" href="#171-建立相互信任的辅导关系"></a> 17.1 建立相互信任的辅导关系</h3>
-<ol>
-<li>管理者要让员工尽快感受到自己的提升，从而让其对辅导抱有信心。</li>
-<li>管理者需要避免高高在上，和员工做平等沟通，多倾听员工的想法。</li>
-</ol>
-<h3 id="172-激发员工的积极性"><a class="markdownIt-Anchor" href="#172-激发员工的积极性"></a> 17.2 激发员工的积极性</h3>
-<ol>
-<li>面对受挫的员工：管理者需要引导员工从长远和正向的角度看待问题，理解其受挫的感受和心情，并通过工作的调配转移其注意力。</li>
-<li>面对积极性不高的员工：让员工更客观地认知自己的水平；为员工树立榜样，展现未来发展愿景；通过竞争持续调动员工的积极性。</li>
-<li>面对缺少行动力的员工：发挥目标的管控作用，要求员工必须有行动；让员工为自己负责，管理者避免越俎代庖；必要时，终止辅导关系。</li>
-</ol>
-<h3 id="173-赋能员工"><a class="markdownIt-Anchor" href="#173-赋能员工"></a> 17.3 赋能员工</h3>
-<ol>
-<li>理解员工能力提升的三个阶段：知道、理解和应用。员工要逐步形成自己的知识体系，并通过思考和实践，不断地获得反馈和提升。</li>
-<li>只让员工去尝试而不给予反馈，或只让员工学习知识而不实践都不是适合员工的辅导方式。</li>
-<li>在赋能员工时，管理者要让员工通过历练，感受到挑战和问题所在，并对问题进行分析和思考，进而在实践中做出尝试和探索。在逐步探索中，管理者要鼓励员工形成自己的判断，通过对外输出，将自己的经验转化为能力。</li>
-</ol>
-<h2 id="18-跟进与评价"><a class="markdownIt-Anchor" href="#18-跟进与评价"></a> 18. 跟进与评价</h2>
-<p>员工的能力提升需要经历持续练习和反馈的过程。管理者需要在这个过程中持续跟进员工的行为表现，及时发现并指出员工的问题，帮助他们持续改进。管理者还需要及时看到员工取得的进展，并及时给予鼓励和肯定。</p>
-<h3 id="181-把辅导当成项目来管理"><a class="markdownIt-Anchor" href="#181-把辅导当成项目来管理"></a> 18.1 把辅导当成项目来管理</h3>
-<p>跟进最难的地方在于坚持，管理者可以按照管理项目的方式，始终聚焦辅导目标，制订跟进计划，明确责任人，使用辅助工具，以帮助自己形成跟进的习惯。</p>
-<h3 id="182-对员工的成长有耐心"><a class="markdownIt-Anchor" href="#182-对员工的成长有耐心"></a> 18.2 对员工的成长有耐心</h3>
-<p>员工的成长并非一蹴而就，管理者需要给员工时间和试错的空间，并且当员工取得进步时，即使没有达到期待，也要给予正向的鼓励。</p>
-<h3 id="183-做出正确的批评和表扬"><a class="markdownIt-Anchor" href="#183-做出正确的批评和表扬"></a> 18.3 做出正确的批评和表扬</h3>
-<p>跟进是评价和反馈的基础，要做到正确地批评和表扬，管理者要以事实为依据，以解决问题为导向，并在沟通时保持真诚。</p>
-<h1 id="成为管理者"><a class="markdownIt-Anchor" href="#成为管理者"></a> 成为管理者</h1>
-<h2 id="19-管理者发展的全景图五个阶段的关键跨越"><a class="markdownIt-Anchor" href="#19-管理者发展的全景图五个阶段的关键跨越"></a> 19. 管理者发展的全景图：五个阶段的关键跨越</h2>
-<h3 id="191-一个人的职业发展会历经很多角色了解管理者发展的全景图能帮助你提前做好准备学会换位思考理解上下级的工作挑战和想法"><a class="markdownIt-Anchor" href="#191-一个人的职业发展会历经很多角色了解管理者发展的全景图能帮助你提前做好准备学会换位思考理解上下级的工作挑战和想法"></a> 19.1 一个人的职业发展会历经很多角色，了解管理者发展的全景图，能帮助你提前做好准备，学会换位思考，理解上下级的工作挑战和想法</h3>
-<h3 id="192-你会经历的职场角色有五个阶段"><a class="markdownIt-Anchor" href="#192-你会经历的职场角色有五个阶段"></a> 19.2 你会经历的职场角色有五个阶段</h3>
-<ol>
-<li>管理自我</li>
-<li>管理他人</li>
-<li>管理管理者</li>
-<li>管理职能/事业部</li>
-<li>管理企业</li>
-</ol>
-<h3 id="193-管理自我阶段的关键挑战"><a class="markdownIt-Anchor" href="#193-管理自我阶段的关键挑战"></a> 19.3 管理自我阶段的关键挑战</h3>
-<p>管理自我阶段的关键挑战:稳定可靠地交付工作成果、保持并提高专业的水准和效率、与客户和工作伙伴顺畅沟通。<br />
-所需完成的关键跨越：</p>
-<ol>
-<li>高效执行</li>
-<li>展现专业素养</li>
-<li>有效沟通</li>
-</ol>
-<h3 id="194-管理他人阶段的关键挑战"><a class="markdownIt-Anchor" href="#194-管理他人阶段的关键挑战"></a> 19.4 管理他人阶段的关键挑战</h3>
-<p>管理他人阶段的关键挑战：获得团队的认可和信任、让团队稳定可靠地交付工作成果、帮助团队改进和提升。<br />
-所需完成的关键跨越：</p>
-<ol>
-<li>承担管理责任</li>
-<li>推动执行</li>
-<li>辅导他人</li>
-</ol>
-<h3 id="195-管理管理者阶段的关键挑战"><a class="markdownIt-Anchor" href="#195-管理管理者阶段的关键挑战"></a> 19.5 管理管理者阶段的关键挑战</h3>
-<p>管理管理者阶段的关键挑战：</p>
-<ol>
-<li>系统性地解决问题</li>
-<li>让一线管理者充分发挥作用</li>
-<li>统一目标，平衡资源和利益<br />
-所需完成的关键跨越：</li>
-<li>系统化思考</li>
-<li>授权</li>
-<li>协同增效</li>
-</ol>
-<h3 id="196-管理职能事业部阶段的关键挑战"><a class="markdownIt-Anchor" href="#196-管理职能事业部阶段的关键挑战"></a> 19.6 管理职能/事业部阶段的关键挑战</h3>
-<p>应对常态化的模糊和不确定状况、以经营思维管理职能部门或事业部、确保人才梯队支持业务持续发展。所需完成的关键跨越：</p>
-<ol>
-<li>模糊决策</li>
-<li>经营意识</li>
-<li>构建人才梯队</li>
-</ol>
-<h3 id="197-整个职业发展过程中也起着决定性作用的另外几个底层能力"><a class="markdownIt-Anchor" href="#197-整个职业发展过程中也起着决定性作用的另外几个底层能力"></a> 19.7 整个职业发展过程中也起着决定性作用的另外几个底层能力</h3>
-<p>还有几个底层能力，在整个职业发展过程中也起着决定性作用。这些能力包括：</p>
-<ol>
-<li>清晰的自我认知能力</li>
-<li>持续学习能力</li>
-<li>弹性和韧性</li>
-</ol>
-<h3 id="198-发展关键跨越上的能力"><a class="markdownIt-Anchor" href="#198-发展关键跨越上的能力"></a> 19.8 发展关键跨越上的能力</h3>
-<p>发展关键跨越上的能力需要做到：</p>
-<ol>
-<li>充分了解这些能力的完整行为链条</li>
-<li>保持刻意练习</li>
-<li>做好打持久战的准备</li>
-</ol>
-<h2 id="20-一生的修炼更好的自己"><a class="markdownIt-Anchor" href="#20-一生的修炼更好的自己"></a> 20. 一生的修炼，更好的自己</h2>
-<p>如同电影《和平战士》中，心灵导师苏格拉底对主人公丹·米尔曼所说：“没有开始或者终止，只有过程。”人生是一场修炼，修的是心性，炼的是技能，没有终点，出生即开始，永远都在进程中。我们陪伴了很多管理者走过“至暗时刻”，别着急，每个人都会经历，没有谁比谁更高明，只要坚持就会成功。在坚持的路上，除了职场的收获，你还会获得很多可迁移的技能。正如在游泳池中学会了游泳，在大海中也能施展一样。管理者练就的管理技能、打磨的心性，都可以在更多人生的场景找到应用机会。所以可以说，一旦成为管理者，就进入了这场修行的经验加速区：管理技能要求的倾听、沟通、共情，用在处理家庭矛盾、开展子女教育中，也效果明显；管理角色要求的时间管理、任务分配、绩效辅导、培养员工等技能，在自我管理、家庭决策、子女教育中，同样增益匪浅。成为管理者，能加速人生的修炼，乃至成就更好的自己。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -3782,7 +3419,7 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">125</span>
+          <span class="site-state-item-count">126</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -3795,7 +3432,7 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">67</span>
+        <span class="site-state-item-count">68</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
