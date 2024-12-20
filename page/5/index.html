@@ -180,6 +180,180 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/06/17/HiPPO-Recurrent-Memory-with-Optimal-Polynomial-Projections/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2024/06/17/HiPPO-Recurrent-Memory-with-Optimal-Polynomial-Projections/" class="post-title-link" itemprop="url">HiPPO: Recurrent Memory with Optimal Polynomial Projections</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-06-17 13:29:21" itemprop="dateCreated datePublished" datetime="2024-06-17T13:29:21+08:00">2024-06-17</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-10-08 16:11:14" itemprop="dateModified" datetime="2024-10-08T16:11:14+08:00">2024-10-08</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/SSM/" itemprop="url" rel="index"><span itemprop="name">SSM</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2024/06/17/HiPPO-Recurrent-Memory-with-Optimal-Polynomial-Projections/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2024/06/17/HiPPO-Recurrent-Memory-with-Optimal-Polynomial-Projections/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2008.07669">https://arxiv.org/pdf/2008.07669</a></li>
+<li>code: <a target="_blank" rel="noopener" href="https://github.com/HazyResearch/hippo-code">https://github.com/HazyResearch/hippo-code</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li><code>HiPPO</code> 全称是 <code>High-order Polynomial Projection Operators</code>，是 <code>SSM (State Space Model)</code> 的开山之作，作者延续 <code>SSM</code> 思路，后续做出了可以和 <code>Transformer</code> 结构掰手腕的 <code>Mamba</code></li>
+<li><code>HiPPO</code> 的目标是用一个有限维的向量来储存这一段 <code>u(t)</code> 的信息，实现方式是将 <code>u(t)</code> 通过 <code>Legendre</code> (勒让德)多项式展开，用有限维的向量存储勒让德多项式系数，且这些 <strong>向量的值通过求解勒让德多项式得出，不在训练过程中通过梯度下降更新</strong></li>
+<li><code>HiPPO</code> 可以给 <code>RNN</code> 提供一种记忆表示方法，因此一个实际的用处是使用 <code>HiPPO</code> 作为 <code>RNN</code> 的记忆存储算子</li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<ul>
+<li>勒让德多项式本身是定义在连续函数上的，但实际使用中需要记忆的内容是离散的，因此需要离散化过程</li>
+<li><code>HiPPO</code> 的记忆更新公式是 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>m</mi><mo stretchy="false">(</mo><mi>t</mi><mo>+</mo><mn>1</mn><mo stretchy="false">)</mo><mo>=</mo><mi>A</mi><mi>m</mi><mo stretchy="false">(</mo><mi>t</mi><mo stretchy="false">)</mo><mo>+</mo><mi>B</mi><mi>u</mi><mo stretchy="false">(</mo><mi>t</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">m(t+1) = Am(t)+Bu(t)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">m</span><span class="mopen">(</span><span class="mord mathnormal">t</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">1</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">A</span><span class="mord mathnormal">m</span><span class="mopen">(</span><span class="mord mathnormal">t</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.05017em;">B</span><span class="mord mathnormal">u</span><span class="mopen">(</span><span class="mord mathnormal">t</span><span class="mclose">)</span></span></span></span>，其中 <code>A</code> 和 <code>B</code> 是 <code>HiPPO</code> 参数，<code>m(t)</code> 表示记忆向量，<code>u(t)</code> 表示更新向量，<code>m(t+1)</code> 表示更新后的记忆向量
+<ul>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mo>∈</mo><msup><mi mathvariant="double-struck">R</mi><mrow><mi>N</mi><mo>×</mo><mi>N</mi></mrow></msup></mrow><annotation encoding="application/x-tex">A\in\mathbb R^{N\times N}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.72243em;vertical-align:-0.0391em;"></span><span class="mord mathnormal">A</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">∈</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:0.8413309999999999em;vertical-align:0em;"></span><span class="mord"><span class="mord mathbb">R</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8413309999999999em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.10903em;">N</span><span class="mbin mtight">×</span><span class="mord mathnormal mtight" style="margin-right:0.10903em;">N</span></span></span></span></span></span></span></span></span></span></span></span></li>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>B</mi><mo>∈</mo><msup><mi mathvariant="double-struck">R</mi><mrow><mi>N</mi><mo>×</mo><mn>1</mn></mrow></msup></mrow><annotation encoding="application/x-tex">B\in\mathbb R^{N\times 1}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.72243em;vertical-align:-0.0391em;"></span><span class="mord mathnormal" style="margin-right:0.05017em;">B</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">∈</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:0.8413309999999999em;vertical-align:0em;"></span><span class="mord"><span class="mord mathbb">R</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8413309999999999em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.10903em;">N</span><span class="mbin mtight">×</span><span class="mord mtight">1</span></span></span></span></span></span></span></span></span></span></span></span></li>
+<li><code>N</code> 表示记忆单元的参数尺度，类似于 <code>Transformer</code> 的 <code>hidden size</code>，越大记忆能力越强</li>
+</ul>
+</li>
+<li><code>HiPPO</code> 有 <code>LegT (Translated Legendre Measure)</code> 和 <code>LegS (Scaled Legendre Measure)</code> 两种度量方法，二者都使用上述记忆更新公式，只是 <code>A</code> 和 <code>B</code> 参数不同
+<ul>
+<li><code>LegT</code> 使用 <strong>翻译</strong> 任务的勒让德多项式，本质是一个滑动窗口，只记忆当前时刻前 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>θ</mi></mrow><annotation encoding="application/x-tex">\theta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.69444em;vertical-align:0em;"></span><span class="mord mathnormal" style="margin-right:0.02778em;">θ</span></span></span></span> 窗口内容，<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>θ</mi></mrow><annotation encoding="application/x-tex">\theta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.69444em;vertical-align:0em;"></span><span class="mord mathnormal" style="margin-right:0.02778em;">θ</span></span></span></span> 为超参数
+<ul>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>A</mi><mrow><mi>n</mi><mi>k</mi></mrow></msub><mo>=</mo><mfrac><mn>1</mn><mi>θ</mi></mfrac><mrow><mo fence="true">{</mo><mtable rowspacing="0.3599999999999999em" columnalign="left left" columnspacing="1em"><mtr><mtd><mstyle scriptlevel="0" displaystyle="false"><mrow><mo stretchy="false">(</mo><mo>−</mo><mn>1</mn><msup><mo stretchy="false">)</mo><mrow><mi>n</mi><mo>−</mo><mi>k</mi></mrow></msup><mo stretchy="false">(</mo><mn>2</mn><mi>n</mi><mo>+</mo><mn>1</mn><mo stretchy="false">)</mo></mrow></mstyle></mtd><mtd><mstyle scriptlevel="0" displaystyle="false"><mrow><mi>i</mi><mi>f</mi></mrow></mstyle></mtd><mtd><mstyle scriptlevel="0" displaystyle="false"><mrow><mi>n</mi><mo>≥</mo><mi>k</mi></mrow></mstyle></mtd></mtr><mtr><mtd><mstyle scriptlevel="0" displaystyle="false"><mrow><mn>2</mn><mi>n</mi><mo>+</mo><mn>1</mn></mrow></mstyle></mtd><mtd><mstyle scriptlevel="0" displaystyle="false"><mrow><mi>i</mi><mi>f</mi></mrow></mstyle></mtd><mtd><mstyle scriptlevel="0" displaystyle="false"><mrow><mi>n</mi><mo>&lt;</mo><mi>k</mi></mrow></mstyle></mtd></mtr></mtable></mrow></mrow><annotation encoding="application/x-tex">A_{nk}=\frac{1}{\theta}
+\begin{cases}
+(-1)^{n-k}(2n+1) &amp; if &amp; n\ge k\\
+2n+1 &amp; if &amp; n &lt; k
+\end{cases}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">A</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.33610799999999996em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">n</span><span class="mord mathnormal mtight" style="margin-right:0.03148em;">k</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:3.0000299999999998em;vertical-align:-1.25003em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.845108em;"><span style="top:-2.6550000000000002em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.02778em;">θ</span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.394em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.345em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="minner"><span class="mopen delimcenter" style="top:0em;"><span class="delimsizing size4">{</span></span><span class="mord"><span class="mtable"><span class="col-align-l"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.69em;"><span style="top:-3.69em;"><span class="pstrut" style="height:3.008em;"></span><span class="mord"><span class="mopen">(</span><span class="mord">−</span><span class="mord">1</span><span class="mclose"><span class="mclose">)</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8491079999999999em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">n</span><span class="mbin mtight">−</span><span class="mord mathnormal mtight" style="margin-right:0.03148em;">k</span></span></span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord">2</span><span class="mord mathnormal">n</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mord">1</span><span class="mclose">)</span></span></span><span style="top:-2.25em;"><span class="pstrut" style="height:3.008em;"></span><span class="mord"><span class="mord">2</span><span class="mord mathnormal">n</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mord">1</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.19em;"><span></span></span></span></span></span><span class="arraycolsep" style="width:1em;"></span><span class="col-align-l"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.69em;"><span style="top:-3.69em;"><span class="pstrut" style="height:3.008em;"></span><span class="mord"><span class="mord mathnormal">i</span><span class="mord mathnormal" style="margin-right:0.10764em;">f</span></span></span><span style="top:-2.25em;"><span class="pstrut" style="height:3.008em;"></span><span class="mord"><span class="mord mathnormal">i</span><span class="mord mathnormal" style="margin-right:0.10764em;">f</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.19em;"><span></span></span></span></span></span><span class="arraycolsep" style="width:0.5em;"></span><span class="col-align-c"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.69em;"><span style="top:-3.69em;"><span class="pstrut" style="height:3.008em;"></span><span class="mord"><span class="mord mathnormal">n</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">≥</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mord mathnormal" style="margin-right:0.03148em;">k</span></span></span><span style="top:-2.25em;"><span class="pstrut" style="height:3.008em;"></span><span class="mord"><span class="mord mathnormal">n</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">&lt;</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mord mathnormal" style="margin-right:0.03148em;">k</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.19em;"><span></span></span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span></li>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>B</mi><mi>n</mi></msub><mo>=</mo><mfrac><mn>1</mn><mi>θ</mi></mfrac><mo stretchy="false">(</mo><mn>2</mn><mi>n</mi><mo>+</mo><mn>1</mn><mo stretchy="false">)</mo><mo stretchy="false">(</mo><mo>−</mo><mn>1</mn><msup><mo stretchy="false">)</mo><mi>n</mi></msup></mrow><annotation encoding="application/x-tex">B_n=\frac{1}{\theta}(2n+1)(-1)^n</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.05017em;">B</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:-0.05017em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">n</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:1.190108em;vertical-align:-0.345em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.845108em;"><span style="top:-2.6550000000000002em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.02778em;">θ</span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.394em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.345em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mopen">(</span><span class="mord">2</span><span class="mord mathnormal">n</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">1</span><span class="mclose">)</span><span class="mopen">(</span><span class="mord">−</span><span class="mord">1</span><span class="mclose"><span class="mclose">)</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.664392em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">n</span></span></span></span></span></span></span></span></span></span></span></li>
+</ul>
+</li>
+<li><code>LegS</code> 使用 <strong>缩放</strong> 的勒让德多项式，记忆全部时刻的序列内容
+<ul>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>A</mi><mrow><mi>n</mi><mi>k</mi></mrow></msub><mo>=</mo><mfrac><mn>1</mn><mi>θ</mi></mfrac><mrow><mo fence="true">{</mo><mtable rowspacing="0.3599999999999999em" columnalign="left left" columnspacing="1em"><mtr><mtd><mstyle scriptlevel="0" displaystyle="false"><mrow><mo stretchy="false">(</mo><mn>2</mn><mi>n</mi><mo>+</mo><mn>1</mn><msup><mo stretchy="false">)</mo><mfrac><mn>1</mn><mn>2</mn></mfrac></msup><mo stretchy="false">(</mo><mn>2</mn><mi>k</mi><mo>+</mo><mn>1</mn><msup><mo stretchy="false">)</mo><mfrac><mn>1</mn><mn>2</mn></mfrac></msup></mrow></mstyle></mtd><mtd><mstyle scriptlevel="0" displaystyle="false"><mrow><mi>i</mi><mi>f</mi></mrow></mstyle></mtd><mtd><mstyle scriptlevel="0" displaystyle="false"><mrow><mi>n</mi><mo>&gt;</mo><mi>k</mi></mrow></mstyle></mtd></mtr><mtr><mtd><mstyle scriptlevel="0" displaystyle="false"><mrow><mi>n</mi><mo>+</mo><mn>1</mn></mrow></mstyle></mtd><mtd><mstyle scriptlevel="0" displaystyle="false"><mrow><mi>i</mi><mi>f</mi></mrow></mstyle></mtd><mtd><mstyle scriptlevel="0" displaystyle="false"><mrow><mi>n</mi><mo>=</mo><mi>k</mi></mrow></mstyle></mtd></mtr><mtr><mtd><mstyle scriptlevel="0" displaystyle="false"><mn>0</mn></mstyle></mtd><mtd><mstyle scriptlevel="0" displaystyle="false"><mrow><mi>i</mi><mi>f</mi></mrow></mstyle></mtd><mtd><mstyle scriptlevel="0" displaystyle="false"><mrow><mi>n</mi><mo>&lt;</mo><mi>k</mi></mrow></mstyle></mtd></mtr></mtable></mrow></mrow><annotation encoding="application/x-tex">A_{nk}=\frac{1}{\theta}
+\begin{cases}
+(2n+1)^{\frac{1}{2}}(2k+1)^{\frac{1}{2}} &amp; if &amp; n\gt k\\
+n+1 &amp; if &amp; n = k\\
+0 &amp; if &amp; n &lt; k
+\end{cases}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">A</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.33610799999999996em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">n</span><span class="mord mathnormal mtight" style="margin-right:0.03148em;">k</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:4.32em;vertical-align:-1.9099999999999997em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.845108em;"><span style="top:-2.6550000000000002em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.02778em;">θ</span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.394em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.345em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="minner"><span class="mopen"><span class="delimsizing mult"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:2.35002em;"><span style="top:-2.19999em;"><span class="pstrut" style="height:3.15em;"></span><span class="delimsizinginner delim-size4"><span>⎩</span></span></span><span style="top:-2.19499em;"><span class="pstrut" style="height:3.15em;"></span><span class="delimsizinginner delim-size4"><span>⎪</span></span></span><span style="top:-2.20499em;"><span class="pstrut" style="height:3.15em;"></span><span class="delimsizinginner delim-size4"><span>⎪</span></span></span><span style="top:-3.15001em;"><span class="pstrut" style="height:3.15em;"></span><span class="delimsizinginner delim-size4"><span>⎨</span></span></span><span style="top:-4.2950099999999996em;"><span class="pstrut" style="height:3.15em;"></span><span class="delimsizinginner delim-size4"><span>⎪</span></span></span><span style="top:-4.30501em;"><span class="pstrut" style="height:3.15em;"></span><span class="delimsizinginner delim-size4"><span>⎪</span></span></span><span style="top:-4.60002em;"><span class="pstrut" style="height:3.15em;"></span><span class="delimsizinginner delim-size4"><span>⎧</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.8500199999999998em;"><span></span></span></span></span></span></span><span class="mord"><span class="mtable"><span class="col-align-l"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:2.41em;"><span style="top:-4.41em;"><span class="pstrut" style="height:3.008em;"></span><span class="mord"><span class="mopen">(</span><span class="mord">2</span><span class="mord mathnormal">n</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mord">1</span><span class="mclose"><span class="mclose">)</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.9540200000000001em;"><span style="top:-3.363em;margin-right:0.05em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mopen nulldelimiter sizing reset-size3 size6"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.8443142857142858em;"><span style="top:-2.656em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mtight">2</span></span></span></span><span style="top:-3.2255000000000003em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line mtight" style="border-bottom-width:0.049em;"></span></span><span style="top:-3.384em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.344em;"><span></span></span></span></span></span><span class="mclose nulldelimiter sizing reset-size3 size6"></span></span></span></span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord">2</span><span class="mord mathnormal" style="margin-right:0.03148em;">k</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mord">1</span><span class="mclose"><span class="mclose">)</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.9540200000000001em;"><span style="top:-3.363em;margin-right:0.05em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mopen nulldelimiter sizing reset-size3 size6"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.8443142857142858em;"><span style="top:-2.656em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mtight">2</span></span></span></span><span style="top:-3.2255000000000003em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line mtight" style="border-bottom-width:0.049em;"></span></span><span style="top:-3.384em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.344em;"><span></span></span></span></span></span><span class="mclose nulldelimiter sizing reset-size3 size6"></span></span></span></span></span></span></span></span></span></span></span></span><span style="top:-2.97em;"><span class="pstrut" style="height:3.008em;"></span><span class="mord"><span class="mord mathnormal">n</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mord">1</span></span></span><span style="top:-1.5300000000000002em;"><span class="pstrut" style="height:3.008em;"></span><span class="mord"><span class="mord">0</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.9099999999999997em;"><span></span></span></span></span></span><span class="arraycolsep" style="width:1em;"></span><span class="col-align-l"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:2.41em;"><span style="top:-4.41em;"><span class="pstrut" style="height:3.008em;"></span><span class="mord"><span class="mord mathnormal">i</span><span class="mord mathnormal" style="margin-right:0.10764em;">f</span></span></span><span style="top:-2.97em;"><span class="pstrut" style="height:3.008em;"></span><span class="mord"><span class="mord mathnormal">i</span><span class="mord mathnormal" style="margin-right:0.10764em;">f</span></span></span><span style="top:-1.5300000000000002em;"><span class="pstrut" style="height:3.008em;"></span><span class="mord"><span class="mord mathnormal">i</span><span class="mord mathnormal" style="margin-right:0.10764em;">f</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.9099999999999997em;"><span></span></span></span></span></span><span class="arraycolsep" style="width:0.5em;"></span><span class="col-align-c"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:2.41em;"><span style="top:-4.41em;"><span class="pstrut" style="height:3.008em;"></span><span class="mord"><span class="mord mathnormal">n</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">&gt;</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mord mathnormal" style="margin-right:0.03148em;">k</span></span></span><span style="top:-2.97em;"><span class="pstrut" style="height:3.008em;"></span><span class="mord"><span class="mord mathnormal">n</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mord mathnormal" style="margin-right:0.03148em;">k</span></span></span><span style="top:-1.5300000000000002em;"><span class="pstrut" style="height:3.008em;"></span><span class="mord"><span class="mord mathnormal">n</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">&lt;</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mord mathnormal" style="margin-right:0.03148em;">k</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.9099999999999997em;"><span></span></span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span></li>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>B</mi><mi>n</mi></msub><mo>=</mo><mo stretchy="false">(</mo><mn>2</mn><mi>n</mi><mo>+</mo><mn>1</mn><msup><mo stretchy="false">)</mo><mfrac><mn>1</mn><mn>2</mn></mfrac></msup></mrow><annotation encoding="application/x-tex">B_n=(2n+1)^{\frac{1}{2}}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.05017em;">B</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:-0.05017em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">n</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">(</span><span class="mord">2</span><span class="mord mathnormal">n</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:1.20402em;vertical-align:-0.25em;"></span><span class="mord">1</span><span class="mclose"><span class="mclose">)</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.9540200000000001em;"><span style="top:-3.363em;margin-right:0.05em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mopen nulldelimiter sizing reset-size3 size6"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.8443142857142858em;"><span style="top:-2.656em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mtight">2</span></span></span></span><span style="top:-3.2255000000000003em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line mtight" style="border-bottom-width:0.049em;"></span></span><span style="top:-3.384em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.344em;"><span></span></span></span></span></span><span class="mclose nulldelimiter sizing reset-size3 size6"></span></span></span></span></span></span></span></span></span></span></span></span></span></li>
+</ul>
+</li>
+</ul>
+</li>
+<li>以 <code>Permute Mnist</code> 分类任务的例子讲解 <code>HiPPO</code> 如何作为 <code>RNN</code> 的单元参与计算，以及<code>HiPPO</code> 的记忆单元如何更新</li>
+<li><code>Permute Mnist</code> 任务是将 <code>28x28</code> 的 <code>Mnist</code> 图像的每一类按照同一种 <code>pattern</code> 进行 <code>shuffle</code>，训练并分类</li>
+<li>下图为使用 <code>HiPPO</code> 作为记忆单元的 <code>RNN</code> 网络解决 <code>Permute Mnist</code> 任务的计算过程，<code>input_t</code> 是每次顺序输入图片的一个像素值，是一个时间步总长为 <code>28 * 28 = 784</code> 的 <code>RNN</code> 网络，最后一个 <code>hidden state</code> 输出映射到 <code>class dim</code> 上进行分类</li>
+</ul>
+<pre class="mermaid">graph TD
+    subgraph input;
+    input_t([input_t]);
+    h_t;
+    end;
+    subgraph fully_connect;
+    W_hxm;
+    W_gxm;
+    W_uxh;
+    end;
+    input_t([input_t])-->|1|Concat_1[Concat];
+    h_t([h_t])-->|512|Concat_1-->|513|W_uxh-->|1|u_t([u_t]);
+    subgraph update_memory;
+    A([A])-->|max_length, 512, 512|get_index_A[get_index]-->|512, 512|A_t;
+    timestep([timestep])-->get_index_A;
+    A_t([A_t])-->|512, 512|MatMul_A[MatMul];
+    m_t([m_t])-->|1, 512|MatMul_A-->|1, 512|Add;
+    m_t([m_t])-->|1, 512|Add;
+    B([B])-->|max_length, 512|get_index_B[get_index]-->|512, 1|B_t;
+    timestep([timestep])-->get_index_B;
+    B_t([B_t])-->|512, 1|MatMul_B[MatMul];
+    u_t([u_t])-->|1|MatMul_B-->|1, 512|Add-->|1, 512|m_t+1([m_t+1]);
+    end;
+    m_t+1-->|512|Concat_2;
+    input_t-->|1|Concat_2[Concat]-->|513|W_hxm-->|512|Tanh-->|512|hidden([hidden]);
+    Concat_2-->|513|W_gxm-->|512|gate([gate]);
+    h_t-->|512|Alpha_Blending-->|512|h_t+1([h_t+1])-->|512|until_last_h{until_last_h};
+    hidden-->|512|Alpha_Blending;
+    gate-->|512|Alpha_Blending;
+    subgraph output;
+    until_last_h-->|512|map_to_class_dim-->|10|classification_result([classification_result]);
+    end;</pre>
+<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
+<ul>
+<li><code>LegT</code> 和 <code>LegS</code> 的参数计算过程需要较强的数学功底才能完全理解</li>
+<li>如果只把 <code>A</code> 和 <code>B</code> 当做 <strong>万能的不需要梯度下降更新的神经网络记忆力更新参数</strong>，那么实际上并不复杂</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/06/03/T5-Exploring-the-Limits-of-Transfer-Learning-with-a-Unified-Text-to-Text-Transformer/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -3600,143 +3774,6 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2023/07/29/MOTR-End-to-End-Multiple-Object-Tracking-with-Transformer/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/07/29/MOTR-End-to-End-Multiple-Object-Tracking-with-Transformer/" class="post-title-link" itemprop="url">MOTR: End-to-End Multiple-Object Tracking with Transformer</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-07-29 19:12:12" itemprop="dateCreated datePublished" datetime="2023-07-29T19:12:12+08:00">2023-07-29</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-10-08 16:11:14" itemprop="dateModified" datetime="2024-10-08T16:11:14+08:00">2024-10-08</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Transformer/" itemprop="url" rel="index"><span itemprop="name">Transformer</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2023/07/29/MOTR-End-to-End-Multiple-Object-Tracking-with-Transformer/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2023/07/29/MOTR-End-to-End-Multiple-Object-Tracking-with-Transformer/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
-<ul>
-<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2105.03247.pdf">https://arxiv.org/pdf/2105.03247.pdf</a></li>
-<li>code: <a target="_blank" rel="noopener" href="https://github.com/megvii-research/MOTR">https://github.com/megvii-research/MOTR</a></li>
-</ul>
-<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
-<ul>
-<li>提出了一个完全端到端的多目标跟踪框架</li>
-<li>将多目标跟踪问题形式化为一组序列预测问题</li>
-<li>引入了跟踪感知的标签分配</li>
-<li>提出了用于时间建模的集体平均损失和时间聚合网络方法</li>
-</ul>
-<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
-<h3 id="motr-整体流程"><a class="markdownIt-Anchor" href="#motr-整体流程"></a> MOTR 整体流程</h3>
-<p><img src="https://s2.loli.net/2023/07/29/d6goYqmnSGXVOW8.png" alt="MOTR.png" /></p>
-<ol>
-<li><strong>特征提取</strong>：用 <code>CNN backbone</code> 提取连续帧中每一帧的特征（上图中的 <code>Enc</code>）</li>
-<li><strong>查询生成</strong>：用 <code>Deformable Transformer</code> 对第一步提取的特征进行查询（上图中的 <code>Dec</code>）
-<ul>
-<li>对于视频第一帧，只解码 <code>object detection query</code> （上图中的 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>q</mi><mi>d</mi></msub></mrow><annotation encoding="application/x-tex">q_d</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.625em;vertical-align:-0.19444em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.03588em;">q</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.33610799999999996em;"><span style="top:-2.5500000000000003em;margin-left:-0.03588em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">d</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> ）得到 <code>hidden state</code></li>
-<li>对于非第一帧，将 <code>object detection query</code> （上图中的 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>q</mi><mi>d</mi></msub></mrow><annotation encoding="application/x-tex">q_d</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.625em;vertical-align:-0.19444em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.03588em;">q</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.33610799999999996em;"><span style="top:-2.5500000000000003em;margin-left:-0.03588em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">d</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> ）和上一帧的 <code>tracking query</code> （上图中的 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>q</mi><mrow><mi>t</mi><mi>r</mi></mrow></msub></mrow><annotation encoding="application/x-tex">q_{tr}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.625em;vertical-align:-0.19444em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.03588em;">q</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2805559999999999em;"><span style="top:-2.5500000000000003em;margin-left:-0.03588em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">t</span><span class="mord mathnormal mtight" style="margin-right:0.02778em;">r</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> ）先 <code>concat</code> 再进行解码得到 <code>hidden state</code></li>
-</ul>
-</li>
-<li><strong>预测结果生成</strong>：用一个简单的结构将上一步得到的 <code>hidden state</code> 映射到任务空间，预测结果包含 <code>object detection results</code> 和 <code>tracking results</code></li>
-<li><strong>得到下一帧的 tracking query</strong>：用 <code>QIM (Query Interaction Module, 查询交互模块)</code> 将上一步得到的预测结果映射为下一帧的 <code>tracking query</code></li>
-<li><strong>计算损失 / 输出预测结果</strong>：对于训练，计算集体平均损失（<code>CAL, Collective Average Loss</code>）;对于预测，直接输出第 3 步得到的结果</li>
-</ol>
-<ul>
-<li>描述 <code>MOTR</code> 过程的伪代码</li>
-</ul>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">process_frame</span>(<span class="params">frame, detect_queries, track_queries=<span class="literal">None</span>, ground_truths=<span class="literal">None</span></span>):</span></span><br><span class="line">    <span class="comment"># 使用CNN提取帧特征</span></span><br><span class="line">    <span class="comment"># frame shape: (height, width, channels)</span></span><br><span class="line">    frame_features = extract_frame_features(frame)  <span class="comment"># Shape: (height, width, channels)</span></span><br><span class="line">    <span class="keyword">if</span> track_queries <span class="keyword">is</span> <span class="literal">None</span>:</span><br><span class="line">        <span class="comment"># 使用Deformable DETR解码器生成隐藏状态</span></span><br><span class="line">        <span class="comment"># detect_queries shape: (num_queries, query_dim)</span></span><br><span class="line">        <span class="comment"># frame_features shape: (height, width, channels)</span></span><br><span class="line">        hidden_states = deformable_detr_decoder(detect_queries, frame_features)  <span class="comment"># Shape: (num_queries, hidden_dim)</span></span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        queries = concatenate(track_queries, detect_queries)  <span class="comment"># Shape: (num_queries + num_tracks, query_dim)</span></span><br><span class="line">        hidden_states = deformable_detr_decoder(queries, frame_features)  <span class="comment"># Shape: (num_queries + num_tracks, hidden_dim)</span></span><br><span class="line">    <span class="comment"># 生成预测</span></span><br><span class="line">    <span class="comment"># hidden_states shape: (num_queries, hidden_dim)</span></span><br><span class="line">    predictions = predict(hidden_states)  <span class="comment"># Shape: (num_queries + num_tracks, num_classes + 4)</span></span><br><span class="line">    <span class="comment"># 使用Query Interaction Module (QIM)生成下一帧的跟踪查询</span></span><br><span class="line">    <span class="comment"># hidden_states shape: (num_queries, hidden_dim)</span></span><br><span class="line">    track_queries = qim(hidden_states)  <span class="comment"># Shape: (num_tracks, query_dim)</span></span><br><span class="line">    <span class="keyword">if</span> ground_truths <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span>:</span><br><span class="line">        <span class="comment"># 使用Collective Average Loss (CAL)进行训练</span></span><br><span class="line">        <span class="comment"># predictions shape: (num_queries, num_classes + 4)</span></span><br><span class="line">        <span class="comment"># ground_truths shape: (num_objects, num_classes + 4)</span></span><br><span class="line">        loss = cal(predictions, ground_truths)</span><br><span class="line">        backpropagate(loss)</span><br><span class="line">    <span class="keyword">return</span> predictions, track_queries  <span class="comment"># Shape: (num_queries + num_tracks, num_classes + 4), (num_tracks, query_dim)</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">process_video</span>(<span class="params">video, ground_truths=<span class="literal">None</span></span>):</span></span><br><span class="line">    <span class="comment"># 初始化检测查询</span></span><br><span class="line">    <span class="comment"># 返回形状：(num_queries, query_dim)</span></span><br><span class="line">    detect_queries = initialize_detect_queries()  </span><br><span class="line">    track_queries = <span class="literal">None</span>  <span class="comment"># Shape: (num_tracks, query_dim)</span></span><br><span class="line">    <span class="keyword">for</span> frame <span class="keyword">in</span> video:</span><br><span class="line">        predictions, track_queries = process_frame(frame, detect_queries, track_queries, ground_truths)</span><br><span class="line">        <span class="keyword">if</span> ground_truths <span class="keyword">is</span> <span class="literal">None</span>:</span><br><span class="line">            <span class="keyword">yield</span> predictions</span><br></pre></td></tr></table></figure>
-<h3 id="查询交互模块"><a class="markdownIt-Anchor" href="#查询交互模块"></a> 查询交互模块</h3>
-<ul>
-<li>查询交互模块 <code>Query Interaction Module (QIM)</code> 是 <code>MOTR</code> 中的一个关键组件，它负责处理物体的进入和退出，以及增强长期的时间关系建模</li>
-<li><code>QIM</code> 的输入是当前帧预测的 <code>detection result</code> 和 <code>tracking result</code>，输出是下一帧的 <code>tacking query</code></li>
-<li>通俗来说，<code>QIM</code> 是根据当前帧预测的结果，给出下一帧的 “提问”</li>
-<li><code>QIM</code> 过程的伪代码</li>
-</ul>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">query_interaction_module</span>(<span class="params">hidden_states, scores, tau_en, tau_ex, M</span>):</span></span><br><span class="line">    <span class="comment"># hidden_states shape: (num_queries, hidden_dim)</span></span><br><span class="line">    <span class="comment"># scores shape: (num_queries, num_classes)</span></span><br><span class="line">    <span class="comment"># tau_en, tau_ex: entrance and exit thresholds</span></span><br><span class="line">    <span class="comment"># M: number of consecutive frames for exit threshold</span></span><br><span class="line">    <span class="comment"># Object Entrance</span></span><br><span class="line">    entrance_mask = scores.<span class="built_in">max</span>(dim=<span class="number">1</span>) &gt; tau_en  <span class="comment"># Shape: (num_queries,)</span></span><br><span class="line">    hidden_states = hidden_states[entrance_mask]  <span class="comment"># Shape: (num_entrance_queries, hidden_dim)</span></span><br><span class="line">    <span class="comment"># Temporal Aggregation Network (TAN)，主要目的是融合时序信息，本文是用了一个 Multi-Head Self-Attention 实现</span></span><br><span class="line">    hidden_states = temporal_aggregation_network(hidden_states)  <span class="comment"># Shape: (num_entrance_queries, hidden_dim)</span></span><br><span class="line">    <span class="comment"># Object Exit</span></span><br><span class="line">    exit_mask = scores.<span class="built_in">max</span>(dim=<span class="number">1</span>) &lt; tau_ex  <span class="comment"># Shape: (num_entrance_queries,)</span></span><br><span class="line">    exit_mask = exit_mask.rolling(window=M).<span class="built_in">sum</span>() &gt; <span class="number">0</span>  <span class="comment"># Shape: (num_entrance_queries,)</span></span><br><span class="line">    hidden_states = hidden_states[~exit_mask]  <span class="comment"># Shape: (num_track_queries, hidden_dim)</span></span><br><span class="line">    <span class="keyword">return</span> hidden_states  <span class="comment"># Shape: (num_track_queries, hidden_dim)</span></span><br></pre></td></tr></table></figure>
-<h3 id="集体平均损失"><a class="markdownIt-Anchor" href="#集体平均损失"></a> 集体平均损失</h3>
-<ul>
-<li>集体平均损失（Collective Average Loss，CAL）是 <code>MOTR</code> 算法中用于训练的损失函数。不同于传统的逐帧计算损失，<code>CAL</code> 收集整个视频剪辑的所有预测，然后基于整个视频剪辑计算总体损失</li>
-<li>集体平均损失的代码描述</li>
-</ul>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">collective_average_loss</span>(<span class="params">predictions, ground_truths, matching_results</span>):</span></span><br><span class="line">    total_loss = <span class="number">0</span></span><br><span class="line">    total_objects = <span class="number">0</span></span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="built_in">len</span>(predictions)):</span><br><span class="line">        pred_tracked = predictions[i][<span class="string">&#x27;tracked&#x27;</span>]</span><br><span class="line">        pred_detected = predictions[i][<span class="string">&#x27;detected&#x27;</span>]</span><br><span class="line">        gt_tracked = ground_truths[i][<span class="string">&#x27;tracked&#x27;</span>]</span><br><span class="line">        gt_detected = ground_truths[i][<span class="string">&#x27;detected&#x27;</span>]</span><br><span class="line">        match_tracked = matching_results[i][<span class="string">&#x27;tracked&#x27;</span>]</span><br><span class="line">        match_detected = matching_results[i][<span class="string">&#x27;detected&#x27;</span>]</span><br><span class="line">        total_loss += single_frame_loss(pred_tracked, match_tracked, gt_tracked)</span><br><span class="line">        total_loss += single_frame_loss(pred_detected, match_detected, gt_detected)</span><br><span class="line">        total_objects += <span class="built_in">len</span>(gt_tracked) + <span class="built_in">len</span>(gt_detected)</span><br><span class="line">    <span class="keyword">return</span> total_loss / total_objects</span><br></pre></td></tr></table></figure>
-<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
-<ul>
-<li>以一种非常优雅的方式解决了端到端多目标追踪的任务，打破了之前 <code>NN detection + Hard logic code tracking</code> 的 <code>tracking</code> 范式</li>
-<li>这种非黑盒的（显式监督 <code>detecion bbox</code>）复杂任务端到端训练，启发了后续的许多更复杂的端到端任务，例如 <code>UniAD</code></li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -3805,14 +3842,14 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">128</span>
+          <span class="site-state-item-count">129</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">41</span>
+        <span class="site-state-item-count">42</span>
         <span class="site-state-item-name">categories</span></a>
       </div>
       <div class="site-state-item site-state-tags">
