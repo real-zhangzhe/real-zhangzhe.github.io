@@ -180,6 +180,166 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/08/15/SpecInfer-Accelerating-Large-Language-Model-Serving-with-Tree-based-Speculative-Inference-and-Verification/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2024/08/15/SpecInfer-Accelerating-Large-Language-Model-Serving-with-Tree-based-Speculative-Inference-and-Verification/" class="post-title-link" itemprop="url">SpecInfer: Accelerating Large Language Model Serving with Tree-based Speculative Inference and Verification</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-08-15 12:25:11" itemprop="dateCreated datePublished" datetime="2024-08-15T12:25:11+08:00">2024-08-15</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-10-08 16:11:14" itemprop="dateModified" datetime="2024-10-08T16:11:14+08:00">2024-10-08</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/LLM/" itemprop="url" rel="index"><span itemprop="name">LLM</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2024/08/15/SpecInfer-Accelerating-Large-Language-Model-Serving-with-Tree-based-Speculative-Inference-and-Verification/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2024/08/15/SpecInfer-Accelerating-Large-Language-Model-Serving-with-Tree-based-Speculative-Inference-and-Verification/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2305.09781">https://arxiv.org/pdf/2305.09781</a></li>
+<li>code: <a target="_blank" rel="noopener" href="https://github.com/flexflow/FlexFlow/">https://github.com/flexflow/FlexFlow/</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li>本文利用了 <code>Speculative decoding</code> 思想实现了一个 <code>SpecInfer</code> 大语言模型推理加速系统</li>
+<li>和标准 <code>Speculative decoding</code> 使用 <code>seq</code> 组织预测的 <code>token</code> 不同，<code>SpecInfer</code> 使用 <code>tree</code> 数据结构组织预测的 <code>token</code></li>
+<li><code>SpecInfer</code> 中的 <code>target</code> 模型可以并行验证整个 <code>token tree</code> 的正确性，而不是 <code>token seq</code>，且可以保证和原模型输出完全一致</li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<h3 id="增量式解码-序列式投机解码-树式投机解码三者对比"><a class="markdownIt-Anchor" href="#增量式解码-序列式投机解码-树式投机解码三者对比"></a> 增量式解码、序列式投机解码、树式投机解码三者对比</h3>
+<p><img src="https://s2.loli.net/2024/08/15/98NPOk4gMia1dIy.png" alt="specinfer_1.png" /></p>
+<blockquote>
+<p>左图表示传统增量式推理 <code>LLM</code> 的解码方式<br />
+右图从上到下依次表示：增量式解码、序列式投机解码、树式投机解码</p>
+</blockquote>
+<h3 id="候选树生成和验证流程"><a class="markdownIt-Anchor" href="#候选树生成和验证流程"></a> 候选树生成和验证流程</h3>
+<p><img src="https://s2.loli.net/2024/08/15/eW9VJYnQv6bcuMA.png" alt="specinfer_2.png" /></p>
+<blockquote>
+<p><code>SSM (small speculative model)</code> 给出候选树<br />
+<code>target model</code> 对候选树进行验证</p>
+</blockquote>
+<h3 id="如何对树式结构并行解码"><a class="markdownIt-Anchor" href="#如何对树式结构并行解码"></a> 如何对树式结构并行解码</h3>
+<p><img src="https://s2.loli.net/2024/08/16/caHNM5xfVn2ZrPq.png" alt="specinfer_3.png" /></p>
+<blockquote>
+<p><strong>注意：这的 “并行” 是指可以一次解码一棵树而不需要将树深度优先搜索得到多组序列然后一一解码</strong></p>
+</blockquote>
+<ol>
+<li>使用 <code>kv cache</code> 对解码过程进行加速是一个常见的方法，但树式结构无法直接使用 <code>kv cache</code>（因为要动态剪枝，如图左侧所示）</li>
+<li>因此本文提出一种新颖的方法使得树式结构可以并行解码，这个方法包括两个改进：
+<ol>
+<li>对树进行 <strong>深度优先搜索</strong>，使得树变成一个序列</li>
+<li>将传统的上三角 <code>attention mask</code> 变成一个 <code>topology-aware mask</code>，即通过 <code>mask</code> 来确定 <code>token</code> 两两之间的可见性（如图右侧所示），这种可见性包含：
+<ol>
+<li>每个 <code>token</code> 看不到之后的 <code>token</code>（矩阵下三角置 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mi mathvariant="normal">∞</mi></mrow><annotation encoding="application/x-tex">-\infty</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.66666em;vertical-align:-0.08333em;"></span><span class="mord">−</span><span class="mord">∞</span></span></span></span>）</li>
+<li>每个 <code>token</code> 看不到不在其拓扑路径上的 <code>token</code></li>
+</ol>
+</li>
+</ol>
+</li>
+</ol>
+<h3 id="总体算法流程"><a class="markdownIt-Anchor" href="#总体算法流程"></a> 总体算法流程</h3>
+<p><img src="https://s2.loli.net/2024/08/19/sOeLxDdgVC3QH4R.png" alt="specinfer_4.png" /></p>
+<ol>
+<li>先用 <code>small speculate model</code> 推理 <code>sequence</code> 得到候选树 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>N</mi></mrow><annotation encoding="application/x-tex">N</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span></span></span></span></li>
+<li>在使用 <code>LLM</code> 树式并行解码 <code>sequence</code> 得到大模型预测结果 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi></mrow><annotation encoding="application/x-tex">O</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord mathnormal" style="margin-right:0.02778em;">O</span></span></span></span></li>
+<li>用贪心算法或随机匹配算法对候选树 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>N</mi></mrow><annotation encoding="application/x-tex">N</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span></span></span></span> 逐个节点验证（接受或拒绝）</li>
+<li>重复直到 <code>&lt;EOS&gt;</code> 出现</li>
+</ol>
+<h3 id="贪心验证算法和随机验证算法"><a class="markdownIt-Anchor" href="#贪心验证算法和随机验证算法"></a> 贪心验证算法和随机验证算法</h3>
+<p><img src="https://s2.loli.net/2024/08/19/xTEuNg3K6irh4Rz.png" alt="specinfer_5.png" /></p>
+<ul>
+<li>这里的两种算法和 <a target="_blank" rel="noopener" href="https://zhangzhe.space/2024/08/14/Fast-Inference-from-Transformers-via-Speculative-Decoding/">https://zhangzhe.space/2024/08/14/Fast-Inference-from-Transformers-via-Speculative-Decoding/</a> 里的流程基本一致，不一样的地方仅仅在于 <code>tree / sequence</code> 两种候选 <code>token</code> 的组织形式</li>
+</ul>
+<h4 id="贪心验证"><a class="markdownIt-Anchor" href="#贪心验证"></a> 贪心验证</h4>
+<ol>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>u</mi></mrow><annotation encoding="application/x-tex">u</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathnormal">u</span></span></span></span> 表示当前节点，从根节点开始广度优先遍历</li>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>p</mi><mi>v</mi></msub><mo>=</mo><mi>u</mi></mrow><annotation encoding="application/x-tex">p_v=u</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.625em;vertical-align:-0.19444em;"></span><span class="mord"><span class="mord mathnormal">p</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.03588em;">v</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathnormal">u</span></span></span></span> 表示 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>v</mi></mrow><annotation encoding="application/x-tex">v</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathnormal" style="margin-right:0.03588em;">v</span></span></span></span> 是 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>u</mi></mrow><annotation encoding="application/x-tex">u</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathnormal">u</span></span></span></span> 的子节点</li>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>t</mi><mi>v</mi></msub><mo>=</mo><mi>O</mi><mo stretchy="false">(</mo><mi>u</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">t_v=O(u)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.76508em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">t</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.03588em;">v</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.02778em;">O</span><span class="mopen">(</span><span class="mord mathnormal">u</span><span class="mclose">)</span></span></span></span> 表示大模型和投机模型预测结果一致</li>
+</ol>
+<h4 id="随机验证"><a class="markdownIt-Anchor" href="#随机验证"></a> 随机验证</h4>
+<ol>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>u</mi></mrow><annotation encoding="application/x-tex">u</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathnormal">u</span></span></span></span> 表示当前节点，从根节点开始广度优先遍历</li>
+<li>当在 <code>[0, 1]</code> 之间随机均匀采样得到的随机数 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>r</mi><mo>&lt;</mo><mfrac><msub><mi>P</mi><mrow><mi>L</mi><mi>L</mi><mi>M</mi></mrow></msub><msub><mi>P</mi><mrow><mi>S</mi><mi>S</mi><mi>M</mi></mrow></msub></mfrac></mrow><annotation encoding="application/x-tex">r \lt \frac{P_{LLM}}{P_{SSM}}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.5782em;vertical-align:-0.0391em;"></span><span class="mord mathnormal" style="margin-right:0.02778em;">r</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">&lt;</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:1.3339409999999998em;vertical-align:-0.44530499999999995em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.8886359999999999em;"><span style="top:-2.6550000000000002em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.13889em;">P</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3448em;"><span style="top:-2.3567071428571427em;margin-left:-0.13889em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.05764em;">S</span><span class="mord mathnormal mtight" style="margin-right:0.05764em;">S</span><span class="mord mathnormal mtight" style="margin-right:0.10903em;">M</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.14329285714285717em;"><span></span></span></span></span></span></span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.410305em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.13889em;">P</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3448em;"><span style="top:-2.3567071428571427em;margin-left:-0.13889em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">L</span><span class="mord mathnormal mtight">L</span><span class="mord mathnormal mtight" style="margin-right:0.10903em;">M</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.14329285714285717em;"><span></span></span></span></span></span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.44530499999999995em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span> 时，接受这个节点，否则拒绝</li>
+</ol>
+<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
+<ul>
+<li>这篇论文站在 <a target="_blank" rel="noopener" href="https://zhangzhe.space/2024/08/14/Fast-Inference-from-Transformers-via-Speculative-Decoding/"><code>speculate decoding</code></a> 的肩膀上，加入了树结构的候选列表，算是 <code>speculate decoding</code> 的超集</li>
+<li><code>topology-aware mask</code> 和 <code>decoder attention mask</code> 结合的方法还是挺巧妙的</li>
+<li>由于是树结构存储候选词，那么多个 <code>SSM</code> 是天然适配的，算是个工程角度很好用的 <code>trick</code></li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/08/14/Fast-Inference-from-Transformers-via-Speculative-Decoding/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1359,112 +1519,10 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/07/11/MQA-Multi-Query-Attention/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2024/07/11/MQA-Multi-Query-Attention/" class="post-title-link" itemprop="url">MQA: Multi-Query Attention</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-07-11 13:24:35" itemprop="dateCreated datePublished" datetime="2024-07-11T13:24:35+08:00">2024-07-11</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-10-15 16:44:04" itemprop="dateModified" datetime="2024-10-15T16:44:04+08:00">2024-10-15</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Transformer/" itemprop="url" rel="index"><span itemprop="name">Transformer</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2024/07/11/MQA-Multi-Query-Attention/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2024/07/11/MQA-Multi-Query-Attention/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
-<ul>
-<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/1911.02150">https://arxiv.org/pdf/1911.02150</a></li>
-</ul>
-<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
-<ul>
-<li>本质很简单，就是把标准的 <code>Multi-Head Attention</code> 中的 <code>Key</code> 和 <code>Value</code> 退化为 <code>Single-Head</code>，<code>Query</code> 保留 <code>Multi-Head</code></li>
-<li>目的是 <strong>降低 <code>Attention</code> 过程内存带宽成本</strong>，并没有降低计算复杂度，计算复杂度依然是 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="script">O</mi><mo stretchy="false">(</mo><msup><mi>n</mi><mn>2</mn></msup><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\mathcal{O}(n^2)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.064108em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathcal" style="margin-right:0.02778em;">O</span></span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">n</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141079999999999em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span></li>
-</ul>
-<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> torch</span><br><span class="line"><span class="keyword">import</span> torch.nn.functional <span class="keyword">as</span> F</span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">multiquery_attention_batched</span>(<span class="params">X, M, mask, P_q, P_k, P_v, P_o</span>):</span></span><br><span class="line">    <span class="comment"># b: batch size</span></span><br><span class="line">    <span class="comment"># n: number of querys</span></span><br><span class="line">    <span class="comment"># m: number of keys / values</span></span><br><span class="line">    <span class="comment"># d: input dimension</span></span><br><span class="line">    <span class="comment"># h: number of heads</span></span><br><span class="line">    <span class="comment"># k: key / query dimention</span></span><br><span class="line">    <span class="comment"># v: value dimention</span></span><br><span class="line">    <span class="comment"># 应用线性变换获取查询Q（multi-head）</span></span><br><span class="line">    Q = torch.einsum(<span class="string">&quot;bnd,hdk-&gt;bhkn&quot;</span>, X, P_q)</span><br><span class="line">    <span class="comment"># 应用线性变换获取键K和值V（single-head）</span></span><br><span class="line">    K = torch.einsum(<span class="string">&quot;bmd,dk-&gt;bmk&quot;</span>, M, P_k)</span><br><span class="line">    V = torch.einsum(<span class="string">&quot;bmd,dv-&gt;bmv&quot;</span>, M, P_v)</span><br><span class="line">    <span class="comment"># 计算注意力得分并应用掩码</span></span><br><span class="line">    logits = torch.einsum(<span class="string">&quot;bhkn,bmk-&gt;bhnm&quot;</span>, Q, K)</span><br><span class="line">    weights = F.softmax(logits + mask, dim=-<span class="number">1</span>)</span><br><span class="line">    <span class="comment"># 计算加权的值</span></span><br><span class="line">    O = torch.einsum(<span class="string">&quot;bhnm,bmv-&gt;bhnv&quot;</span>, weights, V)</span><br><span class="line">    <span class="comment"># 应用输出变换</span></span><br><span class="line">    Y = torch.einsum(<span class="string">&quot;bhnv,hvd-&gt;bnd&quot;</span>, O, P_o)</span><br><span class="line">    <span class="keyword">return</span> Y</span><br><span class="line"><span class="comment"># 假设参数和维度</span></span><br><span class="line">batch_size = <span class="number">2</span></span><br><span class="line">num_queries = <span class="number">5</span></span><br><span class="line">num_keys = <span class="number">7</span>    <span class="comment"># 同时也是 num_values</span></span><br><span class="line">dim = <span class="number">64</span></span><br><span class="line">key_dim = <span class="number">32</span>    <span class="comment"># 同时也是 query_dim</span></span><br><span class="line">value_dim = <span class="number">48</span></span><br><span class="line">num_heads = <span class="number">8</span></span><br><span class="line"><span class="comment"># 随机初始化输入数据和参数</span></span><br><span class="line">X = torch.randn(batch_size, num_queries, dim)</span><br><span class="line">M = torch.randn(batch_size, num_keys, dim)</span><br><span class="line">mask = torch.randn(batch_size, num_heads, num_queries, num_keys)</span><br><span class="line">P_q = torch.randn(num_heads, dim, key_dim)</span><br><span class="line">P_k = torch.randn(dim, key_dim)</span><br><span class="line">P_v = torch.randn(dim, value_dim)</span><br><span class="line">P_o = torch.randn(num_heads, value_dim, dim)</span><br><span class="line"><span class="comment"># 运行多查询注意力机制</span></span><br><span class="line">output = multiquery_attention_batched(X, M, mask, P_q, P_k, P_v, P_o)</span><br><span class="line"><span class="built_in">print</span>(output.shape)  <span class="comment"># 输出: torch.Size([2, 5, 64])</span></span><br></pre></td></tr></table></figure>
-<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
-<ul>
-<li>本质是标准 <code>Attention</code> 的部分 <code>multi-head</code> 化</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/3/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/3/">3</a><span class="page-number current">4</span><a class="page-number" href="/page/5/">5</a><span class="space">&hellip;</span><a class="page-number" href="/page/13/">13</a><a class="extend next" rel="next" href="/page/5/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
+    <a class="extend prev" rel="prev" href="/page/3/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/3/">3</a><span class="page-number current">4</span><a class="page-number" href="/page/5/">5</a><span class="space">&hellip;</span><a class="page-number" href="/page/14/">14</a><a class="extend next" rel="next" href="/page/5/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
   </nav>
 
 
@@ -1529,7 +1587,7 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">130</span>
+          <span class="site-state-item-count">131</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
