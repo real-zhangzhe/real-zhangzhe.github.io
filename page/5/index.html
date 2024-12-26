@@ -180,6 +180,109 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/07/12/GQA-Grouped-Query-Attention/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2024/07/12/GQA-Grouped-Query-Attention/" class="post-title-link" itemprop="url">GQA: Grouped-Query Attention</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-07-12 12:55:14" itemprop="dateCreated datePublished" datetime="2024-07-12T12:55:14+08:00">2024-07-12</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-10-15 16:44:27" itemprop="dateModified" datetime="2024-10-15T16:44:27+08:00">2024-10-15</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Transformer/" itemprop="url" rel="index"><span itemprop="name">Transformer</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2024/07/12/GQA-Grouped-Query-Attention/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2024/07/12/GQA-Grouped-Query-Attention/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2305.13245">https://arxiv.org/pdf/2305.13245</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li>本质是标准 <code>Multi-Head Attention</code> 和 <code>Multi-Query Attention</code> 的一个折衷。<br />
+<img src="https://s2.loli.net/2024/07/12/zPEebjTWqMphBVt.png" alt="GQA.png" /></li>
+<li>目的是 <strong>降低 <code>Attention</code> 过程内存带宽成本</strong>，并没有降低计算复杂度，计算复杂度依然是 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="script">O</mi><mo stretchy="false">(</mo><msup><mi>n</mi><mn>2</mn></msup><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\mathcal{O}(n^2)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.064108em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathcal" style="margin-right:0.02778em;">O</span></span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">n</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141079999999999em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span></li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> torch</span><br><span class="line"><span class="keyword">import</span> torch.nn.functional <span class="keyword">as</span> F</span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">multiquery_attention_batched</span>(<span class="params">X, M, mask, P_q, P_k, P_v, P_o, num_groups</span>):</span></span><br><span class="line">    <span class="comment"># b: batch size</span></span><br><span class="line">    <span class="comment"># n: number of querys</span></span><br><span class="line">    <span class="comment"># m: number of keys / values</span></span><br><span class="line">    <span class="comment"># d: input dimension</span></span><br><span class="line">    <span class="comment"># H: number of heads</span></span><br><span class="line">    <span class="comment"># g: number of groups</span></span><br><span class="line">    <span class="comment"># h: number of heads per group</span></span><br><span class="line">    <span class="comment"># k: key / query dimention</span></span><br><span class="line">    <span class="comment"># v: value dimention</span></span><br><span class="line">    <span class="keyword">assert</span> <span class="number">0</span> == P_q.size(<span class="number">0</span>) % num_groups</span><br><span class="line">    heads_per_group = P_q.size(<span class="number">0</span>) // num_groups</span><br><span class="line">    <span class="comment"># 应用线性变换获取查询Q（multi-head）</span></span><br><span class="line">    Q = torch.einsum(<span class="string">&quot;bnd,Hdk-&gt;bHkn&quot;</span>, X, P_q).view(</span><br><span class="line">        -<span class="number">1</span>, num_groups, heads_per_group, P_q.size(<span class="number">2</span>), X.size(<span class="number">1</span>)</span><br><span class="line">    )</span><br><span class="line">    <span class="comment"># 应用线性变换获取键K和值V（single-head）</span></span><br><span class="line">    K = torch.einsum(<span class="string">&quot;bmd,gdk-&gt;bgmk&quot;</span>, M, P_k)</span><br><span class="line">    V = torch.einsum(<span class="string">&quot;bmd,gdv-&gt;bgmv&quot;</span>, M, P_v)</span><br><span class="line">    <span class="comment"># 计算注意力得分并应用掩码</span></span><br><span class="line">    logits = torch.einsum(<span class="string">&quot;bghkn,bgmk-&gt;bghnm&quot;</span>, Q, K)</span><br><span class="line">    <span class="comment"># mask 分组</span></span><br><span class="line">    mask = mask.view(-<span class="number">1</span>, num_groups, heads_per_group, mask.size(-<span class="number">2</span>), mask.size(-<span class="number">1</span>))</span><br><span class="line">    weights = F.softmax(logits + mask, dim=-<span class="number">1</span>)</span><br><span class="line">    <span class="comment"># 计算加权的值</span></span><br><span class="line">    O = torch.einsum(<span class="string">&quot;bghnm,bgmv-&gt;bghnv&quot;</span>, weights, V)</span><br><span class="line">    <span class="comment"># P_o 分组</span></span><br><span class="line">    P_o = P_o.view(num_groups, heads_per_group, P_o.size(-<span class="number">2</span>), P_o.size(-<span class="number">1</span>))</span><br><span class="line">    <span class="comment"># 应用输出变换</span></span><br><span class="line">    Y = torch.einsum(<span class="string">&quot;bghnv,ghvd-&gt;bnd&quot;</span>, O, P_o)</span><br><span class="line">    <span class="keyword">return</span> Y</span><br><span class="line"><span class="comment"># 假设参数和维度</span></span><br><span class="line">batch_size = <span class="number">2</span></span><br><span class="line">num_queries = <span class="number">5</span></span><br><span class="line">num_keys = <span class="number">7</span>  <span class="comment"># 同时也是 num_values</span></span><br><span class="line">dim = <span class="number">64</span></span><br><span class="line">key_dim = <span class="number">32</span>  <span class="comment"># 同时也是 query_dim</span></span><br><span class="line">value_dim = <span class="number">48</span></span><br><span class="line">num_heads = <span class="number">8</span></span><br><span class="line">num_groups = <span class="number">4</span>  <span class="comment"># head 分成多少组，必须整除 num_heads</span></span><br><span class="line"><span class="comment"># 随机初始化输入数据和参数</span></span><br><span class="line">X = torch.randn(batch_size, num_queries, dim)</span><br><span class="line">M = torch.randn(batch_size, num_keys, dim)</span><br><span class="line">mask = torch.randn(batch_size, num_heads, num_queries, num_keys)</span><br><span class="line">P_q = torch.randn(num_heads, dim, key_dim)</span><br><span class="line">P_k = torch.randn(num_groups, dim, key_dim)     <span class="comment"># 组件 key / value 不共享</span></span><br><span class="line">P_v = torch.randn(num_groups, dim, value_dim)</span><br><span class="line">P_o = torch.randn(num_heads, value_dim, dim)</span><br><span class="line"><span class="comment"># 运行多查询注意力机制</span></span><br><span class="line">output = multiquery_attention_batched(X, M, mask, P_q, P_k, P_v, P_o, num_groups)</span><br><span class="line"><span class="built_in">print</span>(output.shape)  <span class="comment"># 应该输出: torch.Size([2, 5, 64])</span></span><br></pre></td></tr></table></figure>
+<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
+<ul>
+<li><code>GQA</code> 介于 <code>MHA</code> 和 <code>MQA</code> 之间，每个 <code>group</code> 内部实际上是 <code>MQA</code></li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/07/11/MQA-Multi-Query-Attention/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -3634,121 +3737,6 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2023/08/06/BEVDepth-Acquisition-of-Reliable-Depth-for-Multi-view-3D-Object-Detection/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/08/06/BEVDepth-Acquisition-of-Reliable-Depth-for-Multi-view-3D-Object-Detection/" class="post-title-link" itemprop="url">BEVDepth: Acquisition of Reliable Depth for Multi-view 3D Object Detection</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-08-06 20:43:24" itemprop="dateCreated datePublished" datetime="2023-08-06T20:43:24+08:00">2023-08-06</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-10-08 16:11:14" itemprop="dateModified" datetime="2024-10-08T16:11:14+08:00">2024-10-08</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/BEV/" itemprop="url" rel="index"><span itemprop="name">BEV</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2023/08/06/BEVDepth-Acquisition-of-Reliable-Depth-for-Multi-view-3D-Object-Detection/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2023/08/06/BEVDepth-Acquisition-of-Reliable-Depth-for-Multi-view-3D-Object-Detection/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
-<ul>
-<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2206.10092.pdf">https://arxiv.org/pdf/2206.10092.pdf</a></li>
-<li>code: <a target="_blank" rel="noopener" href="https://github.com/Megvii-BaseDetection/BEVDepth">https://github.com/Megvii-BaseDetection/BEVDepth</a></li>
-</ul>
-<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
-<ul>
-<li>本文提出一种 <code>BEV</code> 视角下的的 <code>3D</code> 目标检测算法，作者认为尽管深度对相机 <code>3D</code> 检测至关重要，但最近的方法中的深度估计却出奇地不足。</li>
-<li><code>BEVDepth</code> 通过利用显式深度监督（来自 <code>lidar</code> 点云）来解决这个问题。</li>
-<li>同时使用关键帧和过渡帧在 <code>bev feature</code> 维度进行特征融合，引入时序信息，提高模型效果。</li>
-</ul>
-<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
-<p><img src="https://s2.loli.net/2023/08/14/hiLsqmKyRrbajHe.png" alt="bevdepth1.png" /></p>
-<ul>
-<li>与 <code>BEVDet4D</code> 的 <code>pipeline</code> 很相似，区别是 <code>BEVDepth</code> 使用了 <code>DepthNet</code> 用激光雷达点云数据做了深度监督。</li>
-<li><code>DepthNet</code> 深度监督的输入是 <code>6v</code> 图像特征和每个相机的内外参，输出为 <strong>相机相关深度估计（camera_awareness_depth_estimation）</strong><br />
-<img src="https://s2.loli.net/2023/08/14/fDwVr9PMLEb1z3Q.png" alt="bevdepth2.png" /></li>
-</ul>
-<blockquote>
-<p>显式监督效果和 baseline 对比还是很赞的！<br />
-<img src="https://s2.loli.net/2023/08/15/G9fWVKmtTeawzYQ.png" alt="table.png" /><br />
-<code>MAP</code> 和 <code>NDS</code> 吊打了一众基于纯视觉的算法</p>
-</blockquote>
-<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
-<ul>
-<li>多帧训练中过渡帧使用了 <code>nuScenes</code> 数据集的 <code>Sweep</code> 数据（没有人工标注的原始数据，只包含图像和 lidar 点云），无形中拓展了数据量。</li>
-<li>本文创新点不多，基本是 <code>BEVDet4D + DepthNet</code>，更像是一个工程优化，比如：用 <code>cuda</code> 写了 <code>voxel pooling</code> 过程，计算过程非常高效。</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -3817,7 +3805,7 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">131</span>
+          <span class="site-state-item-count">132</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
