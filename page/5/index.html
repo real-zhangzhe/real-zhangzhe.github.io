@@ -180,6 +180,467 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/07/30/KV-Cache-Transformer/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2024/07/30/KV-Cache-Transformer/" class="post-title-link" itemprop="url">KV Cache Transformer</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-07-30 12:23:17" itemprop="dateCreated datePublished" datetime="2024-07-30T12:23:17+08:00">2024-07-30</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-12-02 15:14:41" itemprop="dateModified" datetime="2024-12-02T15:14:41+08:00">2024-12-02</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Transformer/" itemprop="url" rel="index"><span itemprop="name">Transformer</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2024/07/30/KV-Cache-Transformer/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2024/07/30/KV-Cache-Transformer/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <code>kv cache</code> 是一种生成式大模型加速的方法，没有原创的论文，比较早的提到这项技术的论文是：<a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2211.05102">《Efficient Scaling Transformer Inference》</a></li>
+<li>code: <a target="_blank" rel="noopener" href="https://github.com/huggingface/transformers/blob/f0bc49e7f61f74f055c47ad40e6010f57eed0b0b/src/transformers/models/gpt2/modeling_gpt2.py#L290">https://github.com/huggingface/transformers/blob/f0bc49e7f61f74f055c47ad40e6010f57eed0b0b/src/transformers/models/gpt2/modeling_gpt2.py#L290</a> <code>transformers repo</code> 中的 <code>GPT2</code> 模型代码中包含 <code>use_cache</code> 和 <code>layer_past</code> 就是 <code>kv cache</code> 的实现接口</li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li><code>GPT like</code> 大语言模型目前在生成式大模型领域占了主导地位，这些模型每一次推理只得到一个 <code>token</code>，下一次推理会将得到的 <code>token</code> 放到上一次输入 <code>token</code> 序列的末尾作为新输入，直到达到 <code>max_seq_length</code> 或输出的 <code>token</code> 表示 <code>end of sequence</code></li>
+<li>这种 <code>GPT like</code> 的生成机制意味着每次推理需要将之前所有 <code>token</code> 再重复算一次，序列长度越长，计算量越大，耗时越长</li>
+<li><code>KV Cache</code> 通过缓存上一次推理过程中每一层 <code>transformer</code> 的 <code>key / value</code>，将推理的时间复杂度从 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="script">O</mi><mo stretchy="false">(</mo><msup><mi>n</mi><mn>2</mn></msup><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\mathcal{O}(n^2)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.064108em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathcal" style="margin-right:0.02778em;">O</span></span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">n</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141079999999999em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span> 降低到了 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="script">O</mi><mo stretchy="false">(</mo><mi>n</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\mathcal{O}(n)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathcal" style="margin-right:0.02778em;">O</span></span><span class="mopen">(</span><span class="mord mathnormal">n</span><span class="mclose">)</span></span></span></span>，且计算结果完全等价</li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<ul>
+<li>可以在本时间步使用上一个时间步缓存的 <code>key / value</code> 的必要理论依据是：
+<ol>
+<li>每个时间步输入的 <code>token</code> 序列除最后一个 <code>token</code> 之外都和上一个时间步输入相同</li>
+<li><code>attention mask</code> 是下三角矩阵</li>
+<li>对 <code>attention score</code> 矩阵做 <code>softmax</code> 是逐行的而不是全局的或逐列的</li>
+<li>除 <code>self-attention</code> 操作之外，<code>GPT like LLM</code> 的其他层（<code>layer norm</code>, <code>gelu</code>, <code>FFN</code> 等）对 <code>seq_len</code> 维度来说都是 <code>element-wise</code> 的，且在推理阶段是静态的</li>
+</ol>
+</li>
+<li>以上四个理论依据在 <code>GPT like</code> 模型中都满足，下面解释四个条件为什么是必不可少的：
+<ol>
+<li>如果上面第一个条件不满足，那么每次推理都是新的内容，缓存将毫无意义</li>
+<li>下三角矩阵和逐行做 <code>softmax</code> 是必不可少的，随着 <code>token</code> 长度加一，每一层的 <code>attention score</code> 矩阵都会在最右和最下分别加一列和一行，由于下三角的存在，除最后一行外，其他每一行的值都不会改变（新加的一列不参与计算），而且逐行做，新加的一列也不影响其他行</li>
+<li><code>self-attention</code> 是 <code>GPT like LLM</code> 中唯一一个在 <code>token feature</code> 间做信息融合的算子，其他算子都是在 <code>token feature</code> 内做且都是静态操作，所以随着序列长度变长，之前的序列特征都是静态的</li>
+</ol>
+</li>
+</ul>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> torch</span><br><span class="line"><span class="keyword">import</span> torch.nn <span class="keyword">as</span> nn</span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">SelfAttention</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, dim, layer_idx</span>):</span></span><br><span class="line">        <span class="built_in">super</span>(SelfAttention, self).__init__()</span><br><span class="line">        self.dim = dim</span><br><span class="line">        self.layer_idx = layer_idx</span><br><span class="line">        self.query = nn.Linear(dim, dim)</span><br><span class="line">        self.key = nn.Linear(dim, dim)</span><br><span class="line">        self.value = nn.Linear(dim, dim)</span><br><span class="line">        self.softmax = nn.Softmax(dim=-<span class="number">1</span>)  <span class="comment"># 重点是这里，逐行进行 softmax，而不是全局</span></span><br><span class="line">        self.dropout = nn.Dropout(<span class="number">0.1</span>)</span><br><span class="line">        self.layer_norm = nn.LayerNorm(dim)</span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">self, x, attn_mask=<span class="literal">None</span></span>):</span></span><br><span class="line">        q = self.query(x)</span><br><span class="line">        k = self.key(x)</span><br><span class="line">        v = self.value(x)</span><br><span class="line">        scores = torch.matmul(q, k.transpose(-<span class="number">2</span>, -<span class="number">1</span>))</span><br><span class="line">        scores = scores / torch.sqrt(torch.tensor(self.dim).<span class="built_in">float</span>())</span><br><span class="line">        <span class="keyword">if</span> attn_mask <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span>:</span><br><span class="line">            scores = scores.masked_fill(attn_mask == <span class="number">0</span>, <span class="built_in">float</span>(<span class="string">&quot;-inf&quot;</span>))</span><br><span class="line">        attention_weights = self.softmax(scores)</span><br><span class="line">        attention_weights = self.dropout(attention_weights)</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;layer_idx:&quot;</span>, self.layer_idx)</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;q.sum(-1) =&quot;</span>, q.squeeze().<span class="built_in">abs</span>().<span class="built_in">sum</span>(-<span class="number">1</span>).tolist())</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;k.sum(-1) =&quot;</span>, k.squeeze().<span class="built_in">abs</span>().<span class="built_in">sum</span>(-<span class="number">1</span>).tolist())</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;v.sum(-1) =&quot;</span>, v.squeeze().<span class="built_in">abs</span>().<span class="built_in">sum</span>(-<span class="number">1</span>).tolist())</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;attention_weights =\n&quot;</span>, attention_weights.squeeze())</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;#&quot;</span> * <span class="number">100</span>)</span><br><span class="line">        output = torch.matmul(attention_weights, v)</span><br><span class="line">        output = self.layer_norm(output + x)</span><br><span class="line">        <span class="keyword">return</span> output</span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">GPTModel</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, dim, num_layers</span>):</span></span><br><span class="line">        <span class="built_in">super</span>(GPTModel, self).__init__()</span><br><span class="line">        self.dim = dim</span><br><span class="line">        self.num_layers = num_layers</span><br><span class="line">        self.attentions = nn.ModuleList(</span><br><span class="line">            [SelfAttention(dim, i) <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(num_layers)]</span><br><span class="line">        )</span><br><span class="line">        self.linear1 = nn.Linear(dim, dim)</span><br><span class="line">        self.linear2 = nn.Linear(dim, dim)</span><br><span class="line">        self.dropout = nn.Dropout(<span class="number">0.1</span>)</span><br><span class="line">        self.layer_norm = nn.LayerNorm(dim)</span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">self, x, attn_mask=<span class="literal">None</span></span>):</span></span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(self.num_layers):</span><br><span class="line">            x = x + self.attentions[i](x, attn_mask=attn_mask)</span><br><span class="line">            x = self.layer_norm(x)</span><br><span class="line">            x = x + self.linear2(self.dropout(torch.relu(self.linear1(x))))</span><br><span class="line">            x = self.layer_norm(x)</span><br><span class="line">        <span class="keyword">return</span> x</span><br><span class="line"><span class="comment"># Example usage</span></span><br><span class="line">model = GPTModel(dim=<span class="number">64</span>, num_layers=<span class="number">2</span>)</span><br><span class="line">model.<span class="built_in">eval</span>()</span><br><span class="line">input_data = torch.randn(</span><br><span class="line">    <span class="number">1</span>, <span class="number">3</span>, <span class="number">64</span></span><br><span class="line">)  <span class="comment"># Example input data with shape (batch_size, sequence_length, dim)</span></span><br><span class="line">attn_mask = torch.tril(torch.ones(<span class="number">3</span>, <span class="number">3</span>))  <span class="comment"># Lower triangular attention mask</span></span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;time step 1:&quot;</span>)</span><br><span class="line">output = model(input_data, attn_mask=attn_mask)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;\n\ntime step 2:&quot;</span>)</span><br><span class="line">input_data = torch.cat((input_data, torch.randn(<span class="number">1</span>, <span class="number">1</span>, <span class="number">64</span>)), <span class="number">1</span>)</span><br><span class="line">attn_mask = torch.tril(torch.ones(<span class="number">4</span>, <span class="number">4</span>))  <span class="comment"># Lower triangular attention mask</span></span><br><span class="line">output = model(input_data, attn_mask=attn_mask)</span><br><span class="line"><span class="comment"># 输出结果：</span></span><br><span class="line"><span class="comment"># time step 1:</span></span><br><span class="line"><span class="comment"># layer_idx: 0</span></span><br><span class="line"><span class="comment"># q.sum(-1) = [31.20478057861328, 34.04328536987305, 33.6611328125]</span></span><br><span class="line"><span class="comment"># k.sum(-1) = [31.446550369262695, 29.15508460998535, 29.265644073486328]</span></span><br><span class="line"><span class="comment"># v.sum(-1) = [30.789640426635742, 33.80058670043945, 32.4859619140625]</span></span><br><span class="line"><span class="comment"># attention_weights =</span></span><br><span class="line"><span class="comment">#  tensor([[1.0000, 0.0000, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.6760, 0.3240, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.2452, 0.4188, 0.3360]], grad_fn=&lt;SqueezeBackward0&gt;)</span></span><br><span class="line"><span class="comment"># ####################################################################################################</span></span><br><span class="line"><span class="comment"># layer_idx: 1</span></span><br><span class="line"><span class="comment"># q.sum(-1) = [30.214162826538086, 34.45262145996094, 26.357181549072266]</span></span><br><span class="line"><span class="comment"># k.sum(-1) = [29.88446617126465, 31.186325073242188, 31.727235794067383]</span></span><br><span class="line"><span class="comment"># v.sum(-1) = [23.99290657043457, 35.66062545776367, 33.28850173950195]</span></span><br><span class="line"><span class="comment"># attention_weights =</span></span><br><span class="line"><span class="comment">#  tensor([[1.0000, 0.0000, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.3310, 0.6690, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.4525, 0.3270, 0.2204]], grad_fn=&lt;SqueezeBackward0&gt;)</span></span><br><span class="line"><span class="comment"># ####################################################################################################</span></span><br><span class="line"><span class="comment"># time step 2:</span></span><br><span class="line"><span class="comment"># layer_idx: 0</span></span><br><span class="line"><span class="comment"># q.sum(-1) = [31.20478057861328, 34.04328536987305, 33.6611328125, 27.077472686767578]</span></span><br><span class="line"><span class="comment"># k.sum(-1) = [31.446550369262695, 29.15508460998535, 29.265644073486328, 27.211992263793945]</span></span><br><span class="line"><span class="comment"># v.sum(-1) = [30.789640426635742, 33.80058670043945, 32.4859619140625, 29.695066452026367]</span></span><br><span class="line"><span class="comment"># attention_weights =</span></span><br><span class="line"><span class="comment">#  tensor([[1.0000, 0.0000, 0.0000, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.6760, 0.3240, 0.0000, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.2452, 0.4188, 0.3360, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.1818, 0.2616, 0.2813, 0.2752]], grad_fn=&lt;SqueezeBackward0&gt;)</span></span><br><span class="line"><span class="comment"># ####################################################################################################</span></span><br><span class="line"><span class="comment"># layer_idx: 1</span></span><br><span class="line"><span class="comment"># q.sum(-1) = [30.214162826538086, 34.45262145996094, 26.357181549072266, 29.209003448486328]</span></span><br><span class="line"><span class="comment"># k.sum(-1) = [29.88446617126465, 31.186325073242188, 31.727235794067383, 26.988731384277344]</span></span><br><span class="line"><span class="comment"># v.sum(-1) = [23.99290657043457, 35.66062545776367, 33.28850173950195, 27.92920684814453]</span></span><br><span class="line"><span class="comment"># attention_weights =</span></span><br><span class="line"><span class="comment">#  tensor([[1.0000, 0.0000, 0.0000, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.3310, 0.6690, 0.0000, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.4525, 0.3270, 0.2204, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.2740, 0.0698, 0.4069, 0.2492]], grad_fn=&lt;SqueezeBackward0&gt;)</span></span><br><span class="line"><span class="comment"># ####################################################################################################</span></span><br></pre></td></tr></table></figure>
+<blockquote>
+<p>可以看到随着时间步的推移，每一层的 <code>x / q / k / v / attention weight</code> 的前 <code>n-1</code> 个 <code>token feature</code> 都和上一个时间步相同，因此可以缓存</p>
+</blockquote>
+<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
+<ul>
+<li>实际上 <code>q / k / v / attention weight</code> 都可以缓存，只缓存 <code>k / v</code> 是计算量和 <code>IO</code> 量的 <code>tradeoff</code></li>
+<li><code>paged attention</code> 是通过类似内存分页管理的方式管理 <code>kv cache</code> 的一种方法，动态分配显存，速度更快，支持更高 <code>batch</code></li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/07/18/FlashAttention-2-Faster-Attention-with-Better-Parallelism-and-Work-Partitioning/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2024/07/18/FlashAttention-2-Faster-Attention-with-Better-Parallelism-and-Work-Partitioning/" class="post-title-link" itemprop="url">FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-07-18 12:50:28" itemprop="dateCreated datePublished" datetime="2024-07-18T12:50:28+08:00">2024-07-18</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-12-02 15:15:00" itemprop="dateModified" datetime="2024-12-02T15:15:00+08:00">2024-12-02</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Transformer/" itemprop="url" rel="index"><span itemprop="name">Transformer</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2024/07/18/FlashAttention-2-Faster-Attention-with-Better-Parallelism-and-Work-Partitioning/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2024/07/18/FlashAttention-2-Faster-Attention-with-Better-Parallelism-and-Work-Partitioning/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2307.08691">https://arxiv.org/pdf/2307.08691</a></li>
+<li>code: <a target="_blank" rel="noopener" href="https://github.com/kyegomez/FlashAttention20/blob/main/attention.py">https://github.com/kyegomez/FlashAttention20/blob/main/attention.py</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li><code>FlashAttention-2</code> 是 <code>FlashAttention</code> 一作对前一版的更新，基本思想不变，只优化了部分算法流程，可以比 <code>V1</code> 提速一倍</li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<p><img src="https://s2.loli.net/2024/07/18/FkzaMcX5VhjnQWo.png" alt="flash_attention_2.png" /></p>
+<ul>
+<li><code>Flash Attention 2</code> 前向过程主要优化了几个方面：
+<ol>
+<li><code>Flash Attention v1</code> 中计算 <code>P_ij</code> 计算过程很绕，需要更新两次全局信息，<code>v2</code> 中进行了优化</li>
+<li><code>Flash Attention v1</code> 中内外层循环设置不合理，<code>v2</code> 对调了内外层循环，这样做的好处是：</li>
+<li>不再需要重复读入写出 <code>O</code></li>
+<li><code>max_value</code> 信息变成一个计算中间变量，不再需要读入写出，<code>backward</code> 过程也无需依赖</li>
+</ol>
+</li>
+<li><code>Flash Attention v2</code> 和 <code>Flash Attention v1</code> 的 <code>IO</code> 量对比
+<ul>
+<li><code>v1</code>：
+<ul>
+<li>读：<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mi>N</mi><mi>d</mi><mo>+</mo><mn>2</mn><msub><mi>T</mi><mi>c</mi></msub><mi>N</mi><mi>d</mi></mrow><annotation encoding="application/x-tex">2Nd+2T_cNd</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.77777em;vertical-align:-0.08333em;"></span><span class="mord">2</span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="mord mathnormal">d</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.84444em;vertical-align:-0.15em;"></span><span class="mord">2</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">T</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">c</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="mord mathnormal">d</span></span></span></span></li>
+<li>写：<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>T</mi><mi>c</mi></msub><mi>N</mi><mi>d</mi><mo>+</mo><mn>2</mn><msub><mi>T</mi><mi>c</mi></msub><mi>N</mi></mrow><annotation encoding="application/x-tex">T_cNd+2T_cN</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.84444em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">T</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">c</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="mord mathnormal">d</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord">2</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">T</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">c</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span></span></span></span></li>
+</ul>
+</li>
+<li><code>v2</code>：
+<ul>
+<li>读：<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>N</mi><mi>d</mi><mo>+</mo><mn>2</mn><msub><mi>T</mi><mi>r</mi></msub><mi>N</mi><mi>d</mi></mrow><annotation encoding="application/x-tex">Nd+2T_rNd</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.77777em;vertical-align:-0.08333em;"></span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="mord mathnormal">d</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.84444em;vertical-align:-0.15em;"></span><span class="mord">2</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">T</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.02778em;">r</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="mord mathnormal">d</span></span></span></span></li>
+<li>写：<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>N</mi><mi>d</mi><mo>+</mo><mi>N</mi></mrow><annotation encoding="application/x-tex">Nd+N</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.77777em;vertical-align:-0.08333em;"></span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="mord mathnormal">d</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span></span></span></span></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> torch</span><br><span class="line"><span class="keyword">import</span> math</span><br><span class="line">BLOCK_SIZE = <span class="number">1024</span></span><br><span class="line">NEG_INF = -<span class="number">1e10</span>  <span class="comment"># -infinity</span></span><br><span class="line">EPSILON = <span class="number">1e-10</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">flash_attention2_forward</span>(<span class="params">Q, K, V</span>):</span></span><br><span class="line">    batch, seq_len, dim = Q.shape</span><br><span class="line">    O = torch.zeros_like(Q, requires_grad=<span class="literal">True</span>, device=Q.device)</span><br><span class="line">    l = torch.zeros((batch, seq_len, <span class="number">1</span>), device=Q.device)  <span class="comment"># 1 for broadcasting</span></span><br><span class="line">    m = torch.ones((batch, seq_len, <span class="number">1</span>), device=Q.device) * NEG_INF</span><br><span class="line">    Q = <span class="built_in">list</span>(torch.split(Q, BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    K = <span class="built_in">list</span>(torch.split(K, BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    V = <span class="built_in">list</span>(torch.split(V, BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    O = <span class="built_in">list</span>(torch.split(O, BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    l = <span class="built_in">list</span>(torch.split(l, BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    m = <span class="built_in">list</span>(torch.split(m, BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    Tr = <span class="built_in">len</span>(Q)</span><br><span class="line">    Tc = <span class="built_in">len</span>(K)</span><br><span class="line">    scale = <span class="number">1</span> / math.sqrt(dim)</span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(Tr):</span><br><span class="line">        Qi_scaled = Q[i] * scale</span><br><span class="line">        <span class="keyword">for</span> j <span class="keyword">in</span> <span class="built_in">range</span>(Tc):</span><br><span class="line">            S_ij = torch.einsum(<span class="string">&quot;bnd,bmd-&gt;bnm&quot;</span>, Qi_scaled, K[j])</span><br><span class="line">            m_ij, _ = torch.<span class="built_in">max</span>(S_ij, dim=-<span class="number">1</span>, keepdim=<span class="literal">True</span>)</span><br><span class="line">            mi_new = torch.maximum(m_ij, m[i])</span><br><span class="line">            P_ij = torch.exp(S_ij - mi_new)</span><br><span class="line">            P_ijV_j = torch.einsum(<span class="string">&quot;bnm,bmd-&gt;bnd&quot;</span>, P_ij, V[j])</span><br><span class="line">            exp_row_max_diff = torch.exp(m[i] - mi_new)</span><br><span class="line">            li_new = l[i] * exp_row_max_diff + P_ij.<span class="built_in">sum</span>(dim=-<span class="number">1</span>, keepdim=<span class="literal">True</span>)</span><br><span class="line">            O[i] = O[i] * exp_row_max_diff + P_ijV_j</span><br><span class="line">            m[i] = mi_new</span><br><span class="line">            l[i] = li_new</span><br><span class="line">        O[i] = O[i] / l[i]</span><br><span class="line">    O = torch.cat(O, dim=<span class="number">1</span>)</span><br><span class="line">    l = torch.cat(l, dim=<span class="number">1</span>)</span><br><span class="line">    <span class="keyword">return</span> O, l</span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">flash_attention2_backward</span>(<span class="params">Q, K, V, O, l, dO</span>):</span></span><br><span class="line">    <span class="comment"># 参考代码中进行了实现，但这里省略，重点关注一下 backward 过程的输入</span></span><br><span class="line">    <span class="keyword">pass</span></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">&quot;__main__&quot;</span>:</span><br><span class="line">    device = torch.device(<span class="string">&quot;cuda&quot;</span>) <span class="keyword">if</span> torch.cuda.is_available() <span class="keyword">else</span> torch.device(<span class="string">&quot;cpu&quot;</span>)</span><br><span class="line">    <span class="comment"># batch, seq_len, dim</span></span><br><span class="line">    Q = torch.randn(<span class="number">2</span>, <span class="number">4096</span>, <span class="number">128</span>, requires_grad=<span class="literal">True</span>).to(device)</span><br><span class="line">    K = torch.randn(<span class="number">2</span>, <span class="number">4096</span>, <span class="number">128</span>, requires_grad=<span class="literal">True</span>).to(device)</span><br><span class="line">    V = torch.randn(<span class="number">2</span>, <span class="number">4096</span>, <span class="number">128</span>, requires_grad=<span class="literal">True</span>).to(device)</span><br><span class="line">    flash2_out = flash_attention2_forward(Q, K, V)</span><br><span class="line">    <span class="built_in">print</span>(flash2_out[<span class="number">0</span>].<span class="built_in">sum</span>().item())</span><br></pre></td></tr></table></figure>
+<ul>
+<li><code>backward</code> 过程在 <code>v2</code> 论文中详细的写出来了，如下：<br />
+<img src="https://s2.loli.net/2024/07/18/X7e8OgNiIAaysLk.png" alt="flash2_2.png" /></li>
+<li>速度效果提升很明显<br />
+<img src="https://s2.loli.net/2024/07/18/kQVDHWJI7eAFLXR.png" alt="flash2_3.png" /></li>
+</ul>
+<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
+<ul>
+<li><code>Flash Attention v2</code> 看起来特别像 <code>Flash Attention</code> 的紧急修复版本，把之前写的冗余删掉了</li>
+<li>甚至完全不了解 <code>Flash Attention</code> 思想的人看 <code>Flash Attention</code> 的实现代码，都可以将其优化到 <code>Flash Attention v2</code>，就是简单的代码优化…</li>
+<li><code>Flash Attention v2</code> 彻底把这个 <code>tiling</code> 思路的优势发挥出来了</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/07/17/FlashAttention-Fast-and-Memory-Efficient-Exact-Attention-with-IO-Awareness/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2024/07/17/FlashAttention-Fast-and-Memory-Efficient-Exact-Attention-with-IO-Awareness/" class="post-title-link" itemprop="url">FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-07-17 08:48:11" itemprop="dateCreated datePublished" datetime="2024-07-17T08:48:11+08:00">2024-07-17</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-12-02 15:14:49" itemprop="dateModified" datetime="2024-12-02T15:14:49+08:00">2024-12-02</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Transformer/" itemprop="url" rel="index"><span itemprop="name">Transformer</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2024/07/17/FlashAttention-Fast-and-Memory-Efficient-Exact-Attention-with-IO-Awareness/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2024/07/17/FlashAttention-Fast-and-Memory-Efficient-Exact-Attention-with-IO-Awareness/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2205.14135">https://arxiv.org/pdf/2205.14135</a></li>
+<li>code: <a target="_blank" rel="noopener" href="https://github.com/shreyansh26/FlashAttention-PyTorch/blob/master/flash_attention.py">https://github.com/shreyansh26/FlashAttention-PyTorch/blob/master/flash_attention.py</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li><code>Flash Attention</code> 是标准 <code>Attention</code> 的一种完全数学等价的高效实现</li>
+<li>标准 <code>Self-attention</code> <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mi>t</mi><mi>t</mi><mi>e</mi><mi>n</mi><mi>t</mi><mi>i</mi><mi>o</mi><mi>n</mi><mo stretchy="false">(</mo><mi>Q</mi><mo separator="true">,</mo><mi>K</mi><mo separator="true">,</mo><mi>V</mi><mo stretchy="false">)</mo><mo>=</mo><mi>s</mi><mi>o</mi><mi>f</mi><mi>t</mi><mi>m</mi><mi>a</mi><mi>x</mi><mo stretchy="false">(</mo><mfrac><mrow><mi>Q</mi><msup><mi>K</mi><mi>T</mi></msup></mrow><msqrt><mi>d</mi></msqrt></mfrac><mo stretchy="false">)</mo><mi>V</mi></mrow><annotation encoding="application/x-tex">Attention(Q,K,V)=softmax({\frac{QK^T}{\sqrt d}})V</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">A</span><span class="mord mathnormal">t</span><span class="mord mathnormal">t</span><span class="mord mathnormal">e</span><span class="mord mathnormal">n</span><span class="mord mathnormal">t</span><span class="mord mathnormal">i</span><span class="mord mathnormal">o</span><span class="mord mathnormal">n</span><span class="mopen">(</span><span class="mord mathnormal">Q</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal" style="margin-right:0.07153em;">K</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal" style="margin-right:0.22222em;">V</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:1.627473em;vertical-align:-0.538em;"></span><span class="mord mathnormal">s</span><span class="mord mathnormal">o</span><span class="mord mathnormal" style="margin-right:0.10764em;">f</span><span class="mord mathnormal">t</span><span class="mord mathnormal">m</span><span class="mord mathnormal">a</span><span class="mord mathnormal">x</span><span class="mopen">(</span><span class="mord"><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.089473em;"><span style="top:-2.5335085em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord sqrt mtight"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.937845em;"><span class="svg-align" style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord mathnormal mtight" style="padding-left:0.833em;">d</span></span><span style="top:-2.8978450000000002em;"><span class="pstrut" style="height:3em;"></span><span class="hide-tail mtight" style="min-width:0.853em;height:1.08em;"><svg width='400em' height='1.08em' viewBox='0 0 400000 1080' preserveAspectRatio='xMinYMin slice'><path d='M95,702
+c-2.7,0,-7.17,-2.7,-13.5,-8c-5.8,-5.3,-9.5,-10,-9.5,-14
+c0,-2,0.3,-3.3,1,-4c1.3,-2.7,23.83,-20.7,67.5,-54
+c44.2,-33.3,65.8,-50.3,66.5,-51c1.3,-1.3,3,-2,5,-2c4.7,0,8.7,3.3,12,10
+s173,378,173,378c0.7,0,35.3,-71,104,-213c68.7,-142,137.5,-285,206.5,-429
+c69,-144,104.5,-217.7,106.5,-221
+l0 -0
+c5.3,-9.3,12,-14,20,-14
+H400000v40H845.2724
+s-225.272,467,-225.272,467s-235,486,-235,486c-2.7,4.7,-9,7,-19,7
+c-6,0,-10,-1,-12,-3s-194,-422,-194,-422s-65,47,-65,47z
+M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.102155em;"><span></span></span></span></span></span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.446108em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">Q</span><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.07153em;">K</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.9190928571428572em;"><span style="top:-2.931em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mathnormal mtight" style="margin-right:0.13889em;">T</span></span></span></span></span></span></span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.538em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span><span class="mclose">)</span><span class="mord mathnormal" style="margin-right:0.22222em;">V</span></span></span></span> 是 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="script">O</mi><mo stretchy="false">(</mo><msup><mi>n</mi><mn>2</mn></msup><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\mathcal{O}(n^2)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.064108em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathcal" style="margin-right:0.02778em;">O</span></span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">n</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141079999999999em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span> 时间复杂度的，随着大模型的发展，序列长度 <code>n</code> 越来越大，带来的时间复杂度和 <code>IO</code> 量越来越恐怖</li>
+<li><code>GPU</code> 或 <code>NPU</code> 等计算设备的 <code>SRAM</code> 空间有限，无法放下所有后续依赖的计算中间结果，而 <code>softmax</code> 运算又需要全局信息（无法直接简单 <code>tiling</code>），所以这里存在巨大的 <code>IO</code> 量（<code>HBM (high bandwidth memory)</code> 和 <code>SRAM</code> 之间）</li>
+<li>本文设计了一种 <code>tiling</code> 的局部计算 <code>self-attention</code> 的方法，这种方法在 <code>forward</code> 和 <code>backward</code> 中都可以使用</li>
+<li>在 <code>forward</code> 中，<code>FlashAttention</code> 会计算并存储 <code>softmax</code> 操作的归一化因子（下图中的 <code>l</code> 和 <code>m</code>），在 <code>backward</code> 中，利用这些归一化因子，重新计算所需的中间注意力矩阵，而不需要从 <code>HBM</code> 中读取存储的完整矩阵</li>
+<li>上述两点改进可以保证和标准 <code>self-attention</code> 计算结果（包括 <code>forward</code> 和 <code>backward</code>）完全一致的情况下，极大降低 <code>IO</code> 量（代价是计算量的小幅上涨）</li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<h3 id="1-standard-attention-implementation"><a class="markdownIt-Anchor" href="#1-standard-attention-implementation"></a> 1. Standard attention implementation</h3>
+<p><img src="https://s2.loli.net/2024/07/17/v2wFgNH5Mt8cznu.png" alt="flash_1.png" /></p>
+<ul>
+<li>这里之所以要频繁和 <code>HBM</code> 以 <code>block</code> 为单位交互是因为有一个限制是 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><mo>≤</mo><mi>M</mi><mo>≤</mo><mi>N</mi><mi>d</mi></mrow><annotation encoding="application/x-tex">d\le M \le Nd</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83041em;vertical-align:-0.13597em;"></span><span class="mord mathnormal">d</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">≤</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:0.8193em;vertical-align:-0.13597em;"></span><span class="mord mathnormal" style="margin-right:0.10903em;">M</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">≤</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:0.69444em;vertical-align:0em;"></span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="mord mathnormal">d</span></span></span></span>，即 <code>SRAM</code> 可存储的数据量在 <code>d</code> 和 <code>Nd</code> 之间（<code>N</code> 和 <code>d</code> 分别是 <code>seq_len</code> 和 <code>model_dim</code>）</li>
+<li><code>IO</code> 总量：
+<ul>
+<li>读：<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><msup><mi>N</mi><mn>2</mn></msup><mo>+</mo><mn>3</mn><mi>N</mi><mi>d</mi></mrow><annotation encoding="application/x-tex">2N^2+3Nd</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.897438em;vertical-align:-0.08333em;"></span><span class="mord">2</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141079999999999em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.69444em;vertical-align:0em;"></span><span class="mord">3</span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="mord mathnormal">d</span></span></span></span>
+<ul>
+<li>读 <code>Q / K / V</code></li>
+<li>读 <code>S / P</code></li>
+</ul>
+</li>
+<li>写：<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><msup><mi>N</mi><mn>2</mn></msup><mo>+</mo><mi>N</mi><mi>d</mi></mrow><annotation encoding="application/x-tex">2N^2+Nd</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.897438em;vertical-align:-0.08333em;"></span><span class="mord">2</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141079999999999em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.69444em;vertical-align:0em;"></span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="mord mathnormal">d</span></span></span></span>
+<ul>
+<li>写 <code>S / P</code></li>
+<li>写 <code>O</code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h3 id="2-flash-attention-forward-implementation"><a class="markdownIt-Anchor" href="#2-flash-attention-forward-implementation"></a> 2. Flash attention forward implementation</h3>
+<p><img src="https://s2.loli.net/2024/07/17/FZuDBUT6zcWvkli.png" alt="flash_2.png" /></p>
+<ul>
+<li><code>IO</code> 总量：
+<ul>
+<li>读：<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mi>N</mi><mi>d</mi><mo>+</mo><mn>2</mn><msub><mi>T</mi><mi>c</mi></msub><mi>N</mi><mi>d</mi></mrow><annotation encoding="application/x-tex">2Nd+2T_cNd</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.77777em;vertical-align:-0.08333em;"></span><span class="mord">2</span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="mord mathnormal">d</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.84444em;vertical-align:-0.15em;"></span><span class="mord">2</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">T</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">c</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="mord mathnormal">d</span></span></span></span>
+<ul>
+<li>读 <code>K / V</code> 一次</li>
+<li>读 <code>Q / O</code> <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>T</mi><mi>c</mi></msub></mrow><annotation encoding="application/x-tex">T_c</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">T</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">c</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> 次</li>
+</ul>
+</li>
+<li>写：<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>T</mi><mi>c</mi></msub><mi>N</mi><mi>d</mi><mo>+</mo><mn>2</mn><msub><mi>T</mi><mi>c</mi></msub><mi>N</mi></mrow><annotation encoding="application/x-tex">T_cNd+2T_cN</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.84444em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">T</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">c</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="mord mathnormal">d</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord">2</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">T</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">c</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span></span></span></span>
+<ul>
+<li>写 <code>O</code> <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>T</mi><mi>c</mi></msub></mrow><annotation encoding="application/x-tex">T_c</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">T</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">c</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> 次</li>
+<li>写 <code>l / m</code> <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>T</mi><mi>c</mi></msub></mrow><annotation encoding="application/x-tex">T_c</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">T</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">c</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> 次</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>由上述可知：
+<ul>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>4</mn><mo>≤</mo><msub><mi>T</mi><mi>c</mi></msub><mo>≤</mo><mn>4</mn><mi>N</mi></mrow><annotation encoding="application/x-tex">4\le T_c\le 4N</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.78041em;vertical-align:-0.13597em;"></span><span class="mord">4</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">≤</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">T</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">c</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">≤</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord">4</span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span></span></span></span></li>
+<li>因此，读写上下限分别为：</li>
+<li>读：
+<ul>
+<li>上限：<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mi>N</mi><mi>d</mi><mo>+</mo><mn>8</mn><msup><mi>N</mi><mn>2</mn></msup><mi>d</mi></mrow><annotation encoding="application/x-tex">2Nd+8N^2d</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.77777em;vertical-align:-0.08333em;"></span><span class="mord">2</span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="mord mathnormal">d</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.8141079999999999em;vertical-align:0em;"></span><span class="mord">8</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141079999999999em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mord mathnormal">d</span></span></span></span></li>
+<li>下限：<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>10</mn><mi>N</mi><mi>d</mi></mrow><annotation encoding="application/x-tex">10Nd</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.69444em;vertical-align:0em;"></span><span class="mord">1</span><span class="mord">0</span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="mord mathnormal">d</span></span></span></span></li>
+</ul>
+</li>
+<li>写：
+<ul>
+<li>上限：<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>4</mn><msup><mi>N</mi><mn>2</mn></msup><mi>d</mi><mo>+</mo><mn>8</mn><msup><mi>N</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">4N^2d+8N^2</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.897438em;vertical-align:-0.08333em;"></span><span class="mord">4</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141079999999999em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mord mathnormal">d</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.8141079999999999em;vertical-align:0em;"></span><span class="mord">8</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141079999999999em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span></span></span></span></li>
+<li>下限：<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>4</mn><mi>N</mi><mi>d</mi><mo>+</mo><mn>8</mn><mi>N</mi></mrow><annotation encoding="application/x-tex">4Nd+8N</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.77777em;vertical-align:-0.08333em;"></span><span class="mord">4</span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="mord mathnormal">d</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord">8</span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span></span></span></span></li>
+</ul>
+</li>
+<li><code>Block size</code> 越大，总 <code>IO</code> 量越小</li>
+</ul>
+</li>
+</ul>
+<h3 id="3-详解-flash-attention-过程"><a class="markdownIt-Anchor" href="#3-详解-flash-attention-过程"></a> 3. 详解 <code>Flash attention</code> 过程</h3>
+<ul>
+<li>标准 <code>softmax</code> 过程：<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mi>o</mi><mi>f</mi><mi>t</mi><mi>m</mi><mi>a</mi><mi>x</mi><mo stretchy="false">(</mo><msub><mi>x</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo stretchy="false">)</mo><mo>=</mo><mfrac><msup><mi>e</mi><mrow><msub><mi>x</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>−</mo><mi>m</mi><mi>a</mi><mi>x</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></msup><mrow><msubsup><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>0</mn></mrow><mi>N</mi></msubsup><msubsup><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mn>0</mn></mrow><mi>N</mi></msubsup><msup><mi>e</mi><mrow><msub><mi>x</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>−</mo><mi>m</mi><mi>a</mi><mi>x</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></msup></mrow></mfrac></mrow><annotation encoding="application/x-tex">softmax(x_{ij})=\frac{e^{x_{ij}-max(x)}}{\sum_{i=0}^{N}\sum_{j=0}^{N}e^{x_{ij}-max(x)}}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.036108em;vertical-align:-0.286108em;"></span><span class="mord mathnormal">s</span><span class="mord mathnormal">o</span><span class="mord mathnormal" style="margin-right:0.10764em;">f</span><span class="mord mathnormal">t</span><span class="mord mathnormal">m</span><span class="mord mathnormal">a</span><span class="mord mathnormal">x</span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.311664em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">i</span><span class="mord mathnormal mtight" style="margin-right:0.05724em;">j</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:1.936237em;vertical-align:-0.837232em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.099005em;"><span style="top:-2.4849949999999996em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mop mtight"><span class="mop op-symbol small-op mtight" style="position:relative;top:-0.0000050000000000050004em;">∑</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.8852357142857143em;"><span style="top:-2.1785614285714283em;margin-left:0em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">i</span><span class="mrel mtight">=</span><span class="mord mtight">0</span></span></span></span><span style="top:-2.8971428571428572em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.10903em;">N</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.32143857142857146em;"><span></span></span></span></span></span></span><span class="mspace mtight" style="margin-right:0.19516666666666668em;"></span><span class="mop mtight"><span class="mop op-symbol small-op mtight" style="position:relative;top:-0.0000050000000000050004em;">∑</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.8852357142857143em;"><span style="top:-2.1785614285714283em;margin-left:0em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.05724em;">j</span><span class="mrel mtight">=</span><span class="mord mtight">0</span></span></span></span><span style="top:-2.8971428571428572em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.10903em;">N</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.46032428571428574em;"><span></span></span></span></span></span></span><span class="mspace mtight" style="margin-right:0.19516666666666668em;"></span><span class="mord mtight"><span class="mord mathnormal mtight">e</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:1.00715em;"><span style="top:-3.00715em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5357142857142856em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3448em;"><span style="top:-2.3448em;margin-left:0em;margin-right:0.1em;"><span class="pstrut" style="height:2.65952em;"></span><span class="mord mtight"><span class="mord mathnormal mtight">i</span><span class="mord mathnormal mtight" style="margin-right:0.05724em;">j</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.5091600000000001em;"><span></span></span></span></span></span></span><span class="mbin mtight">−</span><span class="mord mathnormal mtight">m</span><span class="mord mathnormal mtight">a</span><span class="mord mathnormal mtight">x</span><span class="mopen mtight">(</span><span class="mord mathnormal mtight">x</span><span class="mclose mtight">)</span></span></span></span></span></span></span></span></span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.394em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathnormal mtight">e</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:1.00715em;"><span style="top:-3.00715em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5357142857142856em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3448em;"><span style="top:-2.3448em;margin-left:0em;margin-right:0.1em;"><span class="pstrut" style="height:2.65952em;"></span><span class="mord mtight"><span class="mord mathnormal mtight">i</span><span class="mord mathnormal mtight" style="margin-right:0.05724em;">j</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.5091600000000001em;"><span></span></span></span></span></span></span><span class="mbin mtight">−</span><span class="mord mathnormal mtight">m</span><span class="mord mathnormal mtight">a</span><span class="mord mathnormal mtight">x</span><span class="mopen mtight">(</span><span class="mord mathnormal mtight">x</span><span class="mclose mtight">)</span></span></span></span></span></span></span></span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.837232em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span>，为了计算过程的数值稳定，需要对每个值减去序列最大值</li>
+<li><code>Flash attention</code> 中，会将 <code>QKV</code> 都在时序维度切分成若干块，然后在小块之间计算 <code>Attention</code>，直接计算是不等价的，因为需要全局信息，例如：
+<ul>
+<li>全局最大值 <code>m(x)</code></li>
+<li>指数累加和 <code>l(x)</code></li>
+</ul>
+</li>
+</ul>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> torch</span><br><span class="line"><span class="keyword">import</span> math</span><br><span class="line">BLOCK_SIZE = <span class="number">1024</span></span><br><span class="line">NEG_INF = -<span class="number">1e10</span>  <span class="comment"># -infinity</span></span><br><span class="line">EPSILON = <span class="number">1e-10</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">flash_attention_forward</span>(<span class="params">Q, K, V</span>):</span></span><br><span class="line">    batch, seq_len, dim = Q.shape</span><br><span class="line">    O = torch.zeros_like(Q, requires_grad=<span class="literal">True</span>, device=Q.device)</span><br><span class="line">    l = torch.zeros((batch, seq_len, <span class="number">1</span>), device=Q.device)  <span class="comment"># 1 for broadcasting</span></span><br><span class="line">    m = torch.ones((batch, seq_len, <span class="number">1</span>), device=Q.device) * NEG_INF</span><br><span class="line">    Q_BLOCK_SIZE = <span class="built_in">min</span>(BLOCK_SIZE, dim)</span><br><span class="line">    KV_BLOCK_SIZE = BLOCK_SIZE</span><br><span class="line">    Q = torch.split(Q, Q_BLOCK_SIZE, dim=<span class="number">1</span>)</span><br><span class="line">    K = torch.split(K, KV_BLOCK_SIZE, dim=<span class="number">1</span>)</span><br><span class="line">    V = torch.split(V, KV_BLOCK_SIZE, dim=<span class="number">1</span>)</span><br><span class="line">    O = <span class="built_in">list</span>(torch.split(O, Q_BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    l = <span class="built_in">list</span>(torch.split(l, Q_BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    m = <span class="built_in">list</span>(torch.split(m, Q_BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    Tr = <span class="built_in">len</span>(Q)</span><br><span class="line">    Tc = <span class="built_in">len</span>(K)</span><br><span class="line">    scale = <span class="number">1</span> / math.sqrt(dim)</span><br><span class="line">    <span class="keyword">for</span> j <span class="keyword">in</span> <span class="built_in">range</span>(Tc):</span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(Tr):</span><br><span class="line">            Qi_scaled = Q[i] * scale</span><br><span class="line">            S_ij = torch.einsum(<span class="string">&quot;... i d, ... j d -&gt; ... i j&quot;</span>, Qi_scaled, K[j])</span><br><span class="line">            m_ij, _ = torch.<span class="built_in">max</span>(S_ij, dim=-<span class="number">1</span>, keepdim=<span class="literal">True</span>)</span><br><span class="line">            P_ij = torch.exp(S_ij - m_ij)</span><br><span class="line">            mi_new = torch.maximum(m_ij, m[i])</span><br><span class="line">            l_ij = (</span><br><span class="line">                torch.<span class="built_in">sum</span>(P_ij * torch.exp(m_ij - mi_new), dim=-<span class="number">1</span>, keepdim=<span class="literal">True</span>)</span><br><span class="line">                + EPSILON</span><br><span class="line">            )</span><br><span class="line">            P_ij_Vj = torch.einsum(</span><br><span class="line">                <span class="string">&quot;... i j, ... j d -&gt; ... i d&quot;</span>, P_ij * torch.exp(m_ij - mi_new), V[j]</span><br><span class="line">            )</span><br><span class="line">            li_new = torch.exp(m[i] - mi_new) * l[i] + l_ij</span><br><span class="line">            O[i] = (O[i] * l[i] * torch.exp(m[i] - mi_new) + P_ij_Vj) / li_new</span><br><span class="line">            l[i] = li_new</span><br><span class="line">            m[i] = mi_new</span><br><span class="line">    O = torch.cat(O, dim=<span class="number">1</span>)</span><br><span class="line">    l = torch.cat(l, dim=<span class="number">1</span>)</span><br><span class="line">    m = torch.cat(m, dim=<span class="number">1</span>)</span><br><span class="line">    <span class="keyword">return</span> O, l, m</span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">flash_attention_backward</span>(<span class="params">Q, K, V, O, l, m, dO</span>):</span></span><br><span class="line">    <span class="comment"># 参考代码中进行了实现，但这里省略，重点关注一下 backward 过程的输入</span></span><br><span class="line">    <span class="keyword">pass</span></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">&quot;__main__&quot;</span>:</span><br><span class="line">    <span class="comment"># batch, seq_len, dim</span></span><br><span class="line">    Q = torch.randn(<span class="number">2</span>, <span class="number">4096</span>, <span class="number">128</span>, requires_grad=<span class="literal">True</span>).to(device=<span class="string">&quot;cuda&quot;</span>)</span><br><span class="line">    K = torch.randn(<span class="number">2</span>, <span class="number">4096</span>, <span class="number">128</span>, requires_grad=<span class="literal">True</span>).to(device=<span class="string">&quot;cuda&quot;</span>)</span><br><span class="line">    V = torch.randn(<span class="number">2</span>, <span class="number">4096</span>, <span class="number">128</span>, requires_grad=<span class="literal">True</span>).to(device=<span class="string">&quot;cuda&quot;</span>)</span><br><span class="line">    out = flash_attention_forward(Q, K, V)</span><br><span class="line">    <span class="built_in">print</span>(out[<span class="number">0</span>].<span class="built_in">sum</span>().item())</span><br></pre></td></tr></table></figure>
+<ul>
+<li>这里最重要也最难理解的一行代码是：<code>O[i] = (O[i] * l[i] * torch.exp(m[i] - mi_new) + P_ij_Vj) / li_new</code>，这个仔细分析一下
+<ul>
+<li><code>O[i] * l[i]</code> 是计算得到上次外循环（<code>j-1</code>）时的分子</li>
+<li><code>O[i] * l[i] * torch.exp(m[i] - mi_new)</code> 是把 <code>j-1</code> 时刻存储的信息更新到最新（调整 <code>max_value</code>）</li>
+<li><code>O[i] * l[i] * torch.exp(m[i] - mi_new) + P_ij_Vj</code> 因为 <code>O</code> 的初始值是 <code>0</code>，因此这个公式可以拆解为：<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>O</mi><mi>i</mi></msub><mo>=</mo><msubsup><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mn>1</mn></mrow><msub><mi>T</mi><mi>c</mi></msub></msubsup><mfrac><mrow><msub><mi>P</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>∗</mo><msub><mi>V</mi><mi>j</mi></msub></mrow><msub><mi>l</mi><mi>i</mi></msub></mfrac></mrow><annotation encoding="application/x-tex">O_i = \sum_{j=1}^{T_c} \frac{P_{ij} * V_j}{l_i}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.02778em;">O</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.31166399999999994em;"><span style="top:-2.5500000000000003em;margin-left:-0.02778em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:1.4307509999999999em;vertical-align:-0.44509999999999994em;"></span><span class="mop"><span class="mop op-symbol small-op" style="position:relative;top:-0.0000050000000000050004em;">∑</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.981231em;"><span style="top:-2.40029em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.05724em;">j</span><span class="mrel mtight">=</span><span class="mord mtight">1</span></span></span></span><span style="top:-3.2029em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.13889em;">T</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.16454285714285719em;"><span style="top:-2.357em;margin-left:-0.13889em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mathnormal mtight">c</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.143em;"><span></span></span></span></span></span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.43581800000000004em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.985651em;"><span style="top:-2.655em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.01968em;">l</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3280857142857143em;"><span style="top:-2.357em;margin-left:-0.01968em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.143em;"><span></span></span></span></span></span></span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.50732em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.13889em;">P</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3280857142857143em;"><span style="top:-2.357em;margin-left:-0.13889em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">i</span><span class="mord mathnormal mtight" style="margin-right:0.05724em;">j</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2818857142857143em;"><span></span></span></span></span></span></span><span class="mbin mtight">∗</span><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.22222em;">V</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3280857142857143em;"><span style="top:-2.357em;margin-left:-0.22222em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mathnormal mtight" style="margin-right:0.05724em;">j</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2818857142857143em;"><span></span></span></span></span></span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.44509999999999994em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span>，通过不断更新 <code>max_value</code> 和累加求和得到最终结果</li>
+</ul>
+</li>
+</ul>
+<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
+<ul>
+<li><code>Flash Attention</code> 的效率和 <code>block size</code> 相关，<code>block size</code> 越大，效率提升越明显；在一些 <code>block size</code> 较小的情况下，效率可能会比标准 <code>Attention</code> 更差</li>
+<li><code>Flash Attention</code> 目标是解决 <code>Memory hierarchy</code> 情况下标注 <code>Attention</code> 计算访存比较低导致 <code>IO</code> 开销大的问题，是一种以时间换空间的做法；当 <code>SRAM</code> 相比模型足够大时，标准 <code>Attention</code> 效率比 <code>Flash Attention</code> 更高</li>
+<li><code>backward</code> 过程也是通过几乎相同的方式计算的，<code>forward</code> 阶段计算得到的中间 <code>l / m</code> 都会用于计算 <code>backward</code></li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/07/12/GQA-Grouped-Query-Attention/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -3254,489 +3715,6 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/01/10/[WIP]Nerf/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2024/01/10/%5BWIP%5DNerf/" class="post-title-link" itemprop="url">Nerf</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-01-10 09:10:21" itemprop="dateCreated datePublished" datetime="2024-01-10T09:10:21+08:00">2024-01-10</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-12-25 08:54:31" itemprop="dateModified" datetime="2024-12-25T08:54:31+08:00">2024-12-25</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Nerf/" itemprop="url" rel="index"><span itemprop="name">Nerf</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2024/01/10/%5BWIP%5DNerf/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2024/01/10/%5BWIP%5DNerf/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="1-三维重建流程"><a class="markdownIt-Anchor" href="#1-三维重建流程"></a> 1. 三维重建流程</h1>
-<h2 id="11-运动恢复结构structure-from-motion-sfm"><a class="markdownIt-Anchor" href="#11-运动恢复结构structure-from-motion-sfm"></a> 1.1 运动恢复结构（Structure from Motion, SfM）</h2>
-<ul>
-<li>输入：
-<ul>
-<li>多视角图像</li>
-<li>相机内参</li>
-</ul>
-</li>
-<li>输出：
-<ul>
-<li>稀疏三维点云</li>
-<li>相机外参（位姿）</li>
-</ul>
-</li>
-<li>主要过程：
-<ul>
-<li>特征提取： 从图像中提取出能够用于匹配的特征点，如角点、边缘等。</li>
-<li>特征匹配： 在图像序列中匹配相对应的特征点，以建立图像之间的对应关系。</li>
-<li>相机定位： 利用特征匹配信息，估计相机在不同图像之间的运动，即相机的位姿。</li>
-<li>三维重建： 基于相机的位姿估计和特征点的视差信息，计算出场景中物体的三维坐标。</li>
-</ul>
-</li>
-</ul>
-<h2 id="12-多立体视觉multi-view-stereo-mvs"><a class="markdownIt-Anchor" href="#12-多立体视觉multi-view-stereo-mvs"></a> 1.2 多立体视觉（Multi-View Stereo, MVS）</h2>
-<ul>
-<li>输入：
-<ul>
-<li>多视角图像</li>
-<li>相机内外参</li>
-<li>稀疏三维点云</li>
-</ul>
-</li>
-<li>输出：
-<ul>
-<li>稠密三维点云</li>
-</ul>
-</li>
-<li>主要过程：
-<ul>
-<li>图像对齐： 通过相机定位和特征匹配，将多个图像对齐，确保它们在同一坐标系下。</li>
-<li>深度图生成： 对每个像素估计其在场景中的深度或距离。这可以通过多个视角的图像之间的视差信息来实现，视差越大表示物体离</li>
-<li>机越近。</li>
-<li>点云重建： 利用深度图，将每个像素映射到三维空间中，形成一个点云表示物体的表面。</li>
-</ul>
-</li>
-</ul>
-<h2 id="13-表面重建"><a class="markdownIt-Anchor" href="#13-表面重建"></a> 1.3 表面重建</h2>
-<ul>
-<li>输入：稠密三维点云</li>
-<li>输出：场景/模型的三角网格（三角面片）</li>
-<li>主要过程：
-<ul>
-<li>网格生成： 将点云转换为更为紧凑和结构化的表示，通常是三角网格。</li>
-</ul>
-</li>
-<li>表面模型通常可导入可视化软件，也可进行物理仿真</li>
-</ul>
-<h2 id="14-纹理重建"><a class="markdownIt-Anchor" href="#14-纹理重建"></a> 1.4 纹理重建</h2>
-<ul>
-<li>输入：
-<ul>
-<li>多视角图像</li>
-<li>相机内外参</li>
-</ul>
-</li>
-<li>输出：
-<ul>
-<li>场景/模型的纹理图像</li>
-</ul>
-</li>
-<li>主要过程：
-<ul>
-<li>纹理映射（Texture Mapping）： 将从图像中捕捉到的纹理信息映射到三维模型的表面上。这可以通过将图像中的颜色信息映射相应的三维模型表面上的顶点或像素来实现。这样，模型就能够呈现出与真实世界相似的外观。</li>
-<li>相邻像素插值： 由于模型表面上的顶点或像素数量有限，需要进行插值操作，以在整个表面上创建平滑和连续的纹理。这通常涉及对相邻像素之间的颜色进行插值，以便在纹理映射的过程中产生平滑的过渡效果。</li>
-<li>去除失真和伸缩： 在将图像纹理映射到三维模型时，可能会发生一些失真和伸缩。为了保持模型的准确性和真实性，需要进行一些校正步骤，以修复这些失真。</li>
-</ul>
-</li>
-<li>纹理重建后即可可视化</li>
-</ul>
-<h1 id="2-神经辐射场neural-radiance-fields-nerf"><a class="markdownIt-Anchor" href="#2-神经辐射场neural-radiance-fields-nerf"></a> 2. 神经辐射场（Neural Radiance Fields, NeRF）</h1>
-<ul>
-<li>将三维重建流程存储在 <strong>三角面片和纹理信息</strong> 的三维信息用神经网络拟合（隐式建模）。</li>
-<li>缺点是无法进行物理仿真。</li>
-<li>优点：
-<ul>
-<li>ppl 简单</li>
-<li>无空洞</li>
-<li>高逼真</li>
-</ul>
-</li>
-</ul>
-<h1 id="wip"><a class="markdownIt-Anchor" href="#wip"></a> WIP</h1>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2023/09/07/A-Keypoint-based-Global-Association-Network-for-Lane-Detection/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/09/07/A-Keypoint-based-Global-Association-Network-for-Lane-Detection/" class="post-title-link" itemprop="url">A Keypoint-based Global Association Network for Lane Detection</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-09-07 16:20:10" itemprop="dateCreated datePublished" datetime="2023-09-07T16:20:10+08:00">2023-09-07</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-10-08 16:11:47" itemprop="dateModified" datetime="2024-10-08T16:11:47+08:00">2024-10-08</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Autopilot/" itemprop="url" rel="index"><span itemprop="name">Autopilot</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2023/09/07/A-Keypoint-based-Global-Association-Network-for-Lane-Detection/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2023/09/07/A-Keypoint-based-Global-Association-Network-for-Lane-Detection/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
-<ul>
-<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2204.07335.pdf">https://arxiv.org/pdf/2204.07335.pdf</a></li>
-<li>code: <a target="_blank" rel="noopener" href="https://github.com/Wolfwjs/GANet">https://github.com/Wolfwjs/GANet</a></li>
-</ul>
-<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
-<ul>
-<li>传统基于关键点检测的车道线检测网络通常需要根据任务的定义设计模型输出头结构，比如 <code>UFLD</code> 算法每条车道线需要占据一个输出 <code>channel</code> 。</li>
-<li>本论文提出一种新颖的车道线检测范式，解耦了任务和网络，仅使用固定的输出通道数即可检测任意多条车道线。</li>
-</ul>
-<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
-<h3 id="总体思路"><a class="markdownIt-Anchor" href="#总体思路"></a> 总体思路</h3>
-<p><img src="https://s2.loli.net/2023/09/07/rTU59Ca6tMz24QD.png" alt="ganet2.png" /></p>
-<ul>
-<li>如何实现只用一个 <code>channel</code> 输出即可检测任意多条车道线？一个可以想到的简单方法是：
-<ol>
-<li>输出一个 <code>channel = 1</code> 的 <code>heat map</code>，其中每个位置的 <code>heat map value</code> 依旧表示该位置是车道线关键点的概率。</li>
-<li>使用阈值过滤得到所有车道线的关键点坐标（每条车道线关键点数量应 &gt;= 2）。</li>
-<li>使用聚类的方式将一堆关键点分成若干组，每组关键点表示一条车道线。聚类中的 “距离” 判定逻辑需要根据一些先验知识进行设计（比如：因为车道线在图片中更接近竖直方向，因此水平距离权重小于垂直距离）。</li>
-</ol>
-</li>
-<li>上述操作中的聚类过程包含了很多人为总结的先验知识，非常不 “机器学习”，于是我们可以改进这个过程：
-<ol>
-<li>输出一个 <code>channel = 1</code> 的 <code>heat map</code> 和一个 <code>channel = 2</code> 的 <code>offset map</code>，其中每个位置的 <code>heat map value</code> 依旧表示该位置是车道线关键点的概率，每个位置的 <code>offset map value</code> 表示 <strong>如果该点是关键点，那么该点相对于本条车道线起始点的偏移（x, y）</strong>，起始点表示一条车道线关键点中最靠近图片下方的点。</li>
-<li>使用阈值过滤得到所有关键点，将关键点对应位置的偏移 <code>offset</code> 得到新的点 <code>p'</code>，理论上同一条车道线的每一个关键点偏移后得到的新位置 <code>p'</code> 都一致，都是车道线起始点。</li>
-<li>因为神经网络不太能拟合到 <code>loss == 0</code>，因此还需要对所有的 <code>p'</code> 进行聚类，每个类表示一条车道线实例，本质相当于将聚类中的距离判定逻辑吸到神经网络内部。</li>
-</ol>
-</li>
-<li>以上就是本论文提出的 <code>GANet</code> 算法的核心思想：用固定的有限个输出通道去预测任意条车道线。</li>
-</ul>
-<h3 id="网络结构"><a class="markdownIt-Anchor" href="#网络结构"></a> 网络结构</h3>
-<p><img src="https://s2.loli.net/2023/09/07/nfbWKHOtFgjp6oz.png" alt="ganet1.png" /></p>
-<h3 id="lfalane-aware-feature-aggregator"><a class="markdownIt-Anchor" href="#lfalane-aware-feature-aggregator"></a> LFA（Lane-aware Feature Aggregator）</h3>
-<p><img src="https://s2.loli.net/2023/09/07/nk9NbMJztSWQRrq.png" alt="ganet3.png" /></p>
-<h4 id="动机"><a class="markdownIt-Anchor" href="#动机"></a> 动机</h4>
-<ul>
-<li>传统的2D卷积在固定的网格状区域内采样特征，这不适用于处理车道线的狭长形状。</li>
-<li>因此作者使用如下步骤改进各关键点上的局部特征：
-<ol>
-<li>预测该关键点同一条车道线紧邻的 <code>num_adjacent_keypoints</code> 个点的 <code>offset</code>，进行显式监督。</li>
-<li>用预测的 <code>offset</code> 引导可变形卷积改进关键点局部特征。</li>
-</ol>
-</li>
-</ul>
-<h4 id="代码实现"><a class="markdownIt-Anchor" href="#代码实现"></a> 代码实现</h4>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> torch</span><br><span class="line"><span class="keyword">import</span> torch.nn <span class="keyword">as</span> nn</span><br><span class="line"><span class="keyword">from</span> torchvision.ops <span class="keyword">import</span> deform_conv2d</span><br><span class="line"><span class="keyword">import</span> math</span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">LFA</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, in_channels, out_channels, num_adjacent_keypoints=<span class="number">5</span></span>):</span></span><br><span class="line">        <span class="built_in">super</span>(LFA, self).__init__()</span><br><span class="line">        self.offset_conv = nn.Conv2d(in_channels, <span class="number">2</span> * num_adjacent_keypoints, kernel_size=<span class="number">1</span>)</span><br><span class="line">        self.deform_conv_weight = nn.Parameter(torch.Tensor(out_channels, in_channels, <span class="number">3</span>, <span class="number">3</span>))</span><br><span class="line">        nn.init.kaiming_uniform_(self.deform_conv_weight, a=math.sqrt(<span class="number">5</span>))</span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">self, x</span>):</span></span><br><span class="line">        <span class="comment"># x: input feature map with shape [batch_size, in_channels, height, width]</span></span><br><span class="line">        </span><br><span class="line">        <span class="comment"># Step 1: Predict the offsets for adjacent keypoints</span></span><br><span class="line">        offsets = self.offset_conv(x)  <span class="comment"># shape: [batch_size, 2 * num_adjacent_keypoints, height, width]</span></span><br><span class="line">        </span><br><span class="line">        <span class="comment"># Step 2: Perform deformable convolution to aggregate features</span></span><br><span class="line">        aggregated_features = deform_conv2d(x, offsets, self.deform_conv_weight, stride=<span class="number">1</span>, padding=<span class="number">1</span>)</span><br><span class="line">        </span><br><span class="line">        <span class="keyword">return</span> aggregated_features, offsets  <span class="comment"># Return both aggregated features and offsets</span></span><br><span class="line"><span class="comment"># Initialize LFA module</span></span><br><span class="line">lfa = LFA(in_channels=<span class="number">64</span>, out_channels=<span class="number">128</span>, num_adjacent_keypoints=<span class="number">5</span>)</span><br><span class="line"><span class="comment"># Dummy input feature map with shape [batch_size, in_channels, height, width]</span></span><br><span class="line">input_feature_map = torch.randn(<span class="number">16</span>, <span class="number">64</span>, <span class="number">128</span>, <span class="number">128</span>)</span><br><span class="line"><span class="comment"># Forward pass</span></span><br><span class="line">aggregated_features, predicted_offsets = lfa(input_feature_map)</span><br><span class="line"><span class="comment"># aggregated_features 是特征输出</span></span><br><span class="line"><span class="comment"># predicted_offsets 是预测的相邻的 num_adjacent_keypoints 个车道线的偏移量，显式监督</span></span><br></pre></td></tr></table></figure>
-<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
-<ul>
-<li>提出了一种灵活的车道线检测范式，具有较好的可拓展性，目前在车道线榜单上比较靠前。</li>
-<li>另外一个创新点是<code>LFA module</code>，主要是用到了可形变卷积，对于大多数动态性较差的端侧芯片来说，不容易部署。</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2023/08/16/BEVFormer-Learning-Bird%E2%80%99s-Eye-View-Representation-from-Multi-Camera-Images-via-Spatiotemporal-Transformers/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/08/16/BEVFormer-Learning-Bird%E2%80%99s-Eye-View-Representation-from-Multi-Camera-Images-via-Spatiotemporal-Transformers/" class="post-title-link" itemprop="url">BEVFormer: Learning Bird’s-Eye-View Representation from Multi-Camera Images via Spatiotemporal Transformers</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-08-16 12:02:58" itemprop="dateCreated datePublished" datetime="2023-08-16T12:02:58+08:00">2023-08-16</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-10-09 14:07:30" itemprop="dateModified" datetime="2024-10-09T14:07:30+08:00">2024-10-09</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/BEV/" itemprop="url" rel="index"><span itemprop="name">BEV</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2023/08/16/BEVFormer-Learning-Bird%E2%80%99s-Eye-View-Representation-from-Multi-Camera-Images-via-Spatiotemporal-Transformers/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2023/08/16/BEVFormer-Learning-Bird%E2%80%99s-Eye-View-Representation-from-Multi-Camera-Images-via-Spatiotemporal-Transformers/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
-<ul>
-<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2203.17270.pdf">https://arxiv.org/pdf/2203.17270.pdf</a></li>
-<li>chinese paper: <a target="_blank" rel="noopener" href="https://drive.google.com/file/d/1dKnD6gUHhBXZ8gT733cIU_A7dHEEzNTP/view?pli=1">https://drive.google.com/file/d/1dKnD6gUHhBXZ8gT733cIU_A7dHEEzNTP/view?pli=1</a></li>
-<li>code: <a target="_blank" rel="noopener" href="https://github.com/fundamentalvision/BEVFormer">https://github.com/fundamentalvision/BEVFormer</a></li>
-</ul>
-<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
-<ul>
-<li>传统 <code>BEV</code> 算法中 <code>View Transform</code> 都是通过 <code>LSS</code> 实现 <code>Image View</code> 到 <code>BEV View</code> 的转变，这种视角转换方法依赖于图像视角的深度估计（显式（例如 <code>BEVDepth</code>）或隐式（例如 <code>LSS / BEVDet</code> 等））。</li>
-<li>本文提出一种新的通过时空注意力机制实现的 <code>View Transform</code> 方法，在 <code>Neuscenes</code> 数据集上取得了不错的 <code>3D</code> 目标检测成绩（略差于 <code>BEVDet4D</code>）。</li>
-</ul>
-<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
-<p><img src="https://s2.loli.net/2024/10/09/wkgV4SOFjJtncAX.png" alt="bevformer.png" /></p>
-<h3 id="整体架构"><a class="markdownIt-Anchor" href="#整体架构"></a> 整体架构</h3>
-<h4 id="1-输入"><a class="markdownIt-Anchor" href="#1-输入"></a> 1. 输入</h4>
-<ul>
-<li>输入包含两部分，分别是：
-<ul>
-<li>环视图（<code>6</code> 张）</li>
-<li><code>BEV Queries</code>（<code>shape = [num_voxel, dim]</code>）</li>
-<li><code>History BEV Feature</code>（上一帧的 <code>BEV Feature</code> 输出，<code>shape = [num_voxel, dim]</code>）</li>
-</ul>
-</li>
-</ul>
-<h4 id="2-输出"><a class="markdownIt-Anchor" href="#2-输出"></a> 2. 输出</h4>
-<ul>
-<li>输出为当前帧的 <code>BEV Feature</code>（<code>shape = [num_voxel, dim]</code>），记作 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>B</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">B_t</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.05017em;">B</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2805559999999999em;"><span style="top:-2.5500000000000003em;margin-left:-0.05017em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span></li>
-<li>暂时不考虑任务头</li>
-</ul>
-<h4 id="3-网络模块"><a class="markdownIt-Anchor" href="#3-网络模块"></a> 3. 网络模块</h4>
-<ol>
-<li>图像特征提取
-<ul>
-<li><code>6</code> 张图片单独做 <code>CNN base</code> 特征提取，输出记作 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>F</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">F_t</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">F</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2805559999999999em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span></li>
-</ul>
-</li>
-<li>时序信息融合：
-<ul>
-<li>将构造的 <code>BEV Queries</code>（记作 <code>Q</code>），和上一帧的 <code>BEV Feature</code>（记作 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>B</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></mrow><annotation encoding="application/x-tex">B_{t-1}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.891661em;vertical-align:-0.208331em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.05017em;">B</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.301108em;"><span style="top:-2.5500000000000003em;margin-left:-0.05017em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">t</span><span class="mbin mtight">−</span><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.208331em;"><span></span></span></span></span></span></span></span></span></span>）做 <code>Self-Attention</code></li>
-<li>其中 <code>Q</code> 作为 <code>Query</code>，<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>B</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></mrow><annotation encoding="application/x-tex">B_{t-1}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.891661em;vertical-align:-0.208331em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.05017em;">B</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.301108em;"><span style="top:-2.5500000000000003em;margin-left:-0.05017em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">t</span><span class="mbin mtight">−</span><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.208331em;"><span></span></span></span></span></span></span></span></span></span> 作为 <code>Key / value</code>，做 <code>Attention</code> 运算</li>
-<li>虽然这里的 <code>Query / Key / Value</code> 并不同源，但依然被称为是 <code>Self-Attention</code> 而不是 <code>Cross-Attention</code>，是因为 <code>Q</code> 和 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>B</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></mrow><annotation encoding="application/x-tex">B_{t-1}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.891661em;vertical-align:-0.208331em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.05017em;">B</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.301108em;"><span style="top:-2.5500000000000003em;margin-left:-0.05017em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">t</span><span class="mbin mtight">−</span><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.208331em;"><span></span></span></span></span></span></span></span></span></span> 都属于 <code>BEV</code> 语义</li>
-<li>输出记作 <code>Q'</code></li>
-</ul>
-</li>
-<li>空间交叉注意力（<strong>视角转换</strong>）
-<ul>
-<li>此步骤是本文的重点，<code>BEVFormer</code> 通过这一步将透视图特征转换为俯视图特征</li>
-<li>输入为:
-<ul>
-<li><code>Q'</code></li>
-<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>F</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">F_t</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">F</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2805559999999999em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span></li>
-</ul>
-</li>
-<li>做 <code>Cross-Attention</code> 运算，其中：
-<ul>
-<li><code>Q'</code> 作为 <code>Queries</code></li>
-<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>F</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">F_t</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">F</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2805559999999999em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> 作为 <code>Key / Value</code></li>
-</ul>
-</li>
-<li>用预设的无意义且可学习的 <code>BEV Queries</code> 去查询图片总体特征，得到 <code>BEV Feature</code> 输出，记作 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>B</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">B_t</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.05017em;">B</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2805559999999999em;"><span style="top:-2.5500000000000003em;margin-left:-0.05017em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span></li>
-</ul>
-</li>
-<li>任务相关头
-<ul>
-<li>输入为：<code>BEV Feature</code></li>
-<li>输出为：<code>BEV</code> 视角下的检测 / 分割等任务预测结果</li>
-<li>模型结构：可以是 <code>CNN base</code> 也可以是 <code>Transformer base</code> 的</li>
-</ul>
-</li>
-</ol>
-<ul>
-<li>以上提到的所有 <code>Attention</code> 过程都需要额外添加 <code>Position embedding</code></li>
-</ul>
-<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
-<ul>
-<li>过程并不复杂，只要看过经典的 <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2005.12872"><code>DETR</code></a>，都熟悉这种套路：<strong>预设一个无意义的（随机初始化但可学习） <code>pattern</code> 序列作为 <code>Query</code> 去查询 <code>image features</code>，得到有意义的结果（或者说是可监督的结果）</strong></li>
-<li>后续的部分工作对其改进是：<strong>将随机初始化预设的 <code>Query</code> 有意义化（例如通过一个轻量化 <code>2D</code> 检测头预检测，得到 <code>proposal</code> 并编码为 <code>Query</code>）</strong></li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -3805,7 +3783,7 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">132</span>
+          <span class="site-state-item-count">135</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -3818,7 +3796,7 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">71</span>
+        <span class="site-state-item-count">73</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
