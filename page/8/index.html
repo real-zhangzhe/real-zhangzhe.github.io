@@ -180,6 +180,338 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2023/04/19/FCOS3D-Fully-Convolutional-One-Stage-Monocular-3D-Object-Detection/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/04/19/FCOS3D-Fully-Convolutional-One-Stage-Monocular-3D-Object-Detection/" class="post-title-link" itemprop="url">FCOS3D: Fully Convolutional One-Stage Monocular 3D Object Detection</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-04-19 10:00:53" itemprop="dateCreated datePublished" datetime="2023-04-19T10:00:53+08:00">2023-04-19</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-10-08 16:11:47" itemprop="dateModified" datetime="2024-10-08T16:11:47+08:00">2024-10-08</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Monocular-3D-Object-Detection/" itemprop="url" rel="index"><span itemprop="name">Monocular 3D Object Detection</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2023/04/19/FCOS3D-Fully-Convolutional-One-Stage-Monocular-3D-Object-Detection/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2023/04/19/FCOS3D-Fully-Convolutional-One-Stage-Monocular-3D-Object-Detection/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2104.10956.pdf">https://arxiv.org/pdf/2104.10956.pdf</a></li>
+<li>code: <a target="_blank" rel="noopener" href="https://github.com/open-mmlab/mmdetection3d/blob/main/mmdet3d/models/dense_heads/fcos_mono3d_head.py">https://github.com/open-mmlab/mmdetection3d/blob/main/mmdet3d/models/dense_heads/fcos_mono3d_head.py</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li>本文基于 <code>FCOS</code> 论文提出一种架构简单的 <code>Anchor Free</code> 的单目 <code>3D</code> 检测算法 <code>FCOS3D</code>，在 <code>NeurIPS 2020</code> 的 <code>nuScenes 3D</code> 检测比赛纯视觉赛道上取得了第一名。</li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<h3 id="问题定义"><a class="markdownIt-Anchor" href="#问题定义"></a> 问题定义</h3>
+<ul>
+<li>
+<p>本文提出的 <code>FCOS3D</code> 要解决的核心问题是一个 <strong>图片到 7-DoF 属性（x, y, z, w, l, h, yaw+dir）的预测</strong>。</p>
+<ul>
+<li><code>DoF</code> 是指 <code>degree of freedom</code>（自由度）。</li>
+<li><code>(x, y, z, w, l, h, yaw+dir)</code> 分别表示物体在相机坐标系下的 3 维坐标和长宽高（单位都是米），和偏航角（俯视图角度，单位是弧度）和方向 2 分类共同构成朝向。</li>
+</ul>
+</li>
+<li>
+<p>对于 <code>nuScenes 3D</code> 检测比赛，还需要解决的非核心问题包括：</p>
+<ul>
+<li>预测出的 <code>3D</code> 框物体的类别（10类物体）</li>
+<li>预测出的 <code>3D</code> 框物体的属性（9种属性）</li>
+<li>预测出的 <code>3D</code> 框物体的 <code>x, y</code> 轴速度（不是 “病态” 问题了，已经属于癌症问题了…）</li>
+</ul>
+</li>
+</ul>
+<h3 id="网络结构"><a class="markdownIt-Anchor" href="#网络结构"></a> 网络结构</h3>
+<p><img src="https://s2.loli.net/2023/04/19/oysj5k6Z3IKvNnr.png" alt="fcos3d.png" /></p>
+<ul>
+<li>
+<p><code>backbone</code> 和 <code>FPN</code> 比较常规</p>
+</li>
+<li>
+<p><code>decode head</code> 和 <code>FCOS</code> 一样，使用了不同 <code>level feature</code> 的参数共享（反正是全卷积，不存在 shape 问题）</p>
+</li>
+<li>
+<p><code>decode head</code> 中包括：</p>
+<ul>
+<li>
+<p>分类分支：</p>
+<ul>
+<li>class: <code>output_shape = (N, 10, H, W)</code>，使用 <code>FocalLoss</code></li>
+<li>attribute: <code>output_shape = (N, 9, H, W)</code>，使用 <code>CrossEntropyLoss</code></li>
+</ul>
+</li>
+<li>
+<p>回归分支：</p>
+<ul>
+<li>box:  <code>output_shape = (N, 9, H, W)</code>， <code>(dx, dy, log(z), log(w), log(l), log(h), yaw, vx, vy)</code>，使用 <code>SmoothL1Loss</code></li>
+<li>centerness: <code>output_shape = (N, 1, H, W)</code>，使用 <code>BCEWithLogitsLoss</code></li>
+<li>direction: <code>output_shape = (N, 2, H, W)</code>，使用 <code>CrossEntropyLoss</code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h3 id="target-设置"><a class="markdownIt-Anchor" href="#target-设置"></a> target 设置</h3>
+<ul>
+<li>target 设置中使用了很多 <strong>2D 引导 3D</strong> 的思想。</li>
+</ul>
+<h4 id="x-y-z-target-设置"><a class="markdownIt-Anchor" href="#x-y-z-target-设置"></a> <code>(x, y, z)</code> target 设置</h4>
+<ul>
+<li>由于是 3D 检测，所以 GT 的 3D 框坐标（x, y, z, w, l, h）单位都是米，这对神经网络是不友好的（因为神经网络看到的是像素，预测以像素为单位更容易）。</li>
+<li>因此，<strong>本文实际是一个 <code>2.5D</code> 的预测<code>（xy 2D, z 3D）</code>，实际预测的 <code>x, y</code> 是像素坐标系下相对于 feature map 每一个点的偏移量（由相机坐标系和相机内参可计算得到像素坐标系），<code>z, w, l, h</code> 的预测是相机坐标系下的米为单位的真值取 <code>log</code>。</strong></li>
+</ul>
+<h4 id="centerness-target-设置"><a class="markdownIt-Anchor" href="#centerness-target-设置"></a> centerness target 设置</h4>
+<ul>
+<li>与 <code>FCOS</code> 不同，<code>FCOS3D centerness</code>: <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>c</mi><mo>=</mo><msup><mi>e</mi><mrow><mo>−</mo><mi>α</mi><mo stretchy="false">(</mo><mo stretchy="false">(</mo><mi mathvariant="normal">Δ</mi><mi>x</mi><msup><mo stretchy="false">)</mo><mn>2</mn></msup><mo>+</mo><mo stretchy="false">(</mo><mi mathvariant="normal">Δ</mi><mi>y</mi><msup><mo stretchy="false">)</mo><mn>2</mn></msup><mo stretchy="false">)</mo></mrow></msup></mrow><annotation encoding="application/x-tex">c = e^{-\alpha((\Delta x)^2+(\Delta y)^2)}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathnormal">c</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:0.9869199999999998em;vertical-align:0em;"></span><span class="mord"><span class="mord mathnormal">e</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.9869199999999998em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">−</span><span class="mord mathnormal mtight" style="margin-right:0.0037em;">α</span><span class="mopen mtight">(</span><span class="mopen mtight">(</span><span class="mord mtight">Δ</span><span class="mord mathnormal mtight">x</span><span class="mclose mtight"><span class="mclose mtight">)</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8913142857142857em;"><span style="top:-2.931em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mbin mtight">+</span><span class="mopen mtight">(</span><span class="mord mtight">Δ</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span><span class="mclose mtight"><span class="mclose mtight">)</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8913142857142857em;"><span style="top:-2.931em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mclose mtight">)</span></span></span></span></span></span></span></span></span></span></span></span> ，<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mo>=</mo><mn>2.5</mn></mrow><annotation encoding="application/x-tex">\alpha=2.5</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathnormal" style="margin-right:0.0037em;">α</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:0.64444em;vertical-align:0em;"></span><span class="mord">2</span><span class="mord">.</span><span class="mord">5</span></span></span></span></li>
+</ul>
+<h4 id="yaw-target-设置"><a class="markdownIt-Anchor" href="#yaw-target-设置"></a> yaw target 设置</h4>
+<ul>
+<li>本文将 yaw （0 ~ <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mi>π</mi></mrow><annotation encoding="application/x-tex">2\pi</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.64444em;vertical-align:0em;"></span><span class="mord">2</span><span class="mord mathnormal" style="margin-right:0.03588em;">π</span></span></span></span>）编码成 yaw （0 ~ <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>π</mi></mrow><annotation encoding="application/x-tex">\pi</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathnormal" style="margin-right:0.03588em;">π</span></span></span></span>）和方向</li>
+</ul>
+<h3 id="正样本选择"><a class="markdownIt-Anchor" href="#正样本选择"></a> 正样本选择</h3>
+<ul>
+<li><code>FCOS</code> 是将 <code>feature map</code> 上的每个位置到 GT 中心点的距离小于 <code>1.5 * stride</code> 的点作为正样本。</li>
+<li>但 <code>FCOS3D</code> 是 <code>3D</code> 检测，没办法直接使用 <code>FCOS</code> 提出的方法；解决方法和 <code>x, y</code> 坐标回归方法类似，如果 <code>2.5D</code> 坐标下的 <code>x, y</code> 和 <code>feature map</code> 位置距离小于 <code>1.5 * stride</code>，则算作正例。</li>
+</ul>
+<h3 id="gt-尺度分配"><a class="markdownIt-Anchor" href="#gt-尺度分配"></a> GT 尺度分配</h3>
+<ul>
+<li>和 <code>FCOS</code> 思想一样</li>
+</ul>
+<h3 id="不同尺度-feature-map-缩放"><a class="markdownIt-Anchor" href="#不同尺度-feature-map-缩放"></a> 不同尺度 feature map 缩放</h3>
+<ul>
+<li>和 <code>FCOS</code> 思想一样，只是更丰富 <strong><code>scale.shape == (num_of_level, 3)，分别表示 scale_offset(for xy) / scale_depth(for z) / scale_size(for wlh)</code></strong></li>
+</ul>
+<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
+<ul>
+<li>本文极大程度的借鉴了 <code>FCOS</code>，相当于 <code>FCOS</code> 的 <code>2.5D</code> 版</li>
+<li>加入了很多 <code>trick</code>: log(z), centerness target 定义，encode yaw 等，很 work</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2023/04/17/FCOS-A-Simple-and-Strong-Anchor-free-Object-Detector/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/04/17/FCOS-A-Simple-and-Strong-Anchor-free-Object-Detector/" class="post-title-link" itemprop="url">FCOS: A Simple and Strong Anchor-free Object Detector</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-04-17 10:29:57" itemprop="dateCreated datePublished" datetime="2023-04-17T10:29:57+08:00">2023-04-17</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-10-08 16:11:47" itemprop="dateModified" datetime="2024-10-08T16:11:47+08:00">2024-10-08</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Object-Detection/" itemprop="url" rel="index"><span itemprop="name">Object Detection</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2023/04/17/FCOS-A-Simple-and-Strong-Anchor-free-Object-Detector/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2023/04/17/FCOS-A-Simple-and-Strong-Anchor-free-Object-Detector/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2006.09214.pdf">https://arxiv.org/pdf/2006.09214.pdf</a></li>
+<li>code: <a target="_blank" rel="noopener" href="https://github.com/open-mmlab/mmdetection/blob/main/mmdet/models/dense_heads/fcos_head.py">https://github.com/open-mmlab/mmdetection/blob/main/mmdet/models/dense_heads/fcos_head.py</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li><code>Faster RCNN</code> 系列、<code>SSD</code>、<code>YOLOv2~v5</code>（注意 <code>YOLOv1</code> 不包括在内）都是基于 <code>Anchor</code> 进行预测的。</li>
+<li>本文提出一种 Anchor Free 的 one stage 目标检测方法，整个模型结构非常轻量，效果强大。</li>
+<li>由于没有了 anchor，所以 fcos 可方便拓展到其他任务。</li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<h3 id="网络结构"><a class="markdownIt-Anchor" href="#网络结构"></a> 网络结构</h3>
+<p><img src="https://s2.loli.net/2023/04/17/PqfYI2Ka5zEULT1.png" alt="fcos.png" /></p>
+<ul>
+<li><code>backbone + FPN</code> 输出了 5 种尺度的 <code>feature map</code> 用于预测，由于是全卷积网络，所以 <strong>5 个输出头共享一份参数</strong>，<strong>对于每个尺度的 <code>feature map</code> 上的每一个位置</strong> 预测包括类别（N，Cls，H，W）、框的位置（N，4，H，W）和一个中心置信度（N，1，H，W）。</li>
+<li>由于共享输出头，所以本文作者 <strong>为每个输出头增加了不共享的 scale 参数，scale.shape == (num_of_level, 1)</strong><br />
+<img src="https://s2.loli.net/2023/04/17/zuh6ilv4jT1xOyp.png" alt="fcos_2.png" /></li>
+<li>其中位置参数模型预测的是如上图所示的（l，t，b，r），即相对于 feature map 上的点到 GT 的上下左右偏移量。</li>
+</ul>
+<h3 id="centerness"><a class="markdownIt-Anchor" href="#centerness"></a> centerness</h3>
+<ul>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>c</mi><mi>e</mi><mi>n</mi><mi>t</mi><mi>e</mi><mi>r</mi><mi>n</mi><mi>e</mi><mi>s</mi><mi>s</mi><mo>=</mo><msqrt><mrow><mfrac><mrow><mi>m</mi><mi>i</mi><mi>n</mi><mo stretchy="false">(</mo><msup><mi>l</mi><mo>⋆</mo></msup><mo separator="true">,</mo><msup><mi>r</mi><mo>⋆</mo></msup><mo stretchy="false">)</mo></mrow><mrow><mi>m</mi><mi>a</mi><mi>x</mi><mo stretchy="false">(</mo><msup><mi>l</mi><mo>⋆</mo></msup><mo separator="true">,</mo><msup><mi>r</mi><mo>⋆</mo></msup><mo stretchy="false">)</mo></mrow></mfrac><mo>×</mo><mfrac><mrow><mi>m</mi><mi>i</mi><mi>n</mi><mo stretchy="false">(</mo><msup><mi>t</mi><mo>⋆</mo></msup><mo separator="true">,</mo><msup><mi>b</mi><mo>⋆</mo></msup><mo stretchy="false">)</mo></mrow><mrow><mi>m</mi><mi>a</mi><mi>x</mi><mo stretchy="false">(</mo><msup><mi>t</mi><mo>⋆</mo></msup><mo separator="true">,</mo><msup><mi>b</mi><mo>⋆</mo></msup><mo stretchy="false">)</mo></mrow></mfrac></mrow></msqrt></mrow><annotation encoding="application/x-tex">centerness=\sqrt{\frac{min(l^\star,r^\star)}{max(l^\star,r^\star)}\times \frac{min(t^\star,b^\star)}{max(t^\star,b^\star)}}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.61508em;vertical-align:0em;"></span><span class="mord mathnormal">c</span><span class="mord mathnormal">e</span><span class="mord mathnormal">n</span><span class="mord mathnormal">t</span><span class="mord mathnormal">e</span><span class="mord mathnormal" style="margin-right:0.02778em;">r</span><span class="mord mathnormal">n</span><span class="mord mathnormal">e</span><span class="mord mathnormal">s</span><span class="mord mathnormal">s</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:1.84em;vertical-align:-0.6100000000000001em;"></span><span class="mord sqrt"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.23em;"><span class="svg-align" style="top:-3.8em;"><span class="pstrut" style="height:3.8em;"></span><span class="mord" style="padding-left:1em;"><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.01em;"><span style="top:-2.655em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">m</span><span class="mord mathnormal mtight">a</span><span class="mord mathnormal mtight">x</span><span class="mopen mtight">(</span><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.01968em;">l</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6183428571428571em;"><span style="top:-2.786em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mbin mtight">⋆</span></span></span></span></span></span></span></span><span class="mpunct mtight">,</span><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.02778em;">r</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6183428571428571em;"><span style="top:-2.786em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mbin mtight">⋆</span></span></span></span></span></span></span></span><span class="mclose mtight">)</span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.485em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">m</span><span class="mord mathnormal mtight">i</span><span class="mord mathnormal mtight">n</span><span class="mopen mtight">(</span><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.01968em;">l</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6183428571428571em;"><span style="top:-2.786em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mbin mtight">⋆</span></span></span></span></span></span></span></span><span class="mpunct mtight">,</span><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.02778em;">r</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6183428571428571em;"><span style="top:-2.786em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mbin mtight">⋆</span></span></span></span></span></span></span></span><span class="mclose mtight">)</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.52em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.01em;"><span style="top:-2.655em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">m</span><span class="mord mathnormal mtight">a</span><span class="mord mathnormal mtight">x</span><span class="mopen mtight">(</span><span class="mord mtight"><span class="mord mathnormal mtight">t</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6183428571428571em;"><span style="top:-2.786em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mbin mtight">⋆</span></span></span></span></span></span></span></span><span class="mpunct mtight">,</span><span class="mord mtight"><span class="mord mathnormal mtight">b</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6183428571428571em;"><span style="top:-2.786em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mbin mtight">⋆</span></span></span></span></span></span></span></span><span class="mclose mtight">)</span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.485em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">m</span><span class="mord mathnormal mtight">i</span><span class="mord mathnormal mtight">n</span><span class="mopen mtight">(</span><span class="mord mtight"><span class="mord mathnormal mtight">t</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6183428571428571em;"><span style="top:-2.786em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mbin mtight">⋆</span></span></span></span></span></span></span></span><span class="mpunct mtight">,</span><span class="mord mtight"><span class="mord mathnormal mtight">b</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6183428571428571em;"><span style="top:-2.786em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mbin mtight">⋆</span></span></span></span></span></span></span></span><span class="mclose mtight">)</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.52em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span><span style="top:-3.1899999999999995em;"><span class="pstrut" style="height:3.8em;"></span><span class="hide-tail" style="min-width:1.02em;height:1.8800000000000001em;"><svg width='400em' height='1.8800000000000001em' viewBox='0 0 400000 1944' preserveAspectRatio='xMinYMin slice'><path d='M983 90
+l0 -0
+c4,-6.7,10,-10,18,-10 H400000v40
+H1013.1s-83.4,268,-264.1,840c-180.7,572,-277,876.3,-289,913c-4.7,4.7,-12.7,7,-24,7
+s-12,0,-12,0c-1.3,-3.3,-3.7,-11.7,-7,-25c-35.3,-125.3,-106.7,-373.3,-214,-744
+c-10,12,-21,25,-33,39s-32,39,-32,39c-6,-5.3,-15,-14,-27,-26s25,-30,25,-30
+c26.7,-32.7,52,-63,76,-91s52,-60,52,-60s208,722,208,722
+c56,-175.3,126.3,-397.3,211,-666c84.7,-268.7,153.8,-488.2,207.5,-658.5
+c53.7,-170.3,84.5,-266.8,92.5,-289.5z
+M1001 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.6100000000000001em;"><span></span></span></span></span></span></span></span></span> ，即 <code>GT bbox</code> 内的点越靠近中心越大，越远离中心越小，取值范围 <code>[0, 1]</code>，可视化 <code>centerness</code> 热力图如上图所示。</li>
+<li>最终预测时，score 阈值过滤的是 <code>centerness * score</code>。</li>
+</ul>
+<h3 id="损失函数"><a class="markdownIt-Anchor" href="#损失函数"></a> 损失函数</h3>
+<p><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>L</mi><mo stretchy="false">(</mo><mo stretchy="false">{</mo><msub><mi>p</mi><mrow><mi>x</mi><mo separator="true">,</mo><mi>y</mi></mrow></msub><mo stretchy="false">}</mo><mo separator="true">,</mo><mo stretchy="false">{</mo><msub><mi>t</mi><mrow><mi>x</mi><mo separator="true">,</mo><mi>y</mi></mrow></msub><mo stretchy="false">}</mo><mo stretchy="false">)</mo><mo>=</mo><mfrac><mn>1</mn><msub><mi>N</mi><mrow><mi>p</mi><mi>o</mi><mi>s</mi></mrow></msub></mfrac><msub><mo>∑</mo><mrow><mi>x</mi><mo separator="true">,</mo><mi>y</mi></mrow></msub><msub><mi>L</mi><mrow><mi>c</mi><mi>l</mi><mi>s</mi></mrow></msub><mo stretchy="false">(</mo><msub><mi>p</mi><mrow><mi>x</mi><mo separator="true">,</mo><mi>y</mi></mrow></msub><mo separator="true">,</mo><msubsup><mi>c</mi><mrow><mi>x</mi><mo separator="true">,</mo><mi>y</mi></mrow><mo>⋆</mo></msubsup><mo stretchy="false">)</mo><mo>+</mo><mfrac><mi>λ</mi><msub><mi>N</mi><mrow><mi>p</mi><mi>o</mi><mi>s</mi></mrow></msub></mfrac><msub><mo>∑</mo><mrow><mi>x</mi><mo separator="true">,</mo><mi>y</mi></mrow></msub><msub><mi mathvariant="double-struck">I</mi><mrow><msubsup><mi>c</mi><mrow><mi>x</mi><mo separator="true">,</mo><mi>y</mi></mrow><mo>⋆</mo></msubsup><mo>&gt;</mo><mn>0</mn></mrow></msub><msub><mi>L</mi><mrow><mi>r</mi><mi>e</mi><mi>g</mi></mrow></msub><mo stretchy="false">(</mo><msub><mi>t</mi><mrow><mi>x</mi><mo separator="true">,</mo><mi>y</mi></mrow></msub><mo separator="true">,</mo><msubsup><mi>t</mi><mrow><mi>x</mi><mo separator="true">,</mo><mi>y</mi></mrow><mo>⋆</mo></msubsup><mo stretchy="false">)</mo><mo>+</mo><mfrac><mi>γ</mi><msub><mi>N</mi><mrow><mi>p</mi><mi>o</mi><mi>s</mi></mrow></msub></mfrac><msub><mo>∑</mo><mrow><mi>x</mi><mo separator="true">,</mo><mi>y</mi></mrow></msub><msub><mi mathvariant="double-struck">I</mi><mrow><msubsup><mi>c</mi><mrow><mi>x</mi><mo separator="true">,</mo><mi>y</mi></mrow><mo>⋆</mo></msubsup><mo>&gt;</mo><mn>0</mn></mrow></msub><msub><mi>L</mi><mrow><mi>c</mi><mi>t</mi><mi>r</mi></mrow></msub><mo stretchy="false">(</mo><msub><mi>s</mi><mrow><mi>x</mi><mo separator="true">,</mo><mi>y</mi></mrow></msub><mo separator="true">,</mo><msubsup><mi>s</mi><mrow><mi>x</mi><mo separator="true">,</mo><mi>y</mi></mrow><mo>⋆</mo></msubsup><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">L(\{p_{x,y}\},\{t_{x,y}\})=\frac{1}{N_{pos}}\sum_{x,y}L_{cls}(p_{x,y},c^\star_{x,y})+\frac{\lambda}{N_{pos}}\sum_{x,y}\mathbb{I}_{c_{x,y}^\star&gt;0}L_{reg}(t_{x,y},t^\star_{x,y})+\frac{\gamma}{N_{pos}}\sum_{x,y}\mathbb{I}_{c_{x,y}^\star&gt;0}L_{ctr}(s_{x,y},s^\star_{x,y})</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.036108em;vertical-align:-0.286108em;"></span><span class="mord mathnormal">L</span><span class="mopen">(</span><span class="mopen">{</span><span class="mord"><span class="mord mathnormal">p</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.15139200000000003em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span><span class="mclose">}</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mopen">{</span><span class="mord"><span class="mord mathnormal">t</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.15139200000000003em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span><span class="mclose">}</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:1.3874279999999999em;vertical-align:-0.5423199999999999em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.845108em;"><span style="top:-2.655em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.10903em;">N</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.16454285714285716em;"><span style="top:-2.357em;margin-left:-0.10903em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">p</span><span class="mord mathnormal mtight">o</span><span class="mord mathnormal mtight">s</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2818857142857143em;"><span></span></span></span></span></span></span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.394em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.5423199999999999em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mop"><span class="mop op-symbol small-op" style="position:relative;top:-0.0000050000000000050004em;">∑</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.0016819999999999613em;"><span style="top:-2.40029em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.43581800000000004em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathnormal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.33610799999999996em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">c</span><span class="mord mathnormal mtight" style="margin-right:0.01968em;">l</span><span class="mord mathnormal mtight">s</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">p</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.15139200000000003em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathnormal">c</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.688696em;"><span style="top:-2.4530000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span></span></span></span><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mbin mtight">⋆</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.383108em;"><span></span></span></span></span></span></span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:1.4224279999999998em;vertical-align:-0.5423199999999999em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.8801079999999999em;"><span style="top:-2.655em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.10903em;">N</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.16454285714285716em;"><span style="top:-2.357em;margin-left:-0.10903em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">p</span><span class="mord mathnormal mtight">o</span><span class="mord mathnormal mtight">s</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2818857142857143em;"><span></span></span></span></span></span></span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.394em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">λ</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.5423199999999999em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mop"><span class="mop op-symbol small-op" style="position:relative;top:-0.0000050000000000050004em;">∑</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.0016819999999999613em;"><span style="top:-2.40029em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.43581800000000004em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord"><span class="mord mathbb">I</span></span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.30110799999999993em;"><span style="top:-2.55em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathnormal mtight">c</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.6183428571428571em;"><span style="top:-2.214em;margin-left:0em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span></span></span></span><span style="top:-2.786em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mbin mtight">⋆</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.42488571428571426em;"><span></span></span></span></span></span></span><span class="mrel mtight">&gt;</span><span class="mord mtight">0</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.44741999999999993em;"><span></span></span></span></span></span></span><span class="mord"><span class="mord mathnormal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.15139200000000003em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.02778em;">r</span><span class="mord mathnormal mtight">e</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">g</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">t</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.15139200000000003em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathnormal">t</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.688696em;"><span style="top:-2.4530000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span></span></span></span><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mbin mtight">⋆</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.383108em;"><span></span></span></span></span></span></span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:1.29232em;vertical-align:-0.5423199999999999em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.7475em;"><span style="top:-2.655em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.10903em;">N</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.16454285714285716em;"><span style="top:-2.357em;margin-left:-0.10903em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">p</span><span class="mord mathnormal mtight">o</span><span class="mord mathnormal mtight">s</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2818857142857143em;"><span></span></span></span></span></span></span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.446108em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.05556em;">γ</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.5423199999999999em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mop"><span class="mop op-symbol small-op" style="position:relative;top:-0.0000050000000000050004em;">∑</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.0016819999999999613em;"><span style="top:-2.40029em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.43581800000000004em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord"><span class="mord mathbb">I</span></span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.30110799999999993em;"><span style="top:-2.55em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathnormal mtight">c</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.6183428571428571em;"><span style="top:-2.214em;margin-left:0em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span></span></span></span><span style="top:-2.786em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mbin mtight">⋆</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.42488571428571426em;"><span></span></span></span></span></span></span><span class="mrel mtight">&gt;</span><span class="mord mtight">0</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.44741999999999993em;"><span></span></span></span></span></span></span><span class="mord"><span class="mord mathnormal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2805559999999999em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">c</span><span class="mord mathnormal mtight">t</span><span class="mord mathnormal mtight" style="margin-right:0.02778em;">r</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">s</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.15139200000000003em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathnormal">s</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.688696em;"><span style="top:-2.4530000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span></span></span></span><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mbin mtight">⋆</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.383108em;"><span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span></p>
+<ul>
+<li>其中 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>p</mi><mrow><mi>x</mi><mo separator="true">,</mo><mi>y</mi></mrow></msub></mrow><annotation encoding="application/x-tex">p_{x,y}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.716668em;vertical-align:-0.286108em;"></span><span class="mord"><span class="mord mathnormal">p</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.15139200000000003em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span></span></span></span> 表示在特征图点（x,y）处预测的每个类别的 score</li>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>c</mi><mrow><mi>x</mi><mo separator="true">,</mo><mi>y</mi></mrow><mo>⋆</mo></msubsup></mrow><annotation encoding="application/x-tex">c^\star_{x,y}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.071804em;vertical-align:-0.383108em;"></span><span class="mord"><span class="mord mathnormal">c</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.688696em;"><span style="top:-2.4530000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span></span></span></span><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mbin mtight">⋆</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.383108em;"><span></span></span></span></span></span></span></span></span></span> 表示在特征图点（x,y）处的真实类别（<strong>负样本类别为 0</strong>）</li>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>t</mi><mrow><mi>x</mi><mo separator="true">,</mo><mi>y</mi></mrow></msub></mrow><annotation encoding="application/x-tex">t_{x,y}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.9011879999999999em;vertical-align:-0.286108em;"></span><span class="mord"><span class="mord mathnormal">t</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.15139200000000003em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span></span></span></span> 表示在特征图点（x,y）处预测的目标边界信息</li>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>s</mi><mrow><mi>x</mi><mo separator="true">,</mo><mi>y</mi></mrow></msub></mrow><annotation encoding="application/x-tex">s_{x,y}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.716668em;vertical-align:-0.286108em;"></span><span class="mord"><span class="mord mathnormal">s</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.15139200000000003em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span></span></span></span> 表示在特征图点处预测的centerness</li>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>L</mi><mrow><mi>c</mi><mi>l</mi><mi>s</mi></mrow></msub></mrow><annotation encoding="application/x-tex">L_{cls}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.33610799999999996em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">c</span><span class="mord mathnormal mtight" style="margin-right:0.01968em;">l</span><span class="mord mathnormal mtight">s</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> 使用 <code>focal loss</code> 以平衡正负样本</li>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>L</mi><mrow><mi>r</mi><mi>e</mi><mi>g</mi></mrow></msub></mrow><annotation encoding="application/x-tex">L_{reg}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.969438em;vertical-align:-0.286108em;"></span><span class="mord"><span class="mord mathnormal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.15139200000000003em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.02778em;">r</span><span class="mord mathnormal mtight">e</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">g</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span></span></span></span> 使用 <code>GIOU loss</code>，<strong>且只对正样本计算</strong></li>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>L</mi><mrow><mi>c</mi><mi>t</mi><mi>r</mi></mrow></msub></mrow><annotation encoding="application/x-tex">L_{ctr}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2805559999999999em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">c</span><span class="mord mathnormal mtight">t</span><span class="mord mathnormal mtight" style="margin-right:0.02778em;">r</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> 使用 <code>focal loss</code>，<strong>且只对正样本计算</strong></li>
+</ul>
+<h3 id="正样本选择策略"><a class="markdownIt-Anchor" href="#正样本选择策略"></a> 正样本选择策略</h3>
+<ul>
+<li>与 <code>anchor base</code> 方法不同，<code>fcos</code> 对正样本的选择较为苛刻，<strong>仅当 feature map 上的某个点落入 gt bbox 中心区域（sub-box）时才被当做正样本</strong> 。</li>
+<li><code>sub-box</code> 的定义： <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false">(</mo><msub><mi>c</mi><mi>x</mi></msub><mo>−</mo><mi>r</mi><mi>s</mi><mo separator="true">,</mo><msub><mi>c</mi><mi>y</mi></msub><mo>−</mo><mi>r</mi><mi>s</mi><mo separator="true">,</mo><msub><mi>c</mi><mi>x</mi></msub><mo>+</mo><mi>r</mi><mi>s</mi><mo separator="true">,</mo><msub><mi>c</mi><mi>y</mi></msub><mo>+</mo><mi>r</mi><mi>s</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">(c_x-rs,c_y-rs,c_x+rs,c_y+rs)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">c</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">x</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.8694379999999999em;vertical-align:-0.286108em;"></span><span class="mord mathnormal" style="margin-right:0.02778em;">r</span><span class="mord mathnormal">s</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathnormal">c</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.15139200000000003em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.7777700000000001em;vertical-align:-0.19444em;"></span><span class="mord mathnormal" style="margin-right:0.02778em;">r</span><span class="mord mathnormal">s</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathnormal">c</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">x</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.8694379999999999em;vertical-align:-0.286108em;"></span><span class="mord mathnormal" style="margin-right:0.02778em;">r</span><span class="mord mathnormal">s</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathnormal">c</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.15139200000000003em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.02778em;">r</span><span class="mord mathnormal">s</span><span class="mclose">)</span></span></span></span> ，其中 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false">(</mo><msub><mi>c</mi><mi>x</mi></msub><mo separator="true">,</mo><msub><mi>c</mi><mi>y</mi></msub><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">(c_x,c_y)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.036108em;vertical-align:-0.286108em;"></span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">c</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">x</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathnormal">c</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.15139200000000003em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span> 表示 <code>gt bbox</code> 中心点在原始图上的坐标；<code>s</code> 表示 <code>stride</code> 即当前 <code>feature map</code> 相较于原图下采样倍数；<code>r</code> 表示 <code>radius</code> 半径超参数，在 <code>coco</code> 数据集上取 <code>1.5</code>。</li>
+<li>除了正样本之外，其他样本的 <code>cls</code> 类别都被置为 <code>0（background）</code>，负样本只计算 <code>cls loss</code>，不计算 <code>reg loss</code> 和 <code>centerness loss</code>（也没法计算，有框才能计算）。</li>
+</ul>
+<h3 id="ambiguous-sample"><a class="markdownIt-Anchor" href="#ambiguous-sample"></a> Ambiguous sample</h3>
+<ul>
+<li><code>anchor free</code> 的检测方法绕不开一个天然的问题：如果一个 <code>feature map</code> 的特征点（x,y）同时是两个 <code>GT bbox</code> 的正例，应该如何预测，毕竟 <code>fcos</code> 每个特征点只预测一个框。</li>
+<li>本文缓解该问题的方法是：<strong>使用 FPN box 尺度分配 + center sampling</strong>。
+<ul>
+<li><code>FPN bbox</code> 尺度分配是一个常用的解决 <code>Ambiguity</code> 问题的方法，越大的 <code>feature map</code> 负责检测越小的框。（将 <code>Ambiguity</code> 出现的概率从 <code>23.16%</code> 降低到 <code>7.24%</code>）</li>
+<li><code>center sampling</code>：即上面提到的 sub-box 采样方法，<strong>radius = 1.5</strong>。（将 <code>Ambiguity</code> 出现的概率从 <code>7.24%</code> 降低到 <code>2.66%</code>）</li>
+</ul>
+</li>
+</ul>
+<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
+<ul>
+<li><code>FCOS</code> 是一种很简单高效的 <code>2D anchor free</code> 物体检测算法，迁移性强，启发了后面的 <code>FCOS3D</code> 单目 <code>3D</code> 检测。</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2023/04/15/Ultra-Fast-Structure-aware-Deep-Lane-Detection/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1856,255 +2188,10 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2022/10/22/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0%E7%BC%96%E8%AF%91-4-%E2%80%94%E2%80%94%E8%87%AA%E5%8A%A8%E7%A8%8B%E5%BA%8F%E4%BC%98%E5%8C%96/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2022/10/22/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0%E7%BC%96%E8%AF%91-4-%E2%80%94%E2%80%94%E8%87%AA%E5%8A%A8%E7%A8%8B%E5%BA%8F%E4%BC%98%E5%8C%96/" class="post-title-link" itemprop="url">机器学习编译(4)——自动程序优化</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2022-10-22 15:43:09" itemprop="dateCreated datePublished" datetime="2022-10-22T15:43:09+08:00">2022-10-22</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-12 15:19:58" itemprop="dateModified" datetime="2024-11-12T15:19:58+08:00">2024-11-12</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0%E7%BC%96%E8%AF%91/" itemprop="url" rel="index"><span itemprop="name">机器学习编译</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2022/10/22/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0%E7%BC%96%E8%AF%91-4-%E2%80%94%E2%80%94%E8%87%AA%E5%8A%A8%E7%A8%8B%E5%BA%8F%E4%BC%98%E5%8C%96/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2022/10/22/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0%E7%BC%96%E8%AF%91-4-%E2%80%94%E2%80%94%E8%87%AA%E5%8A%A8%E7%A8%8B%E5%BA%8F%E4%BC%98%E5%8C%96/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
-<ul>
-<li><a target="_blank" rel="noopener" href="https://mlc.ai/zh/chapter_auto_program_optimization/index.html">https://mlc.ai/zh/chapter_auto_program_optimization/index.html</a></li>
-</ul>
-<h2 id="自动程序优化的原因"><a class="markdownIt-Anchor" href="#自动程序优化的原因"></a> 自动程序优化的原因</h2>
-<ul>
-<li><code>MLC</code> 的本质是<strong>张量函数之间的转换</strong>，但我们不知道哪种转换是让模型运行更快的，所以需要使用自动程序优化，去自动搜索最有转换。</li>
-</ul>
-<h2 id="自动程序优化过程"><a class="markdownIt-Anchor" href="#自动程序优化过程"></a> 自动程序优化过程</h2>
-<h3 id="end-to-end-构建模型"><a class="markdownIt-Anchor" href="#end-to-end-构建模型"></a> end-to-end 构建模型</h3>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># IR_Module 使用自定义主张量函数和库张量函数</span></span><br><span class="line"><span class="meta">@tvm.script.ir_module</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">MyModuleMixture</span>:</span></span><br><span class="line"><span class="meta">    @T.prim_func</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">linear0</span>(<span class="params"></span></span></span><br><span class="line"><span class="params"><span class="function">        X: T.Buffer[(<span class="params"><span class="number">1</span>, <span class="number">784</span></span>), <span class="string">&quot;float32&quot;</span>],</span></span></span><br><span class="line"><span class="params"><span class="function">        W: T.Buffer[(<span class="params"><span class="number">128</span>, <span class="number">784</span></span>), <span class="string">&quot;float32&quot;</span>],</span></span></span><br><span class="line"><span class="params"><span class="function">        B: T.Buffer[(<span class="params"><span class="number">128</span>,</span>), <span class="string">&quot;float32&quot;</span>],</span></span></span><br><span class="line"><span class="params"><span class="function">        Z: T.Buffer[(<span class="params"><span class="number">1</span>, <span class="number">128</span></span>), <span class="string">&quot;float32&quot;</span>],</span></span></span><br><span class="line"><span class="params"><span class="function">    </span>):</span></span><br><span class="line">        T.func_attr(&#123;<span class="string">&quot;global_symbol&quot;</span>: <span class="string">&quot;linear0&quot;</span>, <span class="string">&quot;tir.noalias&quot;</span>: <span class="literal">True</span>&#125;)</span><br><span class="line">        ...</span><br><span class="line"><span class="meta">    @R.function</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">main</span>(<span class="params"></span></span></span><br><span class="line"><span class="params"><span class="function">        x: Tensor(<span class="params">(<span class="params"><span class="number">1</span>, <span class="number">784</span></span>), <span class="string">&quot;float32&quot;</span></span>),</span></span></span><br><span class="line"><span class="params"><span class="function">        w0: Tensor(<span class="params">(<span class="params"><span class="number">128</span>, <span class="number">784</span></span>), <span class="string">&quot;float32&quot;</span></span>),</span></span></span><br><span class="line"><span class="params"><span class="function">        b0: Tensor(<span class="params">(<span class="params"><span class="number">128</span>,</span>), <span class="string">&quot;float32&quot;</span></span>),</span></span></span><br><span class="line"><span class="params"><span class="function">        w1: Tensor(<span class="params">(<span class="params"><span class="number">10</span>, <span class="number">128</span></span>), <span class="string">&quot;float32&quot;</span></span>),</span></span></span><br><span class="line"><span class="params"><span class="function">        b1: Tensor(<span class="params">(<span class="params"><span class="number">10</span>,</span>), <span class="string">&quot;float32&quot;</span></span>),</span></span></span><br><span class="line"><span class="params"><span class="function">    </span>):</span></span><br><span class="line">        <span class="keyword">with</span> R.dataflow():</span><br><span class="line">            lv0 = R.call_tir(linear0, (x, w0, b0), (<span class="number">1</span>, <span class="number">128</span>), dtype=<span class="string">&quot;float32&quot;</span>)</span><br><span class="line">            lv1 = R.call_tir(<span class="string">&quot;env.relu&quot;</span>, (lv0,), (<span class="number">1</span>, <span class="number">128</span>), dtype=<span class="string">&quot;float32&quot;</span>)</span><br><span class="line">            out = R.call_tir(<span class="string">&quot;env.linear&quot;</span>, (lv1, w1, b1), (<span class="number">1</span>, <span class="number">10</span>), dtype=<span class="string">&quot;float32&quot;</span>)</span><br><span class="line">            R.output(out)</span><br><span class="line">        <span class="keyword">return</span> out</span><br><span class="line"><span class="comment"># 注册库张量函数</span></span><br><span class="line"><span class="meta">@tvm.register_func(<span class="params"><span class="string">&quot;env.linear&quot;</span>, override=<span class="literal">True</span></span>)</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">torch_linear</span>(<span class="params"></span></span></span><br><span class="line"><span class="params"><span class="function">    x: tvm.nd.NDArray, w: tvm.nd.NDArray, b: tvm.nd.NDArray, out: tvm.nd.NDArray</span></span></span><br><span class="line"><span class="params"><span class="function"></span>):</span></span><br><span class="line">    ...</span><br><span class="line"><span class="comment"># 注册库张量函数</span></span><br><span class="line"><span class="meta">@tvm.register_func(<span class="params"><span class="string">&quot;env.relu&quot;</span>, override=<span class="literal">True</span></span>)</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">lnumpy_relu</span>(<span class="params">x: tvm.nd.NDArray, out: tvm.nd.NDArray</span>):</span></span><br><span class="line">    ...</span><br><span class="line"><span class="comment"># 绑定模型权重参数（nd_params 是模型权重），作用类似于 functools.partial()</span></span><br><span class="line">MyModuleWithParams = relax.transform.BindParams(<span class="string">&quot;main&quot;</span>, nd_params)(MyModuleMixture)</span><br><span class="line"><span class="comment"># IR_Module -&gt; 可执行程序 -&gt; 虚拟机执行器</span></span><br><span class="line">ex = relax.vm.build(MyModuleWithParams, target=<span class="string">&quot;llvm&quot;</span>)</span><br><span class="line">vm = relax.VirtualMachine(ex, tvm.cpu())</span><br><span class="line"><span class="comment"># 执行</span></span><br><span class="line">nd_res = vm[<span class="string">&quot;main&quot;</span>](data_nd)</span><br><span class="line"><span class="comment"># 测速</span></span><br><span class="line">ftimer = vm.module.time_evaluator(<span class="string">&quot;main&quot;</span>, tvm.cpu(), number=<span class="number">100</span>)</span><br></pre></td></tr></table></figure>
-<h3 id="自动优化-linear0-主张量函数"><a class="markdownIt-Anchor" href="#自动优化-linear0-主张量函数"></a> 自动优化 linear0 主张量函数</h3>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 调优 API 只接受一个带有一个 main 函数的 IRModule，所以需要将原始 IRModule 中的 linear0 转成新 IRModule 的 main 函数</span></span><br><span class="line">mod_linear = tvm.IRModule.from_expr(MyModuleMixture[<span class="string">&quot;linear0&quot;</span>].with_attr(<span class="string">&quot;global_symbol&quot;</span>, <span class="string">&quot;main&quot;</span>))</span><br><span class="line"><span class="comment"># 打印新IRModule</span></span><br><span class="line">IPython.display.HTML(code2html(mod_linear.script()))</span><br><span class="line"><span class="comment"># 打印输出</span></span><br><span class="line"><span class="meta">@tvm.script.ir_module</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Module</span>:</span></span><br><span class="line"><span class="meta">    @T.prim_func</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">main</span>(<span class="params"></span></span></span><br><span class="line"><span class="params"><span class="function">        X: T.Buffer[(<span class="params"><span class="number">1</span>, <span class="number">784</span></span>), <span class="string">&quot;float32&quot;</span>],</span></span></span><br><span class="line"><span class="params"><span class="function">        W: T.Buffer[(<span class="params"><span class="number">128</span>, <span class="number">784</span></span>), <span class="string">&quot;float32&quot;</span>],</span></span></span><br><span class="line"><span class="params"><span class="function">        B: T.Buffer[(<span class="params"><span class="number">128</span>,</span>), <span class="string">&quot;float32&quot;</span>],</span></span></span><br><span class="line"><span class="params"><span class="function">        Z: T.Buffer[(<span class="params"><span class="number">1</span>, <span class="number">128</span></span>), <span class="string">&quot;float32&quot;</span>],</span></span></span><br><span class="line"><span class="params"><span class="function">    </span>):</span></span><br><span class="line">        <span class="comment"># 函数中内容是 MyModuleMixture.linear0</span></span><br><span class="line"><span class="comment"># 自动调优 API，input 是需要调优的 IRModule，output 是调优后的 schedule，schedule.mod 是调优后的 IRModule</span></span><br><span class="line">sch_tuned_linear = ms.tune_tir(</span><br><span class="line">    mod=mod_linear,                 <span class="comment"># 待调优 IRModule</span></span><br><span class="line">    target=<span class="string">&quot;llvm --num-cores=1&quot;</span>,    <span class="comment"># 调优目标</span></span><br><span class="line">    config=ms.TuneConfig(           <span class="comment"># 自动调优配置</span></span><br><span class="line">      max_trials_global=<span class="number">64</span>,</span><br><span class="line">      num_trials_per_iter=<span class="number">64</span>,</span><br><span class="line">    ),</span><br><span class="line">    work_dir=<span class="string">&quot;./tune_tmp&quot;</span>,</span><br><span class="line">    task_name=<span class="string">&quot;main&quot;</span>,</span><br><span class="line">)</span><br><span class="line"><span class="comment"># 将返回的 IRModule 中的 main 函数更新到原 IRModule 的 linear0 中</span></span><br><span class="line"><span class="comment"># 绑定参数</span></span><br><span class="line">MyModuleWithParams2 = relax.transform.BindParams(<span class="string">&quot;main&quot;</span>, nd_params)(MyModuleMixture)</span><br><span class="line"><span class="comment"># 获取调优后的 main 函数</span></span><br><span class="line">new_func = sch_tuned_linear.mod[<span class="string">&quot;main&quot;</span>].with_attr(<span class="string">&quot;global_symbol&quot;</span>, <span class="string">&quot;linear0&quot;</span>)</span><br><span class="line"><span class="comment"># 获取原 IRModule 的 linear0 张量函数</span></span><br><span class="line">gv = MyModuleWithParams2.get_global_var(<span class="string">&quot;linear0&quot;</span>)</span><br><span class="line"><span class="comment"># 更新调优后的 main 函数到原 IRModule 的 linear0 张量函数</span></span><br><span class="line">MyModuleWithParams2.update_func(gv, new_func)</span><br><span class="line"><span class="comment"># 重新测速，速度变快</span></span><br></pre></td></tr></table></figure>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2022/10/21/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0%E7%BC%96%E8%AF%91-3-%E2%80%94%E2%80%94%E7%AB%AF%E5%88%B0%E7%AB%AF%E6%A8%A1%E5%9E%8B%E6%89%A7%E8%A1%8C/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2022/10/21/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0%E7%BC%96%E8%AF%91-3-%E2%80%94%E2%80%94%E7%AB%AF%E5%88%B0%E7%AB%AF%E6%A8%A1%E5%9E%8B%E6%89%A7%E8%A1%8C/" class="post-title-link" itemprop="url">机器学习编译(3)——端到端模型执行</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2022-10-21 09:43:13" itemprop="dateCreated datePublished" datetime="2022-10-21T09:43:13+08:00">2022-10-21</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-12 15:18:40" itemprop="dateModified" datetime="2024-11-12T15:18:40+08:00">2024-11-12</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0%E7%BC%96%E8%AF%91/" itemprop="url" rel="index"><span itemprop="name">机器学习编译</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2022/10/21/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0%E7%BC%96%E8%AF%91-3-%E2%80%94%E2%80%94%E7%AB%AF%E5%88%B0%E7%AB%AF%E6%A8%A1%E5%9E%8B%E6%89%A7%E8%A1%8C/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2022/10/21/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0%E7%BC%96%E8%AF%91-3-%E2%80%94%E2%80%94%E7%AB%AF%E5%88%B0%E7%AB%AF%E6%A8%A1%E5%9E%8B%E6%89%A7%E8%A1%8C/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
-<ul>
-<li><a target="_blank" rel="noopener" href="https://mlc.ai/zh/chapter_end_to_end/index.html#">https://mlc.ai/zh/chapter_end_to_end/index.html#</a></li>
-</ul>
-<h2 id="机器学习编译的本质与关注点"><a class="markdownIt-Anchor" href="#机器学习编译的本质与关注点"></a> 机器学习编译的本质与关注点</h2>
-<ul>
-<li><code>MLC</code> 的本质：<strong>张量函数之间的转换</strong></li>
-<li><code>MLC</code> 的关注点：
-<ul>
-<li>所以可能的张量函数抽象表达</li>
-<li>所有可能的张量函数转换</li>
-</ul>
-</li>
-</ul>
-<h2 id="构造-ir_module"><a class="markdownIt-Anchor" href="#构造-ir_module"></a> 构造 <code>IR_Module</code></h2>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@tvm.script.ir_module</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">MyModule</span>:</span></span><br><span class="line"><span class="meta">    @T.prim_func</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">relu0</span>(<span class="params">X: T.Buffer[(<span class="params"><span class="number">1</span>, <span class="number">128</span></span>), <span class="string">&quot;float32&quot;</span>], Y: T.Buffer[(<span class="params"><span class="number">1</span>, <span class="number">128</span></span>), <span class="string">&quot;float32&quot;</span>]</span>):</span></span><br><span class="line">        <span class="comment"># function attr dict</span></span><br><span class="line">        T.func_attr(&#123;<span class="string">&quot;global_symbol&quot;</span>: <span class="string">&quot;relu0&quot;</span>, <span class="string">&quot;tir.noalias&quot;</span>: <span class="literal">True</span>&#125;)</span><br><span class="line">        <span class="keyword">for</span> i, j <span class="keyword">in</span> T.grid(<span class="number">1</span>, <span class="number">128</span>):</span><br><span class="line">            <span class="keyword">with</span> T.block(<span class="string">&quot;Y&quot;</span>):</span><br><span class="line">                vi, vj = T.axis.remap(<span class="string">&quot;SS&quot;</span>, [i, j])</span><br><span class="line">                Y[vi, vj] = T.<span class="built_in">max</span>(X[vi, vj], T.float32(<span class="number">0</span>))</span><br><span class="line"><span class="meta">    @T.prim_func</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">linear0</span>(<span class="params"></span></span></span><br><span class="line"><span class="params"><span class="function">        X: T.Buffer[(<span class="params"><span class="number">1</span>, <span class="number">784</span></span>), <span class="string">&quot;float32&quot;</span>],</span></span></span><br><span class="line"><span class="params"><span class="function">        W: T.Buffer[(<span class="params"><span class="number">128</span>, <span class="number">784</span></span>), <span class="string">&quot;float32&quot;</span>],</span></span></span><br><span class="line"><span class="params"><span class="function">        B: T.Buffer[(<span class="params"><span class="number">128</span>,</span>), <span class="string">&quot;float32&quot;</span>],</span></span></span><br><span class="line"><span class="params"><span class="function">        Z: T.Buffer[(<span class="params"><span class="number">1</span>, <span class="number">128</span></span>), <span class="string">&quot;float32&quot;</span>],</span></span></span><br><span class="line"><span class="params"><span class="function">    </span>):</span></span><br><span class="line">        T.func_attr(&#123;<span class="string">&quot;global_symbol&quot;</span>: <span class="string">&quot;linear0&quot;</span>, <span class="string">&quot;tir.noalias&quot;</span>: <span class="literal">True</span>&#125;)</span><br><span class="line">        Y = T.alloc_buffer((<span class="number">1</span>, <span class="number">128</span>), <span class="string">&quot;float32&quot;</span>)</span><br><span class="line">        <span class="keyword">for</span> i, j, k <span class="keyword">in</span> T.grid(<span class="number">1</span>, <span class="number">128</span>, <span class="number">784</span>):</span><br><span class="line">            <span class="keyword">with</span> T.block(<span class="string">&quot;Y&quot;</span>):</span><br><span class="line">                vi, vj, vk = T.axis.remap(<span class="string">&quot;SSR&quot;</span>, [i, j, k])</span><br><span class="line">                <span class="keyword">with</span> T.init():</span><br><span class="line">                    Y[vi, vj] = T.float32(<span class="number">0</span>)</span><br><span class="line">                Y[vi, vj] = Y[vi, vj] + X[vi, vk] * W[vj, vk]</span><br><span class="line">        <span class="keyword">for</span> i, j <span class="keyword">in</span> T.grid(<span class="number">1</span>, <span class="number">128</span>):</span><br><span class="line">            <span class="keyword">with</span> T.block(<span class="string">&quot;Z&quot;</span>):</span><br><span class="line">                vi, vj = T.axis.remap(<span class="string">&quot;SS&quot;</span>, [i, j])</span><br><span class="line">                Z[vi, vj] = Y[vi, vj] + B[vj]</span><br><span class="line"><span class="meta">    @T.prim_func</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">linear1</span>(<span class="params"></span></span></span><br><span class="line"><span class="params"><span class="function">        X: T.Buffer[(<span class="params"><span class="number">1</span>, <span class="number">128</span></span>), <span class="string">&quot;float32&quot;</span>],</span></span></span><br><span class="line"><span class="params"><span class="function">        W: T.Buffer[(<span class="params"><span class="number">10</span>, <span class="number">128</span></span>), <span class="string">&quot;float32&quot;</span>],</span></span></span><br><span class="line"><span class="params"><span class="function">        B: T.Buffer[(<span class="params"><span class="number">10</span>,</span>), <span class="string">&quot;float32&quot;</span>],</span></span></span><br><span class="line"><span class="params"><span class="function">        Z: T.Buffer[(<span class="params"><span class="number">1</span>, <span class="number">10</span></span>), <span class="string">&quot;float32&quot;</span>],</span></span></span><br><span class="line"><span class="params"><span class="function">    </span>):</span></span><br><span class="line">        T.func_attr(&#123;<span class="string">&quot;global_symbol&quot;</span>: <span class="string">&quot;linear1&quot;</span>, <span class="string">&quot;tir.noalias&quot;</span>: <span class="literal">True</span>&#125;)</span><br><span class="line">        Y = T.alloc_buffer((<span class="number">1</span>, <span class="number">10</span>), <span class="string">&quot;float32&quot;</span>)</span><br><span class="line">        <span class="keyword">for</span> i, j, k <span class="keyword">in</span> T.grid(<span class="number">1</span>, <span class="number">10</span>, <span class="number">128</span>):</span><br><span class="line">            <span class="keyword">with</span> T.block(<span class="string">&quot;Y&quot;</span>):</span><br><span class="line">                vi, vj, vk = T.axis.remap(<span class="string">&quot;SSR&quot;</span>, [i, j, k])</span><br><span class="line">                <span class="keyword">with</span> T.init():</span><br><span class="line">                    Y[vi, vj] = T.float32(<span class="number">0</span>)</span><br><span class="line">                Y[vi, vj] = Y[vi, vj] + X[vi, vk] * W[vj, vk]</span><br><span class="line">        <span class="keyword">for</span> i, j <span class="keyword">in</span> T.grid(<span class="number">1</span>, <span class="number">10</span>):</span><br><span class="line">            <span class="keyword">with</span> T.block(<span class="string">&quot;Z&quot;</span>):</span><br><span class="line">                vi, vj = T.axis.remap(<span class="string">&quot;SS&quot;</span>, [i, j])</span><br><span class="line">                Z[vi, vj] = Y[vi, vj] + B[vj]</span><br><span class="line"><span class="meta">    @R.function</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">main</span>(<span class="params"></span></span></span><br><span class="line"><span class="params"><span class="function">        x: Tensor(<span class="params">(<span class="params"><span class="number">1</span>, <span class="number">784</span></span>), <span class="string">&quot;float32&quot;</span></span>),</span></span></span><br><span class="line"><span class="params"><span class="function">        w0: Tensor(<span class="params">(<span class="params"><span class="number">128</span>, <span class="number">784</span></span>), <span class="string">&quot;float32&quot;</span></span>),</span></span></span><br><span class="line"><span class="params"><span class="function">        b0: Tensor(<span class="params">(<span class="params"><span class="number">128</span>,</span>), <span class="string">&quot;float32&quot;</span></span>),</span></span></span><br><span class="line"><span class="params"><span class="function">        w1: Tensor(<span class="params">(<span class="params"><span class="number">10</span>, <span class="number">128</span></span>), <span class="string">&quot;float32&quot;</span></span>),</span></span></span><br><span class="line"><span class="params"><span class="function">        b1: Tensor(<span class="params">(<span class="params"><span class="number">10</span>,</span>), <span class="string">&quot;float32&quot;</span></span>),</span></span></span><br><span class="line"><span class="params"><span class="function">    </span>):</span></span><br><span class="line">        <span class="keyword">with</span> R.dataflow():</span><br><span class="line">            lv0 = R.call_tir(linear0, (x, w0, b0), (<span class="number">1</span>, <span class="number">128</span>), dtype=<span class="string">&quot;float32&quot;</span>)</span><br><span class="line">            lv1 = R.call_tir(relu0, (lv0,), (<span class="number">1</span>, <span class="number">128</span>), dtype=<span class="string">&quot;float32&quot;</span>)</span><br><span class="line">            out = R.call_tir(linear1, (lv1, w1, b1), (<span class="number">1</span>, <span class="number">10</span>), dtype=<span class="string">&quot;float32&quot;</span>)</span><br><span class="line">            R.output(out)</span><br><span class="line">        <span class="keyword">return</span> out</span><br></pre></td></tr></table></figure>
-<ul>
-<li><code>@tvm.script.ir_module</code> 装饰 <strong><code>IR_Module</code></strong></li>
-<li><code>@T.prim_func</code> 装饰 <strong>主张量函数</strong></li>
-<li><code>@R.function</code> 装饰 <strong>高层神经网络执行的抽象</strong>，（将整个 <code>IR_Module</code> 中的主张量函数串起来组成一个计算图）</li>
-<li><code>R.dataflow()</code> 用于标记程序计算图区域</li>
-<li><code>R.call_tir(prim_func, inputs, output_shape, dtype)</code> 分配输出内存并和输入一起输入主张量函数</li>
-</ul>
-<h2 id="构建并运行模型"><a class="markdownIt-Anchor" href="#构建并运行模型"></a> 构建并运行模型</h2>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">ex = relax.vm.build(MyModule, target=<span class="string">&quot;llvm&quot;</span>)</span><br><span class="line">vm = relax.VirtualMachine(ex, tvm.cpu())</span><br><span class="line">nd_res = vm[<span class="string">&quot;main&quot;</span>](</span><br><span class="line">    data_nd, nd_params[<span class="string">&quot;w0&quot;</span>], nd_params[<span class="string">&quot;b0&quot;</span>], nd_params[<span class="string">&quot;w1&quot;</span>], nd_params[<span class="string">&quot;b1&quot;</span>]</span><br><span class="line">)</span><br></pre></td></tr></table></figure>
-<ul>
-<li>可执行文件 = build(IR_Module)</li>
-<li>虚拟机执行器 = 虚拟机(可执行文件)</li>
-<li>运行结果 = 虚拟机执行器(模型输入)</li>
-</ul>
-<h2 id="使用现有库避免重复造轮子"><a class="markdownIt-Anchor" href="#使用现有库避免重复造轮子"></a> 使用现有库避免重复造轮子</h2>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@tvm.script.ir_module</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">MyModuleWithExternCall</span>:</span></span><br><span class="line"><span class="meta">    @R.function</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">main</span>(<span class="params"></span></span></span><br><span class="line"><span class="params"><span class="function">        x: Tensor(<span class="params">(<span class="params"><span class="number">1</span>, <span class="number">784</span></span>), <span class="string">&quot;float32&quot;</span></span>),</span></span></span><br><span class="line"><span class="params"><span class="function">        w0: Tensor(<span class="params">(<span class="params"><span class="number">128</span>, <span class="number">784</span></span>), <span class="string">&quot;float32&quot;</span></span>),</span></span></span><br><span class="line"><span class="params"><span class="function">        b0: Tensor(<span class="params">(<span class="params"><span class="number">128</span>,</span>), <span class="string">&quot;float32&quot;</span></span>),</span></span></span><br><span class="line"><span class="params"><span class="function">        w1: Tensor(<span class="params">(<span class="params"><span class="number">10</span>, <span class="number">128</span></span>), <span class="string">&quot;float32&quot;</span></span>),</span></span></span><br><span class="line"><span class="params"><span class="function">        b1: Tensor(<span class="params">(<span class="params"><span class="number">10</span>,</span>), <span class="string">&quot;float32&quot;</span></span>),</span></span></span><br><span class="line"><span class="params"><span class="function">    </span>):</span></span><br><span class="line">        <span class="comment"># block 0</span></span><br><span class="line">        <span class="keyword">with</span> R.dataflow():</span><br><span class="line">            lv0 = R.call_tir(<span class="string">&quot;env.linear&quot;</span>, (x, w0, b0), (<span class="number">1</span>, <span class="number">128</span>), dtype=<span class="string">&quot;float32&quot;</span>)</span><br><span class="line">            lv1 = R.call_tir(<span class="string">&quot;env.relu&quot;</span>, (lv0,), (<span class="number">1</span>, <span class="number">128</span>), dtype=<span class="string">&quot;float32&quot;</span>)</span><br><span class="line">            out = R.call_tir(<span class="string">&quot;env.linear&quot;</span>, (lv1, w1, b1), (<span class="number">1</span>, <span class="number">10</span>), dtype=<span class="string">&quot;float32&quot;</span>)</span><br><span class="line">            R.output(out)</span><br><span class="line">        <span class="keyword">return</span> out</span><br></pre></td></tr></table></figure>
-<ul>
-<li>上图中的 <code>env.linear</code> 是库张量函数，同一个 <code>IR_Module</code> 中可使用库张量函数，也可使用自定义张量函数，也可以二者混用。</li>
-</ul>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@tvm.register_func(<span class="params"><span class="string">&quot;env.linear&quot;</span>, override=<span class="literal">True</span></span>)</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">torch_linear</span>(<span class="params">x: tvm.nd.NDArray, w: tvm.nd.NDArray, b: tvm.nd.NDArray, out: tvm.nd.NDArray</span>):</span></span><br><span class="line">    ...</span><br></pre></td></tr></table></figure>
-<ul>
-<li><code>@tvm.register_func</code>，注册库张量函数</li>
-</ul>
-<h2 id="绑定参数到-ir_module"><a class="markdownIt-Anchor" href="#绑定参数到-ir_module"></a> 绑定参数到 IR_Module</h2>
-<ul>
-<li>以上的所有 <code>IR_Module</code> 都是在调用时才传入 <strong>数据</strong> 和 <strong>权重参数</strong>，但 <strong>权重参数</strong> 是不变的，所以可以将 <strong>权重参数</strong> 提前绑定到 <code>IR_Module</code> 中，调用时只传入输入数据。</li>
-</ul>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">MyModuleWithParams = relax.transform.BindParams(<span class="string">&quot;main&quot;</span>, nd_params)(MyModuleMixture)</span><br></pre></td></tr></table></figure>
-<ul>
-<li><code>relax.transform.BindParams(计算图入口函数，模型参数)(IR_Module)</code> 将模型参数绑定到 <code>IR_Module</code> 的计算图入口函数中，返回一个绑定好模型参数的 <code>IR_Module</code>。</li>
-</ul>
-<h2 id="总结"><a class="markdownIt-Anchor" href="#总结"></a> 总结</h2>
-<ul>
-<li><em>计算图抽象</em>（一般表示 <code>main</code> 函数） 有助于将元张量函数拼接在一起以进行端到端执行。</li>
-<li><code>Relax</code> 抽象的关键要素包括
-<ul>
-<li><code>call_tir</code> 构造，将目标传递规范的元函数嵌入到计算图中</li>
-<li><code>Dataflow block</code></li>
-</ul>
-</li>
-<li>计算图允许调用环境库函数和 <code>TensorIR</code> 函数。</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/7/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/7/">7</a><span class="page-number current">8</span><a class="page-number" href="/page/9/">9</a><span class="space">&hellip;</span><a class="page-number" href="/page/14/">14</a><a class="extend next" rel="next" href="/page/9/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
+    <a class="extend prev" rel="prev" href="/page/7/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/7/">7</a><span class="page-number current">8</span><a class="page-number" href="/page/9/">9</a><span class="space">&hellip;</span><a class="page-number" href="/page/15/">15</a><a class="extend next" rel="next" href="/page/9/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
   </nav>
 
 
@@ -2169,20 +2256,20 @@
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">139</span>
+          <span class="site-state-item-count">141</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">42</span>
+        <span class="site-state-item-count">43</span>
         <span class="site-state-item-name">categories</span></a>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">75</span>
+        <span class="site-state-item-count">78</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>

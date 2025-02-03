@@ -180,6 +180,291 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2021/09/04/Deformable-3D-Convolution-for-Video-Super-Resolution/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2021/09/04/Deformable-3D-Convolution-for-Video-Super-Resolution/" class="post-title-link" itemprop="url">Deformable 3D Convolution for Video Super-Resolution</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2021-09-04 09:43:25" itemprop="dateCreated datePublished" datetime="2021-09-04T09:43:25+08:00">2021-09-04</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-10-08 16:11:47" itemprop="dateModified" datetime="2024-10-08T16:11:47+08:00">2024-10-08</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Video-Super-Resolution/" itemprop="url" rel="index"><span itemprop="name">Video Super-Resolution</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2021/09/04/Deformable-3D-Convolution-for-Video-Super-Resolution/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2021/09/04/Deformable-3D-Convolution-for-Video-Super-Resolution/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<p><a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2004.02803.pdf">https://arxiv.org/pdf/2004.02803.pdf</a></p>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ol>
+<li>Deformable 3D 简称 D3D，是 <a target="_blank" rel="noopener" href="https://ieeexplore.ieee.org/document/7410867">C3D</a> 的 <a target="_blank" rel="noopener" href="https://openaccess.thecvf.com/content_ICCV_2017/papers/Dai_Deformable_Convolutional_Networks_ICCV_2017_paper.pdf">Deformable</a> 版</li>
+<li>在视频超分中引入了可变形3D卷积，看上去很合理</li>
+<li>使用的超分网络结构很简单，与 <a target="_blank" rel="noopener" href="https://cv.snu.ac.kr/research/VDSR/VDSR_CVPR2016.pdf">VDSR</a> 有一点相似</li>
+</ol>
+<h2 id="datasetalgorithmmodelexperiment-detail"><a class="markdownIt-Anchor" href="#datasetalgorithmmodelexperiment-detail"></a> Dataset/Algorithm/Model/Experiment Detail</h2>
+<h3 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h3>
+<h2 id="1-d3d3d-卷积的可变形版本或者说可变性卷积的3d版"><a class="markdownIt-Anchor" href="#1-d3d3d-卷积的可变形版本或者说可变性卷积的3d版"></a> 1. D3D：3D 卷积的可变形版本（或者说可变性卷积的3D版）</h2>
+<p><img src="https://i.loli.net/2021/09/04/V7vEiabsq2QHY8P.png" alt="deform1.png" /><br />
+<strong>可变形2D卷积全过程</strong>（图来自论文<a target="_blank" rel="noopener" href="https://openaccess.thecvf.com/content_ICCV_2017/papers/Dai_Deformable_Convolutional_Networks_ICCV_2017_paper.pdf">Deformable Convolutional Networks</a>）<br />
+<img src="https://i.loli.net/2021/09/04/JvwUpsBhuylLqO2.png" alt="deform2.png" /><br />
+<strong>可变形3D卷积全过程</strong> （图来自本论文）<s>您这也太像了吧</s></p>
+<h3 id="c3d计算过程"><a class="markdownIt-Anchor" href="#c3d计算过程"></a> C3D计算过程：</h3>
+<br>
+$y(p_0) = \sum_{n=1}^Nw(p_n)*x(p_0 + p_n)$
+<br>
+其中 $p_0$ 表示卷积核中心所在feature上的位置， $p_n$ 表示卷积核到中心偏移，由于是C3D所以， $N=27$ ， $p_n = \{(-1,-1,-1), (-1,-1,0),...,(1,1,0),(1,1,1)\}$
+### D3D计算过程
+<br>
+$y(p_0) = \sum_{n=1}^Nw(p_n)*x(p_0 + p_n + \Delta p_n)$
+<br>
+ $p_n$ 表示到卷积核到原始位置的偏移， $p_n + \Delta p_n$ 表示卷积核到中心偏移
+## 2. 超分网络结构
+![deform3.png](https://i.loli.net/2021/09/04/qNWlp6C1T4X8uw3.png)
+**图中’Conv‘表示C3D，3x3 Conv表示2D Conv**
+输入：连续 3 / 5 / 7 frames
+## Thoughts
+1. 对比了C3D和D3D的效果，说明D3D还是有点用的
+2. 与[EDVR](https://arxiv.org/pdf/1905.02716.pdf)对比可知，即使D3D单个算子再强大，网络设计也十分重要！
+3. 速度好慢，flops好大
+4. 脑补[C3D](https://ieeexplore.ieee.org/document/7410867)的[DConv](https://openaccess.thecvf.com/content_ICCV_2017/papers/Dai_Deformable_Convolutional_Networks_ICCV_2017_paper.pdf)作者会由衷的说一句：优(jiu)秀(zhe?)
+## 3. 算法效果对比
+![deform4.png](https://i.loli.net/2021/09/04/ZBLQHNac3ixsXuk.png)
+![deform5.png](https://i.loli.net/2021/09/04/rvE5inczPky7uTQ.png)
+输入帧数与算法效果的关系：
+![deform6.png](https://i.loli.net/2021/09/04/WUAOTtvZhLYzDXu.png)
+![deform7.png](https://i.loli.net/2021/09/04/g9zBL8kYeuIWR5U.png)
+![deform8.png](https://i.loli.net/2021/09/04/9uJvpgMiqDU1WHR.png)
+为什么不和[paperswithcode](https://paperswithcode.com/sota/video-super-resolution-on-vid4-4x-upscaling)里的VSR模型比一比？
+**Vid4数据集上：**
+![deform9.png](https://i.loli.net/2021/09/04/jJkKzqVPmxDH5hA.png)
+论文中对比结果巧妙的避开了前五（截图于 2020-08-01），~~优秀~~
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2021/08/22/Group-Ensemble-Learning-an-Ensemble-of-ConvNets-in-a-single-ConvNet/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2021/08/22/Group-Ensemble-Learning-an-Ensemble-of-ConvNets-in-a-single-ConvNet/" class="post-title-link" itemprop="url">Group Ensemble: Learning an Ensemble of ConvNets in a single ConvNet</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2021-08-22 23:37:57" itemprop="dateCreated datePublished" datetime="2021-08-22T23:37:57+08:00">2021-08-22</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-10-08 16:11:47" itemprop="dateModified" datetime="2024-10-08T16:11:47+08:00">2024-10-08</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/CNN-Architecture-Design/" itemprop="url" rel="index"><span itemprop="name">CNN Architecture Design</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2021/08/22/Group-Ensemble-Learning-an-Ensemble-of-ConvNets-in-a-single-ConvNet/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2021/08/22/Group-Ensemble-Learning-an-Ensemble-of-ConvNets-in-a-single-ConvNet/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<p><a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2007.00649.pdf">https://arxiv.org/pdf/2007.00649.pdf</a></p>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li>传统的集成学习能提高算法效果，但是深度学习多 <code>model</code> 集成学习实在是太慢了</li>
+<li>所以作者提出一种深度学习多 <code>group</code> 集成学习，本质是在网络的末尾处使用 <strong>分组卷积</strong>，分成多路，每一路独立监督，监督得到的 <code>loss</code> <strong>加权求和</strong> 作为总 <code>loss</code>，然后反向传播、优化，优点是：<strong>理论上不产生额外计算量</strong></li>
+<li>加权求和的方式一共有三种，分别是 <code>Group Averaging</code>、<code>Group Wagging</code>、<code>Group Boosting</code></li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<h3 id="group-ensemble-与-model-ensemble-的区别"><a class="markdownIt-Anchor" href="#group-ensemble-与-model-ensemble-的区别"></a> Group Ensemble 与 Model Ensemble 的区别</h3>
+<p><img src="https://i.loli.net/2021/08/22/TKUvV6nFoOtx1BY.png" alt="group10.png" /><br />
+<img src="https://i.loli.net/2021/08/22/fd5OBXkTYFlKHuG.png" alt="group1.png" /></p>
+<h3 id="网络结构"><a class="markdownIt-Anchor" href="#网络结构"></a> 网络结构</h3>
+<p><img src="https://i.loli.net/2021/08/23/AqgtBR8Lz9uCvmM.png" alt="网络结构" /></p>
+<h3 id="加权方式"><a class="markdownIt-Anchor" href="#加权方式"></a> 加权方式</h3>
+<ul>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>L</mi><mi>o</mi><mi>s</mi><mi>s</mi><mo>=</mo><mfrac><mn>1</mn><msubsup><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>m</mi></msubsup></mfrac><msub><mi>W</mi><mi>i</mi></msub><mo>∗</mo><msub><mi>L</mi><mi>i</mi></msub></mrow><annotation encoding="application/x-tex">Loss = \frac{1}{\sum_{i=1}^m}W_i*L_i</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord mathnormal">L</span><span class="mord mathnormal">o</span><span class="mord mathnormal">s</span><span class="mord mathnormal">s</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:1.415115em;vertical-align:-0.5700069999999999em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.845108em;"><span style="top:-2.6550000000000002em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mop mtight"><span class="mop op-symbol small-op mtight" style="position:relative;top:-0.0000050000000000050004em;">∑</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.7046857142857144em;"><span style="top:-2.1785614285714283em;margin-left:0em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">i</span><span class="mrel mtight">=</span><span class="mord mtight">1</span></span></span></span><span style="top:-2.8971428571428572em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mathnormal mtight">m</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.32143857142857146em;"><span></span></span></span></span></span></span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.394em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.5700069999999999em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">W</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.31166399999999994em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">∗</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.31166399999999994em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> ， <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>L</mi><mi>i</mi></msub></mrow><annotation encoding="application/x-tex">L_i</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.31166399999999994em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> 表示第 <code>i</code> 个分支上的损失， <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>W</mi><mi>i</mi></msub></mrow><annotation encoding="application/x-tex">W_i</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">W</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.31166399999999994em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> 表示对应权重</li>
+<li><code>Group Averaging</code>
+<ul>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>W</mi><mi>i</mi></msub><mo>=</mo><mn>1</mn><mo separator="true">,</mo><mtext>     </mtext><mi>i</mi><mo>=</mo><mn>1</mn><mo separator="true">,</mo><mn>2</mn><mo separator="true">,</mo><mi mathvariant="normal">.</mi><mi mathvariant="normal">.</mi><mi mathvariant="normal">.</mi><mo separator="true">,</mo><mi>m</mi></mrow><annotation encoding="application/x-tex">W_i = 1, \ \ \ \ \ i = 1, 2, ..., m</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">W</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.31166399999999994em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:0.85396em;vertical-align:-0.19444em;"></span><span class="mord">1</span><span class="mpunct">,</span><span class="mspace"> </span><span class="mspace"> </span><span class="mspace"> </span><span class="mspace"> </span><span class="mspace"> </span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal">i</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:0.8388800000000001em;vertical-align:-0.19444em;"></span><span class="mord">1</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord">2</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord">.</span><span class="mord">.</span><span class="mord">.</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal">m</span></span></span></span></li>
+</ul>
+</li>
+<li><code>Group Wagging</code>
+<ul>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>W</mi><mi>i</mi></msub><mo>∼</mo><mi>N</mi><mo stretchy="false">(</mo><mn>1</mn><mo separator="true">,</mo><msup><mi>δ</mi><mn>2</mn></msup><mo stretchy="false">)</mo><mo separator="true">,</mo><mtext>     </mtext><mi>i</mi><mo>=</mo><mn>1</mn><mo separator="true">,</mo><mn>2</mn><mo separator="true">,</mo><mi mathvariant="normal">.</mi><mi mathvariant="normal">.</mi><mi mathvariant="normal">.</mi><mo separator="true">,</mo><mi>m</mi></mrow><annotation encoding="application/x-tex">W_i \sim N(1, \delta^2), \ \ \ \ \ i = 1, 2, ..., m</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">W</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.31166399999999994em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">∼</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:1.064108em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="mopen">(</span><span class="mord">1</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.03785em;">δ</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141079999999999em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mclose">)</span><span class="mpunct">,</span><span class="mspace"> </span><span class="mspace"> </span><span class="mspace"> </span><span class="mspace"> </span><span class="mspace"> </span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal">i</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:0.8388800000000001em;vertical-align:-0.19444em;"></span><span class="mord">1</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord">2</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord">.</span><span class="mord">.</span><span class="mord">.</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal">m</span></span></span></span></li>
+</ul>
+</li>
+<li><code>Group Boosting</code>
+<ul>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>W</mi><mi>i</mi></msub><mo>=</mo><mo>−</mo><mi>l</mi><mi>o</mi><mi>g</mi><mo stretchy="false">(</mo><mfrac><msub><mi>P</mi><mrow><mi>i</mi><mo>−</mo><mn>1</mn></mrow></msub><mi>T</mi></mfrac><mo stretchy="false">)</mo><mo separator="true">,</mo><mtext>     </mtext><mi>i</mi><mo>=</mo><mn>2</mn><mo separator="true">,</mo><mn>3</mn><mo separator="true">,</mo><mi mathvariant="normal">.</mi><mi mathvariant="normal">.</mi><mi mathvariant="normal">.</mi><mo separator="true">,</mo><mi>m</mi></mrow><annotation encoding="application/x-tex">W_i = -log(\frac{P_{i-1}}{T}), \ \ \ \ \ i = 2, 3, ..., m</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">W</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.31166399999999994em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:1.275096em;vertical-align:-0.345em;"></span><span class="mord">−</span><span class="mord mathnormal" style="margin-right:0.01968em;">l</span><span class="mord mathnormal">o</span><span class="mord mathnormal" style="margin-right:0.03588em;">g</span><span class="mopen">(</span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.930096em;"><span style="top:-2.6550000000000002em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.13889em;">T</span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.451765em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.13889em;">P</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.32808571428571426em;"><span style="top:-2.357em;margin-left:-0.13889em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">i</span><span class="mbin mtight">−</span><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.20252142857142857em;"><span></span></span></span></span></span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.345em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mclose">)</span><span class="mpunct">,</span><span class="mspace"> </span><span class="mspace"> </span><span class="mspace"> </span><span class="mspace"> </span><span class="mspace"> </span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal">i</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:0.8388800000000001em;vertical-align:-0.19444em;"></span><span class="mord">2</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord">3</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord">.</span><span class="mord">.</span><span class="mord">.</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal">m</span></span></span></span>
+<ul>
+<li>其中 <code>T</code> 表示 <em>温度</em>，类似于模型蒸馏时的蒸馏温度</li>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>P</mi><mrow><mi>i</mi><mo>−</mo><mn>1</mn></mrow></msub></mrow><annotation encoding="application/x-tex">P_{i-1}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.891661em;vertical-align:-0.208331em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">P</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.311664em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">i</span><span class="mbin mtight">−</span><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.208331em;"><span></span></span></span></span></span></span></span></span></span> 表示上一个分支算对的概率</li>
+<li>即上一个分支预测的越正确，本分支的权重就越小，这与 <code>boosting</code> 还真的有点像<br />
+<img src="https://i.loli.net/2021/08/22/ZC3omysbiSvIdku.png" alt="group2.png" /></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h3 id="最终效果"><a class="markdownIt-Anchor" href="#最终效果"></a> 最终效果</h3>
+<ul>
+<li><code>ImageNet</code> 数据集上，<code>top-1 error</code> 比 <code>ResNeXt-50</code> 降低了 <strong>1.83%</strong></li>
+<li>几乎不改变 <code>Flops</code> 和 <code>params</code>，在几乎所有网络上使用都会有明显提升</li>
+<li>在多种任务中都能提高成绩，包括：
+<ul>
+<li>目标检测</li>
+<li>动作识别</li>
+<li>图像识别<br />
+<br></li>
+</ul>
+</li>
+</ul>
+<h2 id="thoughts"><a class="markdownIt-Anchor" href="#thoughts"></a> Thoughts</h2>
+<ul>
+<li><code>Group Boosting</code> 这种串行计算 <code>loss</code> 权重的方法确定在 <code>inference</code> 阶段不会影响速度？</li>
+<li>为什么在 <code>CIFAR</code> 数据集上，<code>Group Wagging</code> 这种随机方法反而效果好</li>
+</ul>
+<h3 id="对比表格"><a class="markdownIt-Anchor" href="#对比表格"></a> 对比表格</h3>
+<p><img src="https://i.loli.net/2021/08/22/XyPklNGDIwvZmzs.png" alt="group3.png" /><br />
+<img src="https://i.loli.net/2021/08/22/SAJEatdFVMUyQN1.png" alt="group4.png" /><br />
+<img src="https://i.loli.net/2021/08/22/1UHhSDaMW7uVctI.png" alt="group5.png" /><br />
+<img src="https://i.loli.net/2021/08/22/yqhioI5K4ZczAmk.png" alt="group6.png" /><br />
+<img src="https://i.loli.net/2021/08/22/6PhSWnOtTrB9M3R.png" alt="group8.png" /><br />
+<img src="https://i.loli.net/2021/08/22/RpkEPUHwmCAv9bc.png" alt="group7.png" /><br />
+<img src="https://i.loli.net/2021/08/22/Yvngp9CP58IOG6M.png" alt="group9.png" /></p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2021/08/22/DoReFa-Net-Traing-Low-Bitwidth-Convlutional-Neural-Networks-With-Low-Bitwidth-Gradients/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1437,252 +1722,10 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2021/08/17/MLP-Mixer-An-all-MLP-Architecture-for-Vision/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2021/08/17/MLP-Mixer-An-all-MLP-Architecture-for-Vision/" class="post-title-link" itemprop="url">MLP-Mixer: An all-MLP Architecture for Vision</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2021-08-17 20:24:54" itemprop="dateCreated datePublished" datetime="2021-08-17T20:24:54+08:00">2021-08-17</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-10-08 16:11:47" itemprop="dateModified" datetime="2024-10-08T16:11:47+08:00">2024-10-08</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/CNN-Architecture-Design/" itemprop="url" rel="index"><span itemprop="name">CNN Architecture Design</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2021/08/17/MLP-Mixer-An-all-MLP-Architecture-for-Vision/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2021/08/17/MLP-Mixer-An-all-MLP-Architecture-for-Vision/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
-<p><a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2105.01601.pdf">https://arxiv.org/pdf/2105.01601.pdf</a></p>
-<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
-<ul>
-<li>作者认为 CNN 与 Transformer 对视觉任务有利，但不是必要，MLP 也能在视觉任务中做的很好</li>
-<li>效果比 VIT 略差，但速度快</li>
-</ul>
-<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
-<h3 id="作者认为的-cv-的本质"><a class="markdownIt-Anchor" href="#作者认为的-cv-的本质"></a> 作者认为的 CV 的本质</h3>
-<ul>
-<li>局部的特征提取 + 全局特征相关性的建模</li>
-<li>CNN 天生对局部的特征提取很擅长，全局特征相关性的分析需要靠下采样 + 堆叠层来增大感受野完成</li>
-<li>Transformer 与 CNN 相反，Transformation 很擅长全局特征相关性建模（关系矩阵），但局部特征提取比较弱，所以通常需要在超大数据集上预训练来获得局部先验</li>
-<li>MLP 也是擅长全局特征相关性建模，对于不擅长的局部特征提取，使用 dim shuffle 交换 h*w 和 c，将全局特征提取变成针对 channel 的局部特征提取</li>
-</ul>
-<h3 id="网络结构"><a class="markdownIt-Anchor" href="#网络结构"></a> 网络结构</h3>
-<p><img src="https://i.loli.net/2021/08/17/S8CrleqdWG1B9wZ.png" alt="lm1" /></p>
-<ul>
-<li>lecun 嘲讽<br />
-<img src="https://i.loli.net/2021/08/17/nxobSYh4AzMfIRk.jpg" alt="lecun 嘲讽" /></li>
-</ul>
-<h2 id="thoughts"><a class="markdownIt-Anchor" href="#thoughts"></a> Thoughts</h2>
-<ul>
-<li>虽然 lecun 说的没错，但我想作者的意思是 MLP-mixer 架构不依赖于传统的 <code>Conv 3*3</code> 结构而是使用 <code>matmul + dim shuffle</code> 一样可以做到 <strong>局部特征提取 + 全局依赖</strong></li>
-<li>Lecun 的嘲讽翻译过来就是：“<strong>MLP 的本质是 Conv，Matmul 的本质是 Conv1d with 1*1 kernel</strong>”，这明显是抬杠…</li>
-</ul>
-<h3 id="实现代码非伪代码"><a class="markdownIt-Anchor" href="#实现代码非伪代码"></a> 实现代码（非伪代码）</h3>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> torch <span class="keyword">import</span> nn</span><br><span class="line"><span class="keyword">from</span> functools <span class="keyword">import</span> partial</span><br><span class="line"><span class="keyword">from</span> einops.layers.torch <span class="keyword">import</span> Rearrange, Reduce</span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">PreNormResidual</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, dim, fn</span>):</span></span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        self.fn = fn</span><br><span class="line">        self.norm = nn.LayerNorm(dim)</span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">self, x</span>):</span></span><br><span class="line">        <span class="keyword">return</span> self.fn(self.norm(x)) + x</span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">FeedForward</span>(<span class="params">dim, expansion_factor=<span class="number">4</span>, dropout=<span class="number">0.0</span>, dense=nn.Linear</span>):</span></span><br><span class="line">    <span class="keyword">return</span> nn.Sequential(</span><br><span class="line">        dense(dim, dim * expansion_factor),</span><br><span class="line">        nn.GELU(),</span><br><span class="line">        nn.Dropout(dropout),</span><br><span class="line">        dense(dim * expansion_factor, dim),</span><br><span class="line">        nn.Dropout(dropout),</span><br><span class="line">    )</span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">MLPMixer</span>(<span class="params"></span></span></span><br><span class="line"><span class="params"><span class="function">    *,</span></span></span><br><span class="line"><span class="params"><span class="function">    image_size,</span></span></span><br><span class="line"><span class="params"><span class="function">    channels,</span></span></span><br><span class="line"><span class="params"><span class="function">    patch_size,</span></span></span><br><span class="line"><span class="params"><span class="function">    dim,</span></span></span><br><span class="line"><span class="params"><span class="function">    depth,</span></span></span><br><span class="line"><span class="params"><span class="function">    num_classes,</span></span></span><br><span class="line"><span class="params"><span class="function">    expansion_factor=<span class="number">4</span>,</span></span></span><br><span class="line"><span class="params"><span class="function">    dropout=<span class="number">0.0</span></span></span></span><br><span class="line"><span class="params"><span class="function"></span>):</span></span><br><span class="line">    <span class="keyword">assert</span> (image_size % patch_size) == <span class="number">0</span>, <span class="string">&quot;image must be divisible by patch size&quot;</span></span><br><span class="line">    num_patches = (image_size // patch_size) ** <span class="number">2</span></span><br><span class="line">    chan_first, chan_last = partial(nn.Conv1d, kernel_size=<span class="number">1</span>), nn.Linear</span><br><span class="line">    <span class="keyword">return</span> nn.Sequential(</span><br><span class="line">        Rearrange(</span><br><span class="line">            <span class="string">&quot;b c (h p1) (w p2) -&gt; b (h w) (p1 p2 c)&quot;</span>, p1=patch_size, p2=patch_size</span><br><span class="line">        ),</span><br><span class="line">        nn.Linear((patch_size ** <span class="number">2</span>) * channels, dim),</span><br><span class="line">        *[</span><br><span class="line">            nn.Sequential(</span><br><span class="line">                PreNormResidual(</span><br><span class="line">                    dim, FeedForward(num_patches, expansion_factor, dropout, chan_first)</span><br><span class="line">                ),</span><br><span class="line">                PreNormResidual(</span><br><span class="line">                    dim, FeedForward(dim, expansion_factor, dropout, chan_last)</span><br><span class="line">                ),</span><br><span class="line">            )</span><br><span class="line">            <span class="keyword">for</span> _ <span class="keyword">in</span> <span class="built_in">range</span>(depth)</span><br><span class="line">        ],</span><br><span class="line">        nn.LayerNorm(dim),</span><br><span class="line">        Reduce(<span class="string">&quot;b n c -&gt; b c&quot;</span>, <span class="string">&quot;mean&quot;</span>),</span><br><span class="line">        nn.Linear(dim, num_classes)</span><br><span class="line">    )</span><br></pre></td></tr></table></figure>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2021/08/17/RepMLP-Re-parameterizing-Convolutions-into-Fully-connected-Layers-for-Image-Recognition/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2021/08/17/RepMLP-Re-parameterizing-Convolutions-into-Fully-connected-Layers-for-Image-Recognition/" class="post-title-link" itemprop="url">RepMLP: Re-parameterizing Convolutions into Fully-connected Layers for Image Recognition</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2021-08-17 19:53:42" itemprop="dateCreated datePublished" datetime="2021-08-17T19:53:42+08:00">2021-08-17</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-10-08 16:11:14" itemprop="dateModified" datetime="2024-10-08T16:11:14+08:00">2024-10-08</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/CNN-Architecture-Design/" itemprop="url" rel="index"><span itemprop="name">CNN Architecture Design</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2021/08/17/RepMLP-Re-parameterizing-Convolutions-into-Fully-connected-Layers-for-Image-Recognition/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2021/08/17/RepMLP-Re-parameterizing-Convolutions-into-Fully-connected-Layers-for-Image-Recognition/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
-<p><a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2105.01883.pdf">https://arxiv.org/pdf/2105.01883.pdf</a></p>
-<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
-<ul>
-<li>本文提出一种 MLP 的重参数结构，训练过程中在 MLP 中构建多个 Conv branch，Inference 过程中，将多个 Conv branch 吸收到 MLP 中，不额外增加 MLP 的推理速度</li>
-</ul>
-<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
-<h3 id="总体结构"><a class="markdownIt-Anchor" href="#总体结构"></a> 总体结构</h3>
-<p><img src="https://i.loli.net/2021/08/17/iBOw4IpvGogTmbP.png" alt="repmlp1" /></p>
-<h3 id="结构分解"><a class="markdownIt-Anchor" href="#结构分解"></a> 结构分解</h3>
-<ul>
-<li><code>Global Perceptron</code><br />
-为了减小 MLP 恐怖的参数量，作者提出将 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false">(</mo><mi>N</mi><mo separator="true">,</mo><mi>C</mi><mo separator="true">,</mo><mi>H</mi><mo separator="true">,</mo><mi>W</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">(N,C,H,W)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal" style="margin-right:0.07153em;">C</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal" style="margin-right:0.08125em;">H</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal" style="margin-right:0.13889em;">W</span><span class="mclose">)</span></span></span></span> 的 feature map 通过：<br />
-<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false">(</mo><mi>N</mi><mo separator="true">,</mo><mi>C</mi><mo separator="true">,</mo><mi>H</mi><mo separator="true">,</mo><mi>W</mi><mo stretchy="false">)</mo><mo>→</mo><mo stretchy="false">(</mo><mi>N</mi><mo separator="true">,</mo><mi>C</mi><mo separator="true">,</mo><mfrac><mi>H</mi><mi>h</mi></mfrac><mo separator="true">,</mo><mi>h</mi><mo separator="true">,</mo><mfrac><mi>W</mi><mi>w</mi></mfrac><mo separator="true">,</mo><mi>w</mi><mo stretchy="false">)</mo><mo>→</mo><mo stretchy="false">(</mo><mi>N</mi><mo separator="true">,</mo><mfrac><mi>H</mi><mi>h</mi></mfrac><mo separator="true">,</mo><mfrac><mi>W</mi><mi>w</mi></mfrac><mo separator="true">,</mo><mi>C</mi><mo separator="true">,</mo><mi>h</mi><mo separator="true">,</mo><mi>w</mi><mo stretchy="false">)</mo><mo>→</mo><mo stretchy="false">(</mo><mfrac><mrow><mi>N</mi><mo>×</mo><mi>H</mi><mo>×</mo><mi>W</mi></mrow><mrow><mi>h</mi><mo>×</mo><mi>w</mi></mrow></mfrac><mo separator="true">,</mo><mi>C</mi><mo separator="true">,</mo><mi>h</mi><mo separator="true">,</mo><mi>w</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">(N,C,H,W) \rightarrow (N, C, \frac{H}{h}, h,\frac{W}{w},w) \rightarrow (N, \frac{H}{h},\frac{W}{w},C,h,w) \rightarrow (\frac{N\times H\times W}{h\times w}, C, h,w)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal" style="margin-right:0.07153em;">C</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal" style="margin-right:0.08125em;">H</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal" style="margin-right:0.13889em;">W</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">→</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:1.217331em;vertical-align:-0.345em;"></span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal" style="margin-right:0.07153em;">C</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.872331em;"><span style="top:-2.6550000000000002em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">h</span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.394em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.08125em;">H</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.345em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal">h</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.872331em;"><span style="top:-2.6550000000000002em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.02691em;">w</span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.394em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.13889em;">W</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.345em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal" style="margin-right:0.02691em;">w</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">→</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:1.217331em;vertical-align:-0.345em;"></span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.872331em;"><span style="top:-2.6550000000000002em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">h</span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.394em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.08125em;">H</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.345em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.872331em;"><span style="top:-2.6550000000000002em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.02691em;">w</span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.394em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.13889em;">W</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.345em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal" style="margin-right:0.07153em;">C</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal">h</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal" style="margin-right:0.02691em;">w</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">→</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:1.275662em;vertical-align:-0.403331em;"></span><span class="mopen">(</span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.872331em;"><span style="top:-2.655em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">h</span><span class="mbin mtight">×</span><span class="mord mathnormal mtight" style="margin-right:0.02691em;">w</span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.394em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.10903em;">N</span><span class="mbin mtight">×</span><span class="mord mathnormal mtight" style="margin-right:0.08125em;">H</span><span class="mbin mtight">×</span><span class="mord mathnormal mtight" style="margin-right:0.13889em;">W</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.403331em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal" style="margin-right:0.07153em;">C</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal">h</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal" style="margin-right:0.02691em;">w</span><span class="mclose">)</span></span></span></span><br />
-这种 <code>Reshape -&gt; Transpose -&gt; Reshape</code> 的方式缩小分辨率，这种方法的问题在于 patch 之间的关联关系被打破，所以需要一个作用于 <code>Global</code> 的 patch 权重，类似于 patch 版的 <code>SENet</code>，不同之处在于这里没有使用 <code>SENet</code> 的 <code>Per-channel Scale</code> 而是只用了 <code>Per-channel Bias</code></li>
-<li><code>Partion Perceptron</code><br />
-FC 本体，由于 MLP 的参数过于恐怖，所以这里的 FC 需要二次降参数，做法是 <code>Group FC</code></li>
-<li><code>Local Perceptron</code><br />
-使用了多个 branch 的 Conv，提取 <code>Global Perceptron</code> 的输出 feature map，目的是局部特征提取，弥补 MLP 局部特征提取的短板，也就是题目的来源</li>
-</ul>
-<h3 id="inference"><a class="markdownIt-Anchor" href="#inference"></a> Inference</h3>
-<ul>
-<li><code>Inference</code> 时，重参数主要是两个方面：
-<ul>
-<li>FC 吸 BN</li>
-<li>FC 吸 Conv</li>
-</ul>
-</li>
-</ul>
-<h3 id="结果"><a class="markdownIt-Anchor" href="#结果"></a> 结果</h3>
-<ul>
-<li>从消融实验来看，三种 <code>Perceptron</code> 中除了 <code>Partion Perceptron</code> 作为 FC 本体无法消融之外，重要程度：<code>local Perceptron</code> &gt; <code>Global Perceptron</code></li>
-<li>和 Wide ConvNet 对比 Flops 较小但精度较低，所以需要和 Conv 结合使用，结合方式是：<br />
-<img src="https://i.loli.net/2021/08/17/B6NPQWytusK4Jvx.png" alt="repmlp2" /></li>
-</ul>
-<h2 id="thoughts"><a class="markdownIt-Anchor" href="#thoughts"></a> Thoughts</h2>
-<ul>
-<li>重参数过程中 <code>Global Perceptron</code> 只吸了一个 BN，感觉有点亏，而且 <code>Global Perceptron</code> 这个分支的存在让整个 <code>RepMLP</code> 变得没有像 <code>RepVGG</code> 一样优雅</li>
-<li>如果 <code>Global Perceptron</code> 的作用是建立 patch 之间的关联，可不可以把 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false">(</mo><mi>N</mi><mo separator="true">,</mo><mi>C</mi><mo separator="true">,</mo><mi>H</mi><mo separator="true">,</mo><mi>W</mi><mo stretchy="false">)</mo><mo>→</mo><mo stretchy="false">(</mo><mfrac><mrow><mi>N</mi><mo>×</mo><mi>H</mi><mo>×</mo><mi>W</mi></mrow><mrow><mi>h</mi><mo>×</mo><mi>w</mi></mrow></mfrac><mo separator="true">,</mo><mi>C</mi><mo separator="true">,</mo><mi>h</mi><mo separator="true">,</mo><mi>w</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">(N,C,H,W) \rightarrow (\frac{N\times H\times W}{h\times w}, C, h,w)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal" style="margin-right:0.07153em;">C</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal" style="margin-right:0.08125em;">H</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal" style="margin-right:0.13889em;">W</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">→</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:1.275662em;vertical-align:-0.403331em;"></span><span class="mopen">(</span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.872331em;"><span style="top:-2.655em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">h</span><span class="mbin mtight">×</span><span class="mord mathnormal mtight" style="margin-right:0.02691em;">w</span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.394em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.10903em;">N</span><span class="mbin mtight">×</span><span class="mord mathnormal mtight" style="margin-right:0.08125em;">H</span><span class="mbin mtight">×</span><span class="mord mathnormal mtight" style="margin-right:0.13889em;">W</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.403331em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal" style="margin-right:0.07153em;">C</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal">h</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal" style="margin-right:0.02691em;">w</span><span class="mclose">)</span></span></span></span> 这个过程变成类似 PixelShuffle <strong>upscale_factor &lt; 1</strong> 的剪 patch 方法（可能效率会比文中方法低），每个 patch 信息分布相似，无需建立 patch 间的全局关系，是否可以省掉 <code>Global Perceptron</code> 分支，那样的话，Inference 过程就只有一个 FC 了</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/12/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/12/">12</a><span class="page-number current">13</span><a class="page-number" href="/page/14/">14</a><a class="extend next" rel="next" href="/page/14/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
+    <a class="extend prev" rel="prev" href="/page/12/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/12/">12</a><span class="page-number current">13</span><a class="page-number" href="/page/14/">14</a><a class="page-number" href="/page/15/">15</a><a class="extend next" rel="next" href="/page/14/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
   </nav>
 
 
@@ -1747,20 +1790,20 @@ FC 本体，由于 MLP 的参数过于恐怖，所以这里的 FC 需要二次�
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">139</span>
+          <span class="site-state-item-count">141</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">42</span>
+        <span class="site-state-item-count">43</span>
         <span class="site-state-item-name">categories</span></a>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">75</span>
+        <span class="site-state-item-count">78</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
