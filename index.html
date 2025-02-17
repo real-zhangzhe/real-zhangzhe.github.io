@@ -211,7 +211,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-02-17 10:56:32" itemprop="dateModified" datetime="2025-02-17T10:56:32+08:00">2025-02-17</time>
+                <time title="Modified: 2025-02-17 13:27:39" itemprop="dateModified" datetime="2025-02-17T13:27:39+08:00">2025-02-17</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -272,6 +272,13 @@
 </li>
 </ul>
 <h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<h3 id="总体流程"><a class="markdownIt-Anchor" href="#总体流程"></a> 总体流程</h3>
+<ul>
+<li><code>Pre-Training</code></li>
+<li><code>Context Extension</code></li>
+<li><code>Post-Training</code><br />
+<img src="https://s2.loli.net/2025/02/17/wFn31BKPxOYgvRL.png" alt="deepseekv3_table_1.png" /></li>
+</ul>
 <h3 id="multi-token-predicition-mtp"><a class="markdownIt-Anchor" href="#multi-token-predicition-mtp"></a> Multi-token predicition (MTP)</h3>
 <p><img src="https://s2.loli.net/2025/02/02/XS6dgw9mEotBKn5.png" alt="deepseekv3.png" /></p>
 <ul>
@@ -358,12 +365,33 @@
 </li>
 <li>道理也很简单，就是希望在一个 <code>Sequence</code> 中，每一个 <code>Expert</code> 被激活的次数和激活的强度都是均衡的。</li>
 </ul>
-<h3 id="node-limited-routing"><a class="markdownIt-Anchor" href="#node-limited-routing"></a> Node-Limited Routing</h3>
+<h3 id="训练框架设计"><a class="markdownIt-Anchor" href="#训练框架设计"></a> 训练框架设计</h3>
 <ul>
-<li><code>Node-Limited Routing</code> 通过硬性约束对路由过程进行限制，确保每个专家（节点）处理的样本量不超过预设阈值。</li>
-<li>也就是说，<code>Node-Limited Routing</code> 是负载均衡的最后一道防线，也是最硬性的一道约束。</li>
+<li>模型训练基于自主研发的 <code>HAI-LLM</code> 框架，这是一个经过优化的高效轻量级训练系统，目前没有开源。</li>
+<li><code>DeepSeek-V3</code> 的并行策略包含三个层面：
+<ul>
+<li><code>16</code> 路流水线并行(<code>Pipeline Parallelism, PP</code>)</li>
+<li>跨 <code>8</code> 个节点的 <code>64</code> 路专家并行(<code>Expert Parallelism, EP</code>)</li>
+<li><code>ZeRO-1</code> 数据并行(<code>Data Parallelism, DP</code>)</li>
 </ul>
-<h1 id="wip"><a class="markdownIt-Anchor" href="#wip"></a> WIP</h1>
+</li>
+<li>开发了 <code>DualPipe</code> 流水线并行算法，相比于现有的 <code>PP</code> 算法，减少了空泡，基本上实现了计算和通信的高度重叠。<br />
+<img src="https://s2.loli.net/2025/02/17/pvNqiXQKd9I2Vul.png" alt="dualpipe.png" /></li>
+<li>优化了跨节点全对全通信内核，充分利用节点内 <code>GPU</code> 间的 <code>NVLink</code> 带宽和节点间 <code>InfiniBand</code> 带宽，同时减少了通信所需的流式多处理器(<code>SMs</code>)资源占用</li>
+<li>通过精细的内存管理优化，使得模型训练无需依赖开销较大的张量并行(<code>Tensor Parallelism, TP</code>)技术</li>
+</ul>
+<h3 id="fp8"><a class="markdownIt-Anchor" href="#fp8"></a> FP8</h3>
+<ul>
+<li><code>DeepSeek-V3</code> 开发了 <code>FP8 (E4M3)</code> 混合精度训练框架，首次在超大规模模型上验证了 <code>FP8</code> 训练的可行性和效果。</li>
+<li>通过算法、框架和硬件的综合优化，突破了跨节点 MoE 训练中的通信瓶颈，实现了计算与通信的高度重叠。这种优化大幅提升了训练效率，降低了训练成本，同时支持了更大规模模型的训练而无需额外开销。<br />
+<img src="https://s2.loli.net/2025/02/17/JpucFYTPglXm24v.png" alt="fp8.png" /></li>
+</ul>
+<h2 id="thoughts"><a class="markdownIt-Anchor" href="#thoughts"></a> Thoughts</h2>
+<ul>
+<li>实际上 <code>DeepSeek V3</code> 技术报告中还有很多细节，尤其是很多关于工程优化的部分，此处不再一一列举</li>
+<li>工程能力，尤其是开发一套分布式训练框架且根据模型特性对其深度优化的能力，是一个大模型成功的不可或缺因素</li>
+<li>如果想要在大模型领域有所建树，不仅需要有强大的算法研究能力，还需要有强大的工程能力，比如 <code>CUDA</code> 编程能力等</li>
+</ul>
 
       
     </div>
