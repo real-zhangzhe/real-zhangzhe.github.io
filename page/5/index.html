@@ -180,6 +180,122 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/08/21/Megatron-LM-Training-Multi-Billion-Parameter-Language-Models-Using-Model-Parallelism/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2024/08/21/Megatron-LM-Training-Multi-Billion-Parameter-Language-Models-Using-Model-Parallelism/" class="post-title-link" itemprop="url">Megatron-LM: Training Multi-Billion Parameter Language Models Using Model Parallelism</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-08-21 14:00:47" itemprop="dateCreated datePublished" datetime="2024-08-21T14:00:47+08:00">2024-08-21</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-03-03 11:21:59" itemprop="dateModified" datetime="2025-03-03T11:21:59+08:00">2025-03-03</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Tensor-Parallelism/" itemprop="url" rel="index"><span itemprop="name">Tensor Parallelism</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2024/08/21/Megatron-LM-Training-Multi-Billion-Parameter-Language-Models-Using-Model-Parallelism/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2024/08/21/Megatron-LM-Training-Multi-Billion-Parameter-Language-Models-Using-Model-Parallelism/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/1909.08053">https://arxiv.org/pdf/1909.08053</a></li>
+<li>code: <a target="_blank" rel="noopener" href="https://github.com/NVIDIA/Megatron-LM">https://github.com/NVIDIA/Megatron-LM</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li>本文是英伟达 <code>Megatron-LM</code> 大模型分布式并行训练框架的一篇简介，大概阐述了 <code>Megatron-LM</code> 的机制和效果，对于实现细节着墨不多。</li>
+<li>从代码实现角度看，<code>Megatron-LM</code> 是对 <code>PyTorch</code> 进行了二次封装。</li>
+<li>基本思想是 <code>Tensor Parallelism</code>，拆分一层的权重到不同 <code>GPU</code> 上并行运算。</li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<h3 id="tensor-parallelism"><a class="markdownIt-Anchor" href="#tensor-parallelism"></a> <code>Tensor Parallelism</code></h3>
+<p><img src="https://s2.loli.net/2024/08/21/BVFJTzMgYqiQNsX.png" alt="megatron_1.png" /></p>
+<ul>
+<li>重点是这里的 <code>f</code> 和 <code>g</code> 函数，下面是其实现：</li>
+</ul>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">f</span>(<span class="params">torch.autograd.Function</span>):</span></span><br><span class="line">  <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">ctx, x</span>):</span></span><br><span class="line">    <span class="keyword">return</span> x</span><br><span class="line">  <span class="function"><span class="keyword">def</span> <span class="title">backward</span>(<span class="params">ctx, gradient</span>):</span></span><br><span class="line">    all_reduce(gradient)</span><br><span class="line">    <span class="keyword">return</span> gradient</span><br><span class="line">  </span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">g</span>(<span class="params">torch.autograd.Function</span>):</span></span><br><span class="line">  <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">ctx, x</span>):</span></span><br><span class="line">    all_reduce(x)</span><br><span class="line">    <span class="keyword">return</span> x</span><br><span class="line">  <span class="function"><span class="keyword">def</span> <span class="title">backward</span>(<span class="params">ctx, gradient</span>):</span></span><br><span class="line">    <span class="keyword">return</span> gradient</span><br></pre></td></tr></table></figure>
+<ul>
+<li>在本例子中 <code>All-reduce</code> 实际上是 <code>ReduceSum</code>，实际上聚合运算（包括 <code>forward and backward</code>）需要 <code>GPU</code> 间同步，存在通信代价</li>
+<li><code>Self-Attention</code> 可以 <code>tensor parallelism</code> 的一个重要原因是 <code>softmax</code> 是逐行做的而不是全局做的<br />
+<img src="https://s2.loli.net/2024/08/21/w8dOQ5JjAbiSPLG.png" alt="megatron-lm_2.png" /></li>
+<li>由图 <code>3</code> 可以得出结论，一个 <code>transformer layer</code> 只有 <code>4</code> 个同步算子（两个 <code>LayerNorm</code> 和两个 <code>Dropout</code>），其他算子都可以被分解为并行算子</li>
+</ul>
+<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
+<ul>
+<li>给我的感觉有点类似 <a target="_blank" rel="noopener" href="https://zhangzhe.space/2022/08/21/1-%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0%E7%BC%96%E8%AF%91%E6%A6%82%E8%BF%B0/"><code>MLC</code></a> 或者机器学习编译中的 <code>Tiling</code>（只是升级为训练及推理全流程 <code>tiling</code>）</li>
+<li><code>tensor parallelism</code> 这种策略很考验对计算流程的抽象，除非有大量人力把框架搭建好且把所有算子实现写好，否则会很难用起来（当然对于 <code>Nvidia</code> 这些都不是事），突然想起了 <code>Neuwizard</code>，一声叹息…</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/08/20/PipeDream-Fast-and-Efficient-Pipeline-Parallel-DNN-Training/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1342,143 +1458,6 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/07/18/FlashAttention-2-Faster-Attention-with-Better-Parallelism-and-Work-Partitioning/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2024/07/18/FlashAttention-2-Faster-Attention-with-Better-Parallelism-and-Work-Partitioning/" class="post-title-link" itemprop="url">FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-07-18 12:50:28" itemprop="dateCreated datePublished" datetime="2024-07-18T12:50:28+08:00">2024-07-18</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-03-03 11:21:59" itemprop="dateModified" datetime="2025-03-03T11:21:59+08:00">2025-03-03</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Transformer/" itemprop="url" rel="index"><span itemprop="name">Transformer</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2024/07/18/FlashAttention-2-Faster-Attention-with-Better-Parallelism-and-Work-Partitioning/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2024/07/18/FlashAttention-2-Faster-Attention-with-Better-Parallelism-and-Work-Partitioning/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
-<ul>
-<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2307.08691">https://arxiv.org/pdf/2307.08691</a></li>
-<li>code: <a target="_blank" rel="noopener" href="https://github.com/kyegomez/FlashAttention20/blob/main/attention.py">https://github.com/kyegomez/FlashAttention20/blob/main/attention.py</a></li>
-</ul>
-<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
-<ul>
-<li><code>FlashAttention-2</code> 是 <code>FlashAttention</code> 一作对前一版的更新，基本思想不变，只优化了部分算法流程，可以比 <code>V1</code> 提速一倍</li>
-</ul>
-<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
-<p><img src="https://s2.loli.net/2024/07/18/FkzaMcX5VhjnQWo.png" alt="flash_attention_2.png" /></p>
-<ul>
-<li><code>Flash Attention 2</code> 前向过程主要优化了几个方面：
-<ol>
-<li><code>Flash Attention v1</code> 中计算 <code>P_ij</code> 计算过程很绕，需要更新两次全局信息，<code>v2</code> 中进行了优化</li>
-<li><code>Flash Attention v1</code> 中内外层循环设置不合理，<code>v2</code> 对调了内外层循环，这样做的好处是：</li>
-<li>不再需要重复读入写出 <code>O</code></li>
-<li><code>max_value</code> 信息变成一个计算中间变量，不再需要读入写出，<code>backward</code> 过程也无需依赖</li>
-</ol>
-</li>
-<li><code>Flash Attention v2</code> 和 <code>Flash Attention v1</code> 的 <code>IO</code> 量对比
-<ul>
-<li><code>v1</code>：
-<ul>
-<li>读：<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mi>N</mi><mi>d</mi><mo>+</mo><mn>2</mn><msub><mi>T</mi><mi>c</mi></msub><mi>N</mi><mi>d</mi></mrow><annotation encoding="application/x-tex">2Nd+2T_cNd</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.77777em;vertical-align:-0.08333em;"></span><span class="mord">2</span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="mord mathnormal">d</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.84444em;vertical-align:-0.15em;"></span><span class="mord">2</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">T</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">c</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="mord mathnormal">d</span></span></span></span></li>
-<li>写：<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>T</mi><mi>c</mi></msub><mi>N</mi><mi>d</mi><mo>+</mo><mn>2</mn><msub><mi>T</mi><mi>c</mi></msub><mi>N</mi></mrow><annotation encoding="application/x-tex">T_cNd+2T_cN</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.84444em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">T</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">c</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="mord mathnormal">d</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord">2</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">T</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">c</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span></span></span></span></li>
-</ul>
-</li>
-<li><code>v2</code>：
-<ul>
-<li>读：<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>N</mi><mi>d</mi><mo>+</mo><mn>2</mn><msub><mi>T</mi><mi>r</mi></msub><mi>N</mi><mi>d</mi></mrow><annotation encoding="application/x-tex">Nd+2T_rNd</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.77777em;vertical-align:-0.08333em;"></span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="mord mathnormal">d</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.84444em;vertical-align:-0.15em;"></span><span class="mord">2</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">T</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.02778em;">r</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="mord mathnormal">d</span></span></span></span></li>
-<li>写：<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>N</mi><mi>d</mi><mo>+</mo><mi>N</mi></mrow><annotation encoding="application/x-tex">Nd+N</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.77777em;vertical-align:-0.08333em;"></span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="mord mathnormal">d</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span></span></span></span></li>
-</ul>
-</li>
-</ul>
-</li>
-</ul>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> torch</span><br><span class="line"><span class="keyword">import</span> math</span><br><span class="line">BLOCK_SIZE = <span class="number">1024</span></span><br><span class="line">NEG_INF = -<span class="number">1e10</span>  <span class="comment"># -infinity</span></span><br><span class="line">EPSILON = <span class="number">1e-10</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">flash_attention2_forward</span>(<span class="params">Q, K, V</span>):</span></span><br><span class="line">    batch, seq_len, dim = Q.shape</span><br><span class="line">    O = torch.zeros_like(Q, requires_grad=<span class="literal">True</span>, device=Q.device)</span><br><span class="line">    l = torch.zeros((batch, seq_len, <span class="number">1</span>), device=Q.device)  <span class="comment"># 1 for broadcasting</span></span><br><span class="line">    m = torch.ones((batch, seq_len, <span class="number">1</span>), device=Q.device) * NEG_INF</span><br><span class="line">    Q = <span class="built_in">list</span>(torch.split(Q, BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    K = <span class="built_in">list</span>(torch.split(K, BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    V = <span class="built_in">list</span>(torch.split(V, BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    O = <span class="built_in">list</span>(torch.split(O, BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    l = <span class="built_in">list</span>(torch.split(l, BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    m = <span class="built_in">list</span>(torch.split(m, BLOCK_SIZE, dim=<span class="number">1</span>))</span><br><span class="line">    Tr = <span class="built_in">len</span>(Q)</span><br><span class="line">    Tc = <span class="built_in">len</span>(K)</span><br><span class="line">    scale = <span class="number">1</span> / math.sqrt(dim)</span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(Tr):</span><br><span class="line">        Qi_scaled = Q[i] * scale</span><br><span class="line">        <span class="keyword">for</span> j <span class="keyword">in</span> <span class="built_in">range</span>(Tc):</span><br><span class="line">            S_ij = torch.einsum(<span class="string">&quot;bnd,bmd-&gt;bnm&quot;</span>, Qi_scaled, K[j])</span><br><span class="line">            m_ij, _ = torch.<span class="built_in">max</span>(S_ij, dim=-<span class="number">1</span>, keepdim=<span class="literal">True</span>)</span><br><span class="line">            mi_new = torch.maximum(m_ij, m[i])</span><br><span class="line">            P_ij = torch.exp(S_ij - mi_new)</span><br><span class="line">            P_ijV_j = torch.einsum(<span class="string">&quot;bnm,bmd-&gt;bnd&quot;</span>, P_ij, V[j])</span><br><span class="line">            exp_row_max_diff = torch.exp(m[i] - mi_new)</span><br><span class="line">            li_new = l[i] * exp_row_max_diff + P_ij.<span class="built_in">sum</span>(dim=-<span class="number">1</span>, keepdim=<span class="literal">True</span>)</span><br><span class="line">            O[i] = O[i] * exp_row_max_diff + P_ijV_j</span><br><span class="line">            m[i] = mi_new</span><br><span class="line">            l[i] = li_new</span><br><span class="line">        O[i] = O[i] / l[i]</span><br><span class="line">    O = torch.cat(O, dim=<span class="number">1</span>)</span><br><span class="line">    l = torch.cat(l, dim=<span class="number">1</span>)</span><br><span class="line">    <span class="keyword">return</span> O, l</span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">flash_attention2_backward</span>(<span class="params">Q, K, V, O, l, dO</span>):</span></span><br><span class="line">    <span class="comment"># 参考代码中进行了实现，但这里省略，重点关注一下 backward 过程的输入</span></span><br><span class="line">    <span class="keyword">pass</span></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">&quot;__main__&quot;</span>:</span><br><span class="line">    device = torch.device(<span class="string">&quot;cuda&quot;</span>) <span class="keyword">if</span> torch.cuda.is_available() <span class="keyword">else</span> torch.device(<span class="string">&quot;cpu&quot;</span>)</span><br><span class="line">    <span class="comment"># batch, seq_len, dim</span></span><br><span class="line">    Q = torch.randn(<span class="number">2</span>, <span class="number">4096</span>, <span class="number">128</span>, requires_grad=<span class="literal">True</span>).to(device)</span><br><span class="line">    K = torch.randn(<span class="number">2</span>, <span class="number">4096</span>, <span class="number">128</span>, requires_grad=<span class="literal">True</span>).to(device)</span><br><span class="line">    V = torch.randn(<span class="number">2</span>, <span class="number">4096</span>, <span class="number">128</span>, requires_grad=<span class="literal">True</span>).to(device)</span><br><span class="line">    flash2_out = flash_attention2_forward(Q, K, V)</span><br><span class="line">    <span class="built_in">print</span>(flash2_out[<span class="number">0</span>].<span class="built_in">sum</span>().item())</span><br></pre></td></tr></table></figure>
-<ul>
-<li><code>backward</code> 过程在 <code>v2</code> 论文中详细的写出来了，如下：<br />
-<img src="https://s2.loli.net/2024/07/18/X7e8OgNiIAaysLk.png" alt="flash2_2.png" /></li>
-<li>速度效果提升很明显<br />
-<img src="https://s2.loli.net/2024/07/18/kQVDHWJI7eAFLXR.png" alt="flash2_3.png" /></li>
-</ul>
-<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
-<ul>
-<li><code>Flash Attention v2</code> 看起来特别像 <code>Flash Attention</code> 的紧急修复版本，把之前写的冗余删掉了</li>
-<li>甚至完全不了解 <code>Flash Attention</code> 思想的人看 <code>Flash Attention</code> 的实现代码，都可以将其优化到 <code>Flash Attention v2</code>，就是简单的代码优化…</li>
-<li><code>Flash Attention v2</code> 彻底把这个 <code>tiling</code> 思路的优势发挥出来了</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1547,7 +1526,7 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">143</span>
+          <span class="site-state-item-count">144</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>

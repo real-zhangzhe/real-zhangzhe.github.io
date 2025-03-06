@@ -180,6 +180,144 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2023/09/07/A-Keypoint-based-Global-Association-Network-for-Lane-Detection/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/09/07/A-Keypoint-based-Global-Association-Network-for-Lane-Detection/" class="post-title-link" itemprop="url">A Keypoint-based Global Association Network for Lane Detection</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-09-07 16:20:10" itemprop="dateCreated datePublished" datetime="2023-09-07T16:20:10+08:00">2023-09-07</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-03-03 11:21:59" itemprop="dateModified" datetime="2025-03-03T11:21:59+08:00">2025-03-03</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Autopilot/" itemprop="url" rel="index"><span itemprop="name">Autopilot</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2023/09/07/A-Keypoint-based-Global-Association-Network-for-Lane-Detection/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2023/09/07/A-Keypoint-based-Global-Association-Network-for-Lane-Detection/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2204.07335.pdf">https://arxiv.org/pdf/2204.07335.pdf</a></li>
+<li>code: <a target="_blank" rel="noopener" href="https://github.com/Wolfwjs/GANet">https://github.com/Wolfwjs/GANet</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li>传统基于关键点检测的车道线检测网络通常需要根据任务的定义设计模型输出头结构，比如 <code>UFLD</code> 算法每条车道线需要占据一个输出 <code>channel</code> 。</li>
+<li>本论文提出一种新颖的车道线检测范式，解耦了任务和网络，仅使用固定的输出通道数即可检测任意多条车道线。</li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<h3 id="总体思路"><a class="markdownIt-Anchor" href="#总体思路"></a> 总体思路</h3>
+<p><img src="https://s2.loli.net/2023/09/07/rTU59Ca6tMz24QD.png" alt="ganet2.png" /></p>
+<ul>
+<li>如何实现只用一个 <code>channel</code> 输出即可检测任意多条车道线？一个可以想到的简单方法是：
+<ol>
+<li>输出一个 <code>channel = 1</code> 的 <code>heat map</code>，其中每个位置的 <code>heat map value</code> 依旧表示该位置是车道线关键点的概率。</li>
+<li>使用阈值过滤得到所有车道线的关键点坐标（每条车道线关键点数量应 &gt;= 2）。</li>
+<li>使用聚类的方式将一堆关键点分成若干组，每组关键点表示一条车道线。聚类中的 “距离” 判定逻辑需要根据一些先验知识进行设计（比如：因为车道线在图片中更接近竖直方向，因此水平距离权重小于垂直距离）。</li>
+</ol>
+</li>
+<li>上述操作中的聚类过程包含了很多人为总结的先验知识，非常不 “机器学习”，于是我们可以改进这个过程：
+<ol>
+<li>输出一个 <code>channel = 1</code> 的 <code>heat map</code> 和一个 <code>channel = 2</code> 的 <code>offset map</code>，其中每个位置的 <code>heat map value</code> 依旧表示该位置是车道线关键点的概率，每个位置的 <code>offset map value</code> 表示 <strong>如果该点是关键点，那么该点相对于本条车道线起始点的偏移（x, y）</strong>，起始点表示一条车道线关键点中最靠近图片下方的点。</li>
+<li>使用阈值过滤得到所有关键点，将关键点对应位置的偏移 <code>offset</code> 得到新的点 <code>p'</code>，理论上同一条车道线的每一个关键点偏移后得到的新位置 <code>p'</code> 都一致，都是车道线起始点。</li>
+<li>因为神经网络不太能拟合到 <code>loss == 0</code>，因此还需要对所有的 <code>p'</code> 进行聚类，每个类表示一条车道线实例，本质相当于将聚类中的距离判定逻辑吸到神经网络内部。</li>
+</ol>
+</li>
+<li>以上就是本论文提出的 <code>GANet</code> 算法的核心思想：用固定的有限个输出通道去预测任意条车道线。</li>
+</ul>
+<h3 id="网络结构"><a class="markdownIt-Anchor" href="#网络结构"></a> 网络结构</h3>
+<p><img src="https://s2.loli.net/2023/09/07/nfbWKHOtFgjp6oz.png" alt="ganet1.png" /></p>
+<h3 id="lfalane-aware-feature-aggregator"><a class="markdownIt-Anchor" href="#lfalane-aware-feature-aggregator"></a> LFA（Lane-aware Feature Aggregator）</h3>
+<p><img src="https://s2.loli.net/2023/09/07/nk9NbMJztSWQRrq.png" alt="ganet3.png" /></p>
+<h4 id="动机"><a class="markdownIt-Anchor" href="#动机"></a> 动机</h4>
+<ul>
+<li>传统的2D卷积在固定的网格状区域内采样特征，这不适用于处理车道线的狭长形状。</li>
+<li>因此作者使用如下步骤改进各关键点上的局部特征：
+<ol>
+<li>预测该关键点同一条车道线紧邻的 <code>num_adjacent_keypoints</code> 个点的 <code>offset</code>，进行显式监督。</li>
+<li>用预测的 <code>offset</code> 引导可变形卷积改进关键点局部特征。</li>
+</ol>
+</li>
+</ul>
+<h4 id="代码实现"><a class="markdownIt-Anchor" href="#代码实现"></a> 代码实现</h4>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> torch</span><br><span class="line"><span class="keyword">import</span> torch.nn <span class="keyword">as</span> nn</span><br><span class="line"><span class="keyword">from</span> torchvision.ops <span class="keyword">import</span> deform_conv2d</span><br><span class="line"><span class="keyword">import</span> math</span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">LFA</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, in_channels, out_channels, num_adjacent_keypoints=<span class="number">5</span></span>):</span></span><br><span class="line">        <span class="built_in">super</span>(LFA, self).__init__()</span><br><span class="line">        self.offset_conv = nn.Conv2d(in_channels, <span class="number">2</span> * num_adjacent_keypoints, kernel_size=<span class="number">1</span>)</span><br><span class="line">        self.deform_conv_weight = nn.Parameter(torch.Tensor(out_channels, in_channels, <span class="number">3</span>, <span class="number">3</span>))</span><br><span class="line">        nn.init.kaiming_uniform_(self.deform_conv_weight, a=math.sqrt(<span class="number">5</span>))</span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">self, x</span>):</span></span><br><span class="line">        <span class="comment"># x: input feature map with shape [batch_size, in_channels, height, width]</span></span><br><span class="line">        </span><br><span class="line">        <span class="comment"># Step 1: Predict the offsets for adjacent keypoints</span></span><br><span class="line">        offsets = self.offset_conv(x)  <span class="comment"># shape: [batch_size, 2 * num_adjacent_keypoints, height, width]</span></span><br><span class="line">        </span><br><span class="line">        <span class="comment"># Step 2: Perform deformable convolution to aggregate features</span></span><br><span class="line">        aggregated_features = deform_conv2d(x, offsets, self.deform_conv_weight, stride=<span class="number">1</span>, padding=<span class="number">1</span>)</span><br><span class="line">        </span><br><span class="line">        <span class="keyword">return</span> aggregated_features, offsets  <span class="comment"># Return both aggregated features and offsets</span></span><br><span class="line"><span class="comment"># Initialize LFA module</span></span><br><span class="line">lfa = LFA(in_channels=<span class="number">64</span>, out_channels=<span class="number">128</span>, num_adjacent_keypoints=<span class="number">5</span>)</span><br><span class="line"><span class="comment"># Dummy input feature map with shape [batch_size, in_channels, height, width]</span></span><br><span class="line">input_feature_map = torch.randn(<span class="number">16</span>, <span class="number">64</span>, <span class="number">128</span>, <span class="number">128</span>)</span><br><span class="line"><span class="comment"># Forward pass</span></span><br><span class="line">aggregated_features, predicted_offsets = lfa(input_feature_map)</span><br><span class="line"><span class="comment"># aggregated_features 是特征输出</span></span><br><span class="line"><span class="comment"># predicted_offsets 是预测的相邻的 num_adjacent_keypoints 个车道线的偏移量，显式监督</span></span><br></pre></td></tr></table></figure>
+<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
+<ul>
+<li>提出了一种灵活的车道线检测范式，具有较好的可拓展性，目前在车道线榜单上比较靠前。</li>
+<li>另外一个创新点是<code>LFA module</code>，主要是用到了可形变卷积，对于大多数动态性较差的端侧芯片来说，不容易部署。</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2023/08/16/BEVFormer-Learning-Bird%E2%80%99s-Eye-View-Representation-from-Multi-Camera-Images-via-Spatiotemporal-Transformers/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1334,128 +1472,6 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2023/06/30/GPT3-Language-Models-are-Few-Shot-Learners/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/06/30/GPT3-Language-Models-are-Few-Shot-Learners/" class="post-title-link" itemprop="url">GPT3:Language Models are Few-Shot Learners</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-06-30 21:41:00" itemprop="dateCreated datePublished" datetime="2023-06-30T21:41:00+08:00">2023-06-30</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-03-03 11:21:59" itemprop="dateModified" datetime="2025-03-03T11:21:59+08:00">2025-03-03</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Self-Supervised-Learning/" itemprop="url" rel="index"><span itemprop="name">Self-Supervised Learning</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2023/06/30/GPT3-Language-Models-are-Few-Shot-Learners/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2023/06/30/GPT3-Language-Models-are-Few-Shot-Learners/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
-<ul>
-<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2005.14165.pdf">https://arxiv.org/pdf/2005.14165.pdf</a></li>
-</ul>
-<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
-<ul>
-<li>作者团队训练了一个 <code>96</code> 层 <code>Transformer</code> 共 <code>1750</code> 亿参数的超大模型（<code>GPT2</code> 只有约 <code>15</code> 亿参数），在下游任务上无需 <code>fine-tuning</code> 即可得到很好的效果。</li>
-<li>本质是 <code>GPT2</code> 的放大版（参数量放大了一百多倍）</li>
-</ul>
-<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
-<ul>
-<li>在下游任务上，可以使用 <code>Zero Shot</code>、<code>One Shot</code>、<code>Few Shot</code> 三种方式推理模型，下图以英语翻译法语的例子介绍三者的区别：<br />
-<img src="https://s2.loli.net/2023/06/30/MaqkjTsZNSCJ8Fb.png" alt="GPT3.png" /></li>
-<li>GPT3 系列模型详细设置：<br />
-<img src="https://s2.loli.net/2023/06/30/4EYHrsivdgePRlM.png" alt="GP3_1.png" /></li>
-<li>GPT3 自监督训练数据：<br />
-<img src="https://s2.loli.net/2023/06/30/H9mTFVOyiQnsRhX.png" alt="GP3_2.png" /></li>
-</ul>
-<blockquote>
-<p>使用了 <code>common crawl</code> 数据集，由于 <code>common crawl</code> 数据集很脏，所以训练是数据采样率并不高</p>
-</blockquote>
-<ul>
-<li>下图是在几个下游任务上和 SOTA 算法的比较：<br />
-<img src="https://s2.loli.net/2023/06/30/pnz81M7DoCVWbiv.png" alt="GPT3_3.png" /><br />
-<img src="https://s2.loli.net/2023/06/30/2EwKHT4BjIo8ecg.png" alt="GPT3_5.png" /><br />
-<img src="https://s2.loli.net/2023/06/30/fmSlhbAENVZyBFr.png" alt="GPT3_4.png" /></li>
-</ul>
-<blockquote>
-<p>从普遍表现看，GPT3 few shot 效果 &gt; one shot &gt; zero shot，不一定比 SOTA 点高（SOTA 普遍使用了 fine tuning，直接比较不公平）</p>
-</blockquote>
-<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
-<ul>
-<li>在某些任务上，<code>GPT3 few shot</code> 效果可媲美 <code>fine tuning SOTA</code>，可以说明 <code>GPT3</code> 还是非常强大的</li>
-<li>比上一代参数量提高一百多倍，开启了大模型时代…</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1524,7 +1540,7 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">143</span>
+          <span class="site-state-item-count">144</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>

@@ -180,6 +180,150 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/10/11/DINOv2-Learning-Robust-Visual-Features-without-Supervision/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2024/10/11/DINOv2-Learning-Robust-Visual-Features-without-Supervision/" class="post-title-link" itemprop="url">DINOv2: Learning Robust Visual Features without Supervision</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-10-11 14:56:59" itemprop="dateCreated datePublished" datetime="2024-10-11T14:56:59+08:00">2024-10-11</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-03-03 11:21:59" itemprop="dateModified" datetime="2025-03-03T11:21:59+08:00">2025-03-03</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Self-Supervised/" itemprop="url" rel="index"><span itemprop="name">Self-Supervised</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2024/10/11/DINOv2-Learning-Robust-Visual-Features-without-Supervision/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2024/10/11/DINOv2-Learning-Robust-Visual-Features-without-Supervision/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2304.07193">https://arxiv.org/pdf/2304.07193</a></li>
+<li>code: <a target="_blank" rel="noopener" href="https://github.com/facebookresearch/dinov2">https://github.com/facebookresearch/dinov2</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li>和 <code>DINO</code> 一样，都是做自监督视觉预训练的，对于 <code>DINO</code> 的主要升级是构建了一个大规模自动化数据处理管线，构建了 <code>LVD-142M</code> 高质量数据集</li>
+<li>用这些数据集预训练了一个 <code>1B</code> 参数的 <code>ViT</code> 模型，通过无监督蒸馏的方式，得到用于不同任务的小模型</li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<h3 id="自动化数据处理管线"><a class="markdownIt-Anchor" href="#自动化数据处理管线"></a> 自动化数据处理管线</h3>
+<p><img src="https://s2.loli.net/2024/10/11/qUjk2JMiucb8pQn.png" alt="dino_v2.png" /></p>
+<ul>
+<li>自动化处理流程包括如下几个步骤，不断重复迭代</li>
+</ul>
+<h4 id="1-数据收集"><a class="markdownIt-Anchor" href="#1-数据收集"></a> 1. 数据收集</h4>
+<ul>
+<li><code>DINOv2</code> 的数据源包括一个大型的未筛选图像数据集和一个较小的经过筛选的图像数据集</li>
+<li>未筛选数据集来自网络爬取</li>
+<li>筛选数据集来自 <code>ImageNet-22k</code> / <code>Google Landmarks</code> 等</li>
+</ul>
+<h4 id="2-图像嵌入"><a class="markdownIt-Anchor" href="#2-图像嵌入"></a> 2. 图像嵌入</h4>
+<ul>
+<li>对于未筛选数据集，用一个训练好的 <code>ViT-H/16</code> 计算得到图像 <code>embedding vector</code></li>
+</ul>
+<h4 id="3-图像去重"><a class="markdownIt-Anchor" href="#3-图像去重"></a> 3. 图像去重</h4>
+<ul>
+<li>用特征空间下去重算法，将未筛选的数据集去重</li>
+</ul>
+<h4 id="4-图像检索"><a class="markdownIt-Anchor" href="#4-图像检索"></a> 4. 图像检索</h4>
+<ul>
+<li>在特征空间下聚类，得到与筛选数据集类似的未筛选数据样本</li>
+</ul>
+<h4 id="5-数据增强"><a class="markdownIt-Anchor" href="#5-数据增强"></a> 5. 数据增强</h4>
+<ul>
+<li>让这些聚类得到的类似的未筛选样本作为筛选样本，不断扩大筛选样本的数量和场景丰富度</li>
+</ul>
+<h3 id="模型架构"><a class="markdownIt-Anchor" href="#模型架构"></a> 模型架构</h3>
+<ul>
+<li>和 <code>DINO v1</code> 中教师和学生使用动量更新的方式不同，<code>DINO v2</code> 使用了常见的 “大老师，小学生” 架构</li>
+<li>先训练一个 <code>1B</code> 参数的 <code>ViT</code> 模型作为老师模型</li>
+<li>然后再在各个不同任务数据上蒸馏得到小模型</li>
+</ul>
+<h3 id="训练策略优化"><a class="markdownIt-Anchor" href="#训练策略优化"></a> 训练策略优化</h3>
+<ul>
+<li>由于老师模型很大（<code>1B</code> 参数量），所以需要 <code>LM</code> 常用的训练加速方法，包括：
+<ul>
+<li><code>FlashAttention</code></li>
+<li><code>Fully-shared Data Parallel (FSDP)</code> 等</li>
+</ul>
+</li>
+</ul>
+<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
+<ul>
+<li>这套数据处理管线是本文重点，所有的自监督任务，自动化数据处理流程都是必不可少的</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/10/11/CLIP-Learning-Transferable-Visual-Models-From-Natural-Language-Supervision/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1569,122 +1713,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/08/21/Megatron-LM-Training-Multi-Billion-Parameter-Language-Models-Using-Model-Parallelism/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2024/08/21/Megatron-LM-Training-Multi-Billion-Parameter-Language-Models-Using-Model-Parallelism/" class="post-title-link" itemprop="url">Megatron-LM: Training Multi-Billion Parameter Language Models Using Model Parallelism</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-08-21 14:00:47" itemprop="dateCreated datePublished" datetime="2024-08-21T14:00:47+08:00">2024-08-21</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-03-03 11:21:59" itemprop="dateModified" datetime="2025-03-03T11:21:59+08:00">2025-03-03</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Tensor-Parallelism/" itemprop="url" rel="index"><span itemprop="name">Tensor Parallelism</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2024/08/21/Megatron-LM-Training-Multi-Billion-Parameter-Language-Models-Using-Model-Parallelism/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2024/08/21/Megatron-LM-Training-Multi-Billion-Parameter-Language-Models-Using-Model-Parallelism/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
-<ul>
-<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/1909.08053">https://arxiv.org/pdf/1909.08053</a></li>
-<li>code: <a target="_blank" rel="noopener" href="https://github.com/NVIDIA/Megatron-LM">https://github.com/NVIDIA/Megatron-LM</a></li>
-</ul>
-<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
-<ul>
-<li>本文是英伟达 <code>Megatron-LM</code> 大模型分布式并行训练框架的一篇简介，大概阐述了 <code>Megatron-LM</code> 的机制和效果，对于实现细节着墨不多。</li>
-<li>从代码实现角度看，<code>Megatron-LM</code> 是对 <code>PyTorch</code> 进行了二次封装。</li>
-<li>基本思想是 <code>Tensor Parallelism</code>，拆分一层的权重到不同 <code>GPU</code> 上并行运算。</li>
-</ul>
-<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
-<h3 id="tensor-parallelism"><a class="markdownIt-Anchor" href="#tensor-parallelism"></a> <code>Tensor Parallelism</code></h3>
-<p><img src="https://s2.loli.net/2024/08/21/BVFJTzMgYqiQNsX.png" alt="megatron_1.png" /></p>
-<ul>
-<li>重点是这里的 <code>f</code> 和 <code>g</code> 函数，下面是其实现：</li>
-</ul>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">f</span>(<span class="params">torch.autograd.Function</span>):</span></span><br><span class="line">  <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">ctx, x</span>):</span></span><br><span class="line">    <span class="keyword">return</span> x</span><br><span class="line">  <span class="function"><span class="keyword">def</span> <span class="title">backward</span>(<span class="params">ctx, gradient</span>):</span></span><br><span class="line">    all_reduce(gradient)</span><br><span class="line">    <span class="keyword">return</span> gradient</span><br><span class="line">  </span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">g</span>(<span class="params">torch.autograd.Function</span>):</span></span><br><span class="line">  <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">ctx, x</span>):</span></span><br><span class="line">    all_reduce(x)</span><br><span class="line">    <span class="keyword">return</span> x</span><br><span class="line">  <span class="function"><span class="keyword">def</span> <span class="title">backward</span>(<span class="params">ctx, gradient</span>):</span></span><br><span class="line">    <span class="keyword">return</span> gradient</span><br></pre></td></tr></table></figure>
-<ul>
-<li>在本例子中 <code>All-reduce</code> 实际上是 <code>ReduceSum</code>，实际上聚合运算（包括 <code>forward and backward</code>）需要 <code>GPU</code> 间同步，存在通信代价</li>
-<li><code>Self-Attention</code> 可以 <code>tensor parallelism</code> 的一个重要原因是 <code>softmax</code> 是逐行做的而不是全局做的<br />
-<img src="https://s2.loli.net/2024/08/21/w8dOQ5JjAbiSPLG.png" alt="megatron-lm_2.png" /></li>
-<li>由图 <code>3</code> 可以得出结论，一个 <code>transformer layer</code> 只有 <code>4</code> 个同步算子（两个 <code>LayerNorm</code> 和两个 <code>Dropout</code>），其他算子都可以被分解为并行算子</li>
-</ul>
-<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
-<ul>
-<li>给我的感觉有点类似 <a target="_blank" rel="noopener" href="https://zhangzhe.space/2022/08/21/1-%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0%E7%BC%96%E8%AF%91%E6%A6%82%E8%BF%B0/"><code>MLC</code></a> 或者机器学习编译中的 <code>Tiling</code>（只是升级为训练及推理全流程 <code>tiling</code>）</li>
-<li><code>tensor parallelism</code> 这种策略很考验对计算流程的抽象，除非有大量人力把框架搭建好且把所有算子实现写好，否则会很难用起来（当然对于 <code>Nvidia</code> 这些都不是事），突然想起了 <code>Neuwizard</code>，一声叹息…</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1753,7 +1781,7 @@
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">143</span>
+          <span class="site-state-item-count">144</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
