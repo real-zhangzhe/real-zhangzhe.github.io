@@ -180,6 +180,108 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/07/11/MQA-Multi-Query-Attention/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2024/07/11/MQA-Multi-Query-Attention/" class="post-title-link" itemprop="url">MQA: Multi-Query Attention</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-07-11 13:24:35" itemprop="dateCreated datePublished" datetime="2024-07-11T13:24:35+08:00">2024-07-11</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-03-21 10:13:09" itemprop="dateModified" datetime="2025-03-21T10:13:09+08:00">2025-03-21</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Transformer/" itemprop="url" rel="index"><span itemprop="name">Transformer</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2024/07/11/MQA-Multi-Query-Attention/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2024/07/11/MQA-Multi-Query-Attention/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/1911.02150">https://arxiv.org/pdf/1911.02150</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li>本质很简单，就是把标准的 <code>Multi-Head Attention</code> 中的 <code>Key</code> 和 <code>Value</code> 退化为 <code>Single-Head</code>，<code>Query</code> 保留 <code>Multi-Head</code></li>
+<li>目的是 <strong>降低 <code>Attention</code> 过程内存带宽成本</strong>，并没有降低计算复杂度，计算复杂度依然是 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="script">O</mi><mo stretchy="false">(</mo><msup><mi>n</mi><mn>2</mn></msup><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\mathcal{O}(n^2)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.064108em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathcal" style="margin-right:0.02778em;">O</span></span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">n</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141079999999999em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span></li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> torch</span><br><span class="line"><span class="keyword">import</span> torch.nn.functional <span class="keyword">as</span> F</span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">multiquery_attention_batched</span>(<span class="params">X, M, mask, P_q, P_k, P_v, P_o</span>):</span></span><br><span class="line">    <span class="comment"># b: batch size</span></span><br><span class="line">    <span class="comment"># n: number of querys</span></span><br><span class="line">    <span class="comment"># m: number of keys / values</span></span><br><span class="line">    <span class="comment"># d: input dimension</span></span><br><span class="line">    <span class="comment"># h: number of heads</span></span><br><span class="line">    <span class="comment"># k: key / query dimention</span></span><br><span class="line">    <span class="comment"># v: value dimention</span></span><br><span class="line">    <span class="comment"># 应用线性变换获取查询Q（multi-head）</span></span><br><span class="line">    Q = torch.einsum(<span class="string">&quot;bnd,hdk-&gt;bhkn&quot;</span>, X, P_q)</span><br><span class="line">    <span class="comment"># 应用线性变换获取键K和值V（single-head）</span></span><br><span class="line">    K = torch.einsum(<span class="string">&quot;bmd,dk-&gt;bmk&quot;</span>, M, P_k)</span><br><span class="line">    V = torch.einsum(<span class="string">&quot;bmd,dv-&gt;bmv&quot;</span>, M, P_v)</span><br><span class="line">    <span class="comment"># 计算注意力得分并应用掩码</span></span><br><span class="line">    logits = torch.einsum(<span class="string">&quot;bhkn,bmk-&gt;bhnm&quot;</span>, Q, K)</span><br><span class="line">    weights = F.softmax(logits + mask, dim=-<span class="number">1</span>)</span><br><span class="line">    <span class="comment"># 计算加权的值</span></span><br><span class="line">    O = torch.einsum(<span class="string">&quot;bhnm,bmv-&gt;bhnv&quot;</span>, weights, V)</span><br><span class="line">    <span class="comment"># 应用输出变换</span></span><br><span class="line">    Y = torch.einsum(<span class="string">&quot;bhnv,hvd-&gt;bnd&quot;</span>, O, P_o)</span><br><span class="line">    <span class="keyword">return</span> Y</span><br><span class="line"><span class="comment"># 假设参数和维度</span></span><br><span class="line">batch_size = <span class="number">2</span></span><br><span class="line">num_queries = <span class="number">5</span></span><br><span class="line">num_keys = <span class="number">7</span>    <span class="comment"># 同时也是 num_values</span></span><br><span class="line">dim = <span class="number">64</span></span><br><span class="line">key_dim = <span class="number">32</span>    <span class="comment"># 同时也是 query_dim</span></span><br><span class="line">value_dim = <span class="number">48</span></span><br><span class="line">num_heads = <span class="number">8</span></span><br><span class="line"><span class="comment"># 随机初始化输入数据和参数</span></span><br><span class="line">X = torch.randn(batch_size, num_queries, dim)</span><br><span class="line">M = torch.randn(batch_size, num_keys, dim)</span><br><span class="line">mask = torch.randn(batch_size, num_heads, num_queries, num_keys)</span><br><span class="line">P_q = torch.randn(num_heads, dim, key_dim)</span><br><span class="line">P_k = torch.randn(dim, key_dim)</span><br><span class="line">P_v = torch.randn(dim, value_dim)</span><br><span class="line">P_o = torch.randn(num_heads, value_dim, dim)</span><br><span class="line"><span class="comment"># 运行多查询注意力机制</span></span><br><span class="line">output = multiquery_attention_batched(X, M, mask, P_q, P_k, P_v, P_o)</span><br><span class="line"><span class="built_in">print</span>(output.shape)  <span class="comment"># 输出: torch.Size([2, 5, 64])</span></span><br></pre></td></tr></table></figure>
+<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
+<ul>
+<li>本质是标准 <code>Attention</code> 的部分 <code>multi-head</code> 化</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/07/01/LLM-%E9%9D%A2%E8%AF%95%E9%A2%98%E6%B1%87%E6%80%BB/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -3647,125 +3749,10 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2023/08/06/BEVDet4D-Exploit-Temporal-Cues-in-Multi-camera-3D-Object-Detection/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/08/06/BEVDet4D-Exploit-Temporal-Cues-in-Multi-camera-3D-Object-Detection/" class="post-title-link" itemprop="url">BEVDet4D: Exploit Temporal Cues in Multi-camera 3D Object Detection</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-08-06 15:00:34" itemprop="dateCreated datePublished" datetime="2023-08-06T15:00:34+08:00">2023-08-06</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-03-21 10:13:09" itemprop="dateModified" datetime="2025-03-21T10:13:09+08:00">2025-03-21</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/BEV/" itemprop="url" rel="index"><span itemprop="name">BEV</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2023/08/06/BEVDet4D-Exploit-Temporal-Cues-in-Multi-camera-3D-Object-Detection/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2023/08/06/BEVDet4D-Exploit-Temporal-Cues-in-Multi-camera-3D-Object-Detection/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
-<ul>
-<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2203.17054.pdf">https://arxiv.org/pdf/2203.17054.pdf</a></li>
-<li>code: <a target="_blank" rel="noopener" href="https://github.com/HuangJunJie2017/BEVDet">https://github.com/HuangJunJie2017/BEVDet</a></li>
-</ul>
-<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
-<ul>
-<li><code>BEVDet4D</code> 是基于 <code>BEVDet</code> 加入了时序信息的一篇论文</li>
-<li>具体来说就是将上一帧的 <code>BEV Feature</code> 和本帧的 <code>BEV Feature</code> 对齐后 <code>Concat</code> 到一起送入 <code>BEV Encoder</code> 中进行 <code>BEV</code> 视角下的 <code>3D</code> 目标检测</li>
-<li><code>BEVDet</code> 论文中的 <code>image encoder + view transformer</code> 完全保持不变</li>
-<li>由于有两帧的信息，所以对速度的预测相较于单帧有较大提升</li>
-</ul>
-<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
-<h3 id="整体流程"><a class="markdownIt-Anchor" href="#整体流程"></a> 整体流程</h3>
-<p><img src="https://s2.loli.net/2023/08/06/XwCSmtKiFWJEzQk.png" alt="bevdet4d.png" /><br />
-在 <code>BEV Feature</code> 层面（<code>View Transformer</code> 的输出）融合两帧信息</p>
-<h3 id="算法的伪代码表示"><a class="markdownIt-Anchor" href="#算法的伪代码表示"></a> 算法的伪代码表示</h3>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">BEVDet4D</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self</span>):</span></span><br><span class="line">        <span class="comment"># 初始化相关的编码器、转换器和其他必要的组件</span></span><br><span class="line">        self.image_view_encoder = ImageViewEncoder()</span><br><span class="line">        self.view_transformer = ViewTransformer()</span><br><span class="line">        self.bev_encoder = BEVEncoder()</span><br><span class="line">        self.head = DetectionHead()</span><br><span class="line">        self.previous_bev_feature = <span class="literal">None</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">spatial_alignment</span>(<span class="params">self, feature</span>):</span></span><br><span class="line">        <span class="comment"># 这里执行空间对齐操作，具体细节可能需要根据原始论文进行补充</span></span><br><span class="line">        <span class="comment"># 实际代码中这里似乎没有开，即上一帧的 BEV feature 直接和本帧 BEV feature map concat</span></span><br><span class="line">        aligned_feature = ... </span><br><span class="line">        <span class="keyword">return</span> aligned_feature</span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">self, current_image</span>):</span></span><br><span class="line">        <span class="comment"># 使用图像视图编码器和视图转换器处理当前图像</span></span><br><span class="line">        image_feature = self.image_view_encoder(current_image)</span><br><span class="line">        transformed_feature = self.view_transformer(image_feature)</span><br><span class="line">        <span class="comment"># 使用BEV编码器获取当前帧的BEV特征</span></span><br><span class="line">        current_bev_feature = self.bev_encoder(transformed_feature)</span><br><span class="line">        <span class="comment"># 如果存在前一帧的BEV特征，则进行空间对齐和融合</span></span><br><span class="line">        <span class="keyword">if</span> self.previous_bev_feature:</span><br><span class="line">            aligned_previous_feature = self.spatial_alignment(self.previous_bev_feature)</span><br><span class="line">            fused_feature = concatenate(aligned_previous_feature, current_bev_feature)</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            fused_feature = current_bev_feature</span><br><span class="line">        <span class="comment"># 使用检测头部进行3D物体检测</span></span><br><span class="line">        detections = self.head(fused_feature)</span><br><span class="line">        <span class="comment"># 保存当前帧的BEV特征以供下一帧使用</span></span><br><span class="line">        self.previous_bev_feature = current_bev_feature</span><br><span class="line">        <span class="keyword">return</span> detections</span><br><span class="line"><span class="comment"># 实例化BEVDet4D并进行前向传递</span></span><br><span class="line">bevdet4d = BEVDet4D()</span><br><span class="line">detections = bevdet4d.forward(current_image)</span><br></pre></td></tr></table></figure>
-<h3 id="result"><a class="markdownIt-Anchor" href="#result"></a> result</h3>
-<p><img src="https://s2.loli.net/2023/08/06/TgX7qpHDZUjsEGn.png" alt="BEVdet4D2.png" /></p>
-<blockquote>
-<p>效果比 <code>BEVDet</code> 好了不少，尤其是 <code>mAVE</code> (速度误差)</p>
-</blockquote>
-<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
-<ul>
-<li>没有很大的创新点，更像是 <code>BEVDet</code> 的一个使用 <code>trick</code></li>
-<li><code>BEVDet</code> 的计算量主要分布在 <code>image encoder</code> 和 <code>view transformer</code>，所以复用上一帧的 <code>BEV feature</code> 即充分利用了上一帧的计算量，对当前帧引入的额外计算量也比较可控（<code>BEV encoder</code> 和 <code>task head</code> 都比较轻量）</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/6/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/6/">6</a><span class="page-number current">7</span><a class="page-number" href="/page/8/">8</a><span class="space">&hellip;</span><a class="page-number" href="/page/15/">15</a><a class="extend next" rel="next" href="/page/8/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
+    <a class="extend prev" rel="prev" href="/page/6/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/6/">6</a><span class="page-number current">7</span><a class="page-number" href="/page/8/">8</a><span class="space">&hellip;</span><a class="page-number" href="/page/16/">16</a><a class="extend next" rel="next" href="/page/8/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
   </nav>
 
 
@@ -3830,7 +3817,7 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">150</span>
+          <span class="site-state-item-count">151</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
