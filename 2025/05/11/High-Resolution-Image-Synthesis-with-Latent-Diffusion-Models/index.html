@@ -29,7 +29,7 @@
 <meta property="og:locale" content="en_US">
 <meta property="og:image" content="https://s2.loli.net/2025/05/22/Vlkz7YnqIDxTWhH.png">
 <meta property="article:published_time" content="2025-05-11T09:00:32.000Z">
-<meta property="article:modified_time" content="2025-05-22T12:26:38.664Z">
+<meta property="article:modified_time" content="2025-05-22T12:37:53.920Z">
 <meta property="article:author" content="Zhangzhe">
 <meta property="article:tag" content="diffusion">
 <meta property="article:tag" content="latent diffusion">
@@ -219,7 +219,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-22 20:26:38" itemprop="dateModified" datetime="2025-05-22T20:26:38+08:00">2025-05-22</time>
+                <time title="Modified: 2025-05-22 20:37:53" itemprop="dateModified" datetime="2025-05-22T20:37:53+08:00">2025-05-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -334,48 +334,39 @@
     %% 残差连接
     Input --> Conv2
     Merge[特征合并] --> LayerNorm
-    LayerNorm[LayerNorm] --> Output[输出特征图 h_out]
-  
-    style CrossAttn fill:#f9d5e5,stroke:#c2185bstroke:#1976d2
-    style ResNet fill:#c8e6c9,stroke:#388e3c
-    style MLP fill:#e3f2fd,stroke:#1976d2</pre>
+    LayerNorm[LayerNorm] --> Output[输出特征图 h_out]</pre>
 <ul>
 <li><code>DecoderAttentionBlock2D</code> 结构示意</li>
 </ul>
 <pre class="mermaid">graph TD
-    X[("Input x<br>Shape: 1,512,32,32")] --> Norm[["Normalize (GroupNorm)<br>Output: 1,512,32,32"]]
+    X[("Input x<br>Shape: 1,512,32,32")] --> Norm["Normalize (GroupNorm)<br>Output: 1,512,32,32"]
   
-    Norm --> Q[["Q Conv2d(1x1)<br>Output: 1,512,32,32"]]
-    Norm --> K[["K Conv2d(1x1)<br>Output: 1,512,32,32"]]
-    Norm --> V[["V Conv2d(1x1)<br>Output: 1,512,32,32"]]
+    Norm --> Q["Q Conv2d(1x1)<br>Output: 1,512,32,32"]
+    Norm --> K["K Conv2d(1x1)<br>Output: 1,512,32,32"]
+    Norm --> V["V Conv2d(1x1)<br>Output: 1,512,32,32"]
   
-    Q --> ReshapeQ[["Reshape & Permute<br>1,512,32,32 → 1,1024,512"]]
-    K --> ReshapeK[["Reshape<br>1,512,32,32 → 1,512,1024"]]
+    Q --> ReshapeQ["Reshape & Permute<br>1,512,32,32 → 1,1024,512"]
+    K --> ReshapeK["Reshape<br>1,512,32,32 → 1,512,1024"]
   
-    ReshapeQ --> MatmulQK[["Matmul(Q,K)<br>1,1024,512 × 1,512,1024 → 1,1024,1024"]]
+    ReshapeQ --> MatmulQK["Matmul(Q,K)<br>1,1024,512 × 1,512,1024 → 1,1024,1024"]
     ReshapeK --> MatmulQK
   
-    MatmulQK --> Scale[["Scale (×1/√512)<br>1,1024,1024"]]
-    Scale --> Softmax[["Softmax<br>1,1024,1024"]]
+    MatmulQK --> Scale["Scale (×1/√512)<br>1,1024,1024"]
+    Scale --> Softmax["Softmax<br>1,1024,1024"]
   
-    V --> ReshapeV[["Reshape<br>1,512,32,32 → 1,512,1024"]]
-    Softmax --> PermuteSoftmax[["Permute<br>1,1024,1024 → 1,1024,1024"]]
+    V --> ReshapeV["Reshape<br>1,512,32,32 → 1,512,1024"]
+    Softmax --> PermuteSoftmax["Permute<br>1,1024,1024 → 1,1024,1024"]
   
-    ReshapeV --> MatmulVW[["Matmul(V, Softmax)<br>1,512,1024 × 1,1024,1024 → 1,512,1024"]]
+    ReshapeV --> MatmulVW["Matmul(V, Softmax)<br>1,512,1024 × 1,1024,1024 → 1,512,1024"]
     PermuteSoftmax --> MatmulVW
   
-    MatmulVW --> ReshapeOut[["Reshape<br>1,512,1024 → 1,512,32,32"]]
+    MatmulVW --> ReshapeOut["Reshape<br>1,512,1024 → 1,512,32,32"]
   
-    ReshapeOut --> ProjOut[["Proj_out Conv2d(1x1)<br>1,512,32,32"]]
-    ProjOut --> Add[["Add (x + h_)<br>1,512,32,32"]]
+    ReshapeOut --> ProjOut["Proj_out Conv2d(1x1)<br>1,512,32,32"]
+    ProjOut --> Add["Add (x + h_)<br>1,512,32,32"]
   
     X --> Add
-    Add --> Output[("Final Output<br>1,512,32,32")]
-
-    style X fill:#f9f,stroke:#333
-    style Output fill:#f9f,stroke:#333
-    classDef op fill:#e6f3ff,stroke:#006db2
-    class Norm,Q,K,V,ReshapeQ,ReshapeK,MatmulQK,Scale,Softmax,ReshapeV,PermuteSoftmax,MatmulVW,ReshapeOut,ProjOut,Add op</pre>
+    Add --> Output[("Final Output<br>1,512,32,32")]</pre>
 <h2 id="thoughts"><a class="markdownIt-Anchor" href="#thoughts"></a> Thoughts</h2>
 <ul>
 <li>论文思路无比清晰，且说服力很强，把很多领域的知识结合起来，真正把图像生成在实用性方面推到了一个新的高度</li>
