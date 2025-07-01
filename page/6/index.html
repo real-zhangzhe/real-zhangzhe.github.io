@@ -180,6 +180,225 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/08/21/ZeRO-Memory-Optimizations-Toward-Training-Trillion-Parameter-Models/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2024/08/21/ZeRO-Memory-Optimizations-Toward-Training-Trillion-Parameter-Models/" class="post-title-link" itemprop="url">ZeRO: Memory Optimizations Toward Training Trillion Parameter Models</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-08-21 17:01:35" itemprop="dateCreated datePublished" datetime="2024-08-21T17:01:35+08:00">2024-08-21</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-03-21 10:13:09" itemprop="dateModified" datetime="2025-03-21T10:13:09+08:00">2025-03-21</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Data-Parallelism/" itemprop="url" rel="index"><span itemprop="name">Data Parallelism</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2024/08/21/ZeRO-Memory-Optimizations-Toward-Training-Trillion-Parameter-Models/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2024/08/21/ZeRO-Memory-Optimizations-Toward-Training-Trillion-Parameter-Models/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/1910.02054">https://arxiv.org/pdf/1910.02054</a></li>
+<li>code: <a target="_blank" rel="noopener" href="https://github.com/microsoft/DeepSpeed">https://github.com/microsoft/DeepSpeed</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li>传统的 <code>DDP</code> 训练大模型有个很大的问题是：由于 <code>DDP</code> 训练中每个 <code>GPU</code> 上都需要存储模型状态信息和其他状态信息：
+<ul>
+<li>模型状态信息包括：<code>Prameter</code> + <code>Gradient</code> + <code>Optimizer states</code></li>
+<li>其他状态信息包括：激活值（<code>Activation</code>）、各种临时缓冲区（<code>buffer</code>）以及无法使用的显存碎片（<code>fragmentation</code>）<br />
+所以显存占用较大，使得不能通过 <code>DDP</code> 训练较大的模型。</li>
+</ul>
+</li>
+<li>本文提出来 <code>Zero-DP</code> 和 <code>Zero-R</code> 两种大模型训练优化策略，分别解决模型状态信息过大和其他状态信息过大的问题。</li>
+<li><code>Zero-DP</code> 全称是 <code>Zero Redundancy Optimizer Data Parallelism</code>，主要优化点是将 <code>GPU</code> 间冗余存储的模型状态信息（<code>Parmeter + Gradient + Optimizer states</code>）删除，每个 <code>GPU</code> 只保留一小部分信息，所有 <code>GPU</code> 上的信息汇聚之后才是完整模型。</li>
+<li><code>Zero-R</code> 的目的是解决 <code>Tensor Parallelism</code> 训练时，<code>Activation</code> 信息占用过大的问题。</li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<h3 id="zero-dp"><a class="markdownIt-Anchor" href="#zero-dp"></a> <code>ZeRO-DP</code></h3>
+<h4 id="zero-dp-想要解决什么问题"><a class="markdownIt-Anchor" href="#zero-dp-想要解决什么问题"></a> <code>ZeRO-DP</code> 想要解决什么问题？</h4>
+<ul>
+<li>解决 <code>DDP</code> 训练过程中，<code>Parmeter + Gradient + Optimizer states</code> 对显存的占用过大，导致无法训练很大的模型的问题。</li>
+</ul>
+<h4 id="没有其他方法可以降低显存占用吗"><a class="markdownIt-Anchor" href="#没有其他方法可以降低显存占用吗"></a> 没有其他方法可以降低显存占用吗？</h4>
+<ul>
+<li>有的，比如混合精度训练 (<a target="_blank" rel="noopener" href="https://arxiv.org/pdf/1710.03740">https://arxiv.org/pdf/1710.03740</a>) 就是一个常用的有效的手段<br />
+<img src="https://s2.loli.net/2024/08/21/ibqQzKWk4UvAPru.png" alt="mixed_precision_1.png" /></li>
+<li>已知 <code>LLM</code> 通常使用 <code>Adam / AdamW</code> 优化器进行优化，假设模型参数量为 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="normal">Φ</mi></mrow><annotation encoding="application/x-tex">\Phi</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord">Φ</span></span></span></span>，那么用混合精度训练过程中，模型状态信息实际的显存占用是:
+<ul>
+<li><code>Parameter</code> 占用 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mi mathvariant="normal">Φ</mi></mrow><annotation encoding="application/x-tex">2\Phi</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord">2</span><span class="mord">Φ</span></span></span></span> 字节（<code>fp16</code> 类型存储）</li>
+<li><code>Gradient</code> 占用 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mi mathvariant="normal">Φ</mi></mrow><annotation encoding="application/x-tex">2\Phi</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord">2</span><span class="mord">Φ</span></span></span></span> 字节（<code>fp16</code> 类型存储）</li>
+<li><code>Adam Optimizer state</code> 占用：
+<ul>
+<li><code>fp32 parameter</code> 备份占用 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>4</mn><mi mathvariant="normal">Φ</mi></mrow><annotation encoding="application/x-tex">4\Phi</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord">4</span><span class="mord">Φ</span></span></span></span> 字节</li>
+<li><code>fp32 momentum</code> 一阶动量占用 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>4</mn><mi mathvariant="normal">Φ</mi></mrow><annotation encoding="application/x-tex">4\Phi</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord">4</span><span class="mord">Φ</span></span></span></span> 字节</li>
+<li><code>fp32 variance</code> 二阶动量占用 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>4</mn><mi mathvariant="normal">Φ</mi></mrow><annotation encoding="application/x-tex">4\Phi</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord">4</span><span class="mord">Φ</span></span></span></span> 字节</li>
+</ul>
+</li>
+<li>共计 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>16</mn><mi mathvariant="normal">Φ</mi></mrow><annotation encoding="application/x-tex">16\Phi</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord">1</span><span class="mord">6</span><span class="mord">Φ</span></span></span></span> 字节，其中 <code>Optimizer states</code> 占用 <code>75%</code>，因此 <code>Optimizer states</code> 是本文主要想解决的问题</li>
+</ul>
+</li>
+</ul>
+<h4 id="zero-dp-是如何解决模型状态信息占用过大问题的"><a class="markdownIt-Anchor" href="#zero-dp-是如何解决模型状态信息占用过大问题的"></a> <code>ZeRO-DP</code> 是如何解决模型状态信息占用过大问题的？</h4>
+<p><img src="https://s2.loli.net/2024/08/26/QPTxZX7gnLeG8iF.png" alt="ZeRO-DP_1.png" /></p>
+<ul>
+<li><code>ZeRO-DP</code> 的核心思想是 <code>Data Parallelism</code> 时，每个模型只保留 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><mn>1</mn><mi>N</mi></mfrac></mrow><annotation encoding="application/x-tex">\frac{1}{N}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.190108em;vertical-align:-0.345em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.845108em;"><span style="top:-2.6550000000000002em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.10903em;">N</span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.394em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.345em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span> 的模型状态信息，<code>N</code> 表示 <code>GPU</code> 数量，在需要信息聚合时使用 <code>Ring Reduce</code> 来聚合。</li>
+<li>有三种程度的优化：
+<ul>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>P</mi><mrow><mi>o</mi><mi>s</mi></mrow></msub></mrow><annotation encoding="application/x-tex">P_{os}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">P</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">o</span><span class="mord mathnormal mtight">s</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> 只删除冗余的优化器状态，所有优化器的信息加起来才是完整优化器状态。</li>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>P</mi><mrow><mi>o</mi><mi>s</mi><mo>+</mo><mi>g</mi></mrow></msub></mrow><annotation encoding="application/x-tex">P_{os+g}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.969438em;vertical-align:-0.286108em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">P</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.25833100000000003em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">o</span><span class="mord mathnormal mtight">s</span><span class="mbin mtight">+</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">g</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span></span></span></span> 删除冗余的优化器状态和梯度。</li>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>P</mi><mrow><mi>o</mi><mi>s</mi><mo>+</mo><mi>g</mi><mo>+</mo><mi>p</mi></mrow></msub></mrow><annotation encoding="application/x-tex">P_{os+g+p}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.969438em;vertical-align:-0.286108em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">P</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.25833100000000003em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">o</span><span class="mord mathnormal mtight">s</span><span class="mbin mtight">+</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">g</span><span class="mbin mtight">+</span><span class="mord mathnormal mtight">p</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span></span></span></span> 删除冗余优化器状态、梯度和权重。</li>
+</ul>
+</li>
+</ul>
+<h4 id="分块存储-ring-reduce-会带来额外的通信代价吗"><a class="markdownIt-Anchor" href="#分块存储-ring-reduce-会带来额外的通信代价吗"></a> 分块存储 + <code>Ring Reduce</code> 会带来额外的通信代价吗？</h4>
+<ul>
+<li><code>All Reduce</code> 运算来计算设备间梯度均值（求和）<br />
+<img src="https://s2.loli.net/2024/08/27/k3m7wPG82yEzgD1.png" alt="ZeRO-DP_2.png" /></li>
+<li><code>Reduce Scatter</code> 来求和，<code>All Gather</code> 做 <code>broadcast</code> 同步到所有设备上<br />
+<img src="https://s2.loli.net/2024/08/27/oRKD4MYkLa9z1UX.png" alt="ZeRO-DP_3.png" /></li>
+<li>使用 <code>Ring Reduce</code> 实现 <code>Reduce Scatter</code><br />
+<img src="https://s2.loli.net/2024/08/27/PrQFLkZAc7zRbOn.png" alt="ZeRO-DP_4.png" /></li>
+</ul>
+<blockquote>
+<p>颜色逐渐累积代表梯度累加</p>
+</blockquote>
+<ul>
+<li>使用 <code>Ring Reduce</code> 实现 <code>All Gather</code> 做 <code>broadcast</code><br />
+<img src="https://s2.loli.net/2024/08/27/4wOgZiHpSTVeWPJ.png" alt="ZeRO-DP_5.png" /></li>
+</ul>
+<blockquote>
+<p>深色逐渐蔓延到所有设备，代表 <code>broadcast</code></p>
+</blockquote>
+<ul>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>P</mi><mrow><mi>o</mi><mi>s</mi></mrow></msub></mrow><annotation encoding="application/x-tex">P_{os}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">P</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">o</span><span class="mord mathnormal mtight">s</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> 和 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>P</mi><mrow><mi>o</mi><mi>s</mi><mo>+</mo><mi>g</mi></mrow></msub></mrow><annotation encoding="application/x-tex">P_{os+g}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.969438em;vertical-align:-0.286108em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">P</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.25833100000000003em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">o</span><span class="mord mathnormal mtight">s</span><span class="mbin mtight">+</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">g</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span></span></span></span> 不会带来额外的通信代价，<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>P</mi><mrow><mi>o</mi><mi>s</mi><mo>+</mo><mi>g</mi><mo>+</mo><mi>p</mi></mrow></msub></mrow><annotation encoding="application/x-tex">P_{os+g+p}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.969438em;vertical-align:-0.286108em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">P</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.25833100000000003em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">o</span><span class="mord mathnormal mtight">s</span><span class="mbin mtight">+</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">g</span><span class="mbin mtight">+</span><span class="mord mathnormal mtight">p</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span></span></span></span> 会</li>
+<li>证明：
+<ul>
+<li>传统 <code>Data Parallelism</code> 在计算梯度后，需要进行一次 <code>All Reduce</code> 来计算设备间的梯度均值，<code>All Reduce</code> 可分为 <code>Reduce Scatter</code> 和 <code>All Gather</code> 两步，每一步实际上都是一次 <code>Ring Reduce</code>
+<ul>
+<li><code>Reduce Scatter</code> 如图三所示，把所有设备梯度累加，分散到各个设备上</li>
+<li><code>All Gather</code> 如图四所示，把分散到各个设备上的梯度累加值同步到所有设备上</li>
+<li><code>Ring Reduce</code> 是一种理论最优通信算法，每个周期内每个设备的发送和接收都被占用，因此梯度总字节数为 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mi mathvariant="normal">Φ</mi></mrow><annotation encoding="application/x-tex">2\Phi</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord">2</span><span class="mord">Φ</span></span></span></span> (<code>fp16</code>)，由于做了两次 <code>Ring Reduce</code>，所以每个设备的通信总字节数为 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>4</mn><mi mathvariant="normal">Φ</mi></mrow><annotation encoding="application/x-tex">4\Phi</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord">4</span><span class="mord">Φ</span></span></span></span>（发送和接收算一次）</li>
+</ul>
+</li>
+<li><code>ZeRO-DP</code> <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>P</mi><mrow><mi>o</mi><mi>s</mi><mo>+</mo><mi>g</mi></mrow></msub></mrow><annotation encoding="application/x-tex">P_{os+g}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.969438em;vertical-align:-0.286108em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">P</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.25833100000000003em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">o</span><span class="mord mathnormal mtight">s</span><span class="mbin mtight">+</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">g</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span></span></span></span> 也需要通过 <code>All Reduce</code> 计算设备间梯度均值，也需要 <code>Reduce Scatter</code> 和 <code>All Gather</code> 两个步骤，也是通过两次 <code>Ring Reduce</code> 实现，具体做法和传统 <code>Data Parallelism</code> 没有什么区别，因此每个设备的通信总字节数也是 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>4</mn><mi mathvariant="normal">Φ</mi></mrow><annotation encoding="application/x-tex">4\Phi</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord">4</span><span class="mord">Φ</span></span></span></span></li>
+<li><code>ZeRO-DP</code> <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>P</mi><mrow><mi>o</mi><mi>s</mi><mo>+</mo><mi>g</mi><mo>+</mo><mi>p</mi></mrow></msub></mrow><annotation encoding="application/x-tex">P_{os+g+p}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.969438em;vertical-align:-0.286108em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">P</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.25833100000000003em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">o</span><span class="mord mathnormal mtight">s</span><span class="mbin mtight">+</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">g</span><span class="mbin mtight">+</span><span class="mord mathnormal mtight">p</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span></span></span></span> 在前向传播时，也需要用 <code>All Reduce</code> 计算得到全量 <code>Parameter</code>，这一步在传统 <code>Data Parallelism</code> 中并不需要，因此会有额外通信量</li>
+</ul>
+</li>
+</ul>
+<h3 id="zero-r"><a class="markdownIt-Anchor" href="#zero-r"></a> <code>ZeRO-R</code></h3>
+<h4 id="zero-r-想要解决哪些问题"><a class="markdownIt-Anchor" href="#zero-r-想要解决哪些问题"></a> <code>ZeRO-R</code> 想要解决哪些问题？</h4>
+<ol>
+<li><code>Tensor Parallelism</code> 中 <code>Activation</code> 冗余存储问题</li>
+<li>临时缓冲区占用问题</li>
+<li>显存碎片导致无法使用的问题</li>
+</ol>
+<h4 id="zero-r-如何解决-tensor-parallelism-中-activation-冗余存储问题"><a class="markdownIt-Anchor" href="#zero-r-如何解决-tensor-parallelism-中-activation-冗余存储问题"></a> <code>ZeRO-R</code> 如何解决 <code>Tensor Parallelism</code> 中 <code>Activation</code> 冗余存储问题？</h4>
+<ul>
+<li>是通过激活值检查点分片存储（<code>Partitioned Activation Checkpointing</code>，简称 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>P</mi><mi>A</mi></msub></mrow><annotation encoding="application/x-tex">P_A</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">P</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.32833099999999993em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">A</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span>）来解决 <code>Tensor Parallelism</code> 中 <code>Activation</code> 冗余存储问题。</li>
+<li>其中的 <strong>分片</strong> 思想和 <code>ZeRO-DP</code> 是一样的，<code>N</code> 个设备每个设备只存储 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><mn>1</mn><mi>N</mi></mfrac></mrow><annotation encoding="application/x-tex">\frac{1}{N}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.190108em;vertical-align:-0.345em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.845108em;"><span style="top:-2.6550000000000002em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.10903em;">N</span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.394em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.345em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span> 的信息，通过 <code>All Reduce</code> 进行信息聚合</li>
+<li><strong>激活值检查点</strong> 思想是来自 <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/1604.06174">https://arxiv.org/pdf/1604.06174</a> 这篇论文，实际上是传统前向反向传播过程和 <code>ReCompute</code> 前向反向传播过程的折衷，也是空间和时间的折衷。</li>
+<li>传统前向反向传播过程：存储每个中间算子的前向传播计算结果，用于反向传播计算梯度<br />
+<img src="https://s2.loli.net/2024/08/28/4LqChjgEwIAfuRS.webp" alt="ZeRO-R_1.webp" /></li>
+<li><code>ReCompute</code> 前向反向传播过程：不存储任何中间算子的前向计算结果，反向传播需要用时重新计算<br />
+<img src="https://s2.loli.net/2024/08/28/ZasfEMvulenz5JF.webp" alt="ZeRO-R_2.webp" /></li>
+<li><code>Activation Checkpointing</code> 前向反向传播过程：存储部分中间算子前向计算结果，反向传播需要用时，从拓扑上游最近的检查点开始重新计算<br />
+<img src="https://s2.loli.net/2024/08/28/4Fvq1eHSyhnwMKr.webp" alt="ZeRO-R_3.webp" /></li>
+</ul>
+<h4 id="zero-r-如何解决临时缓存区空间占用问题"><a class="markdownIt-Anchor" href="#zero-r-如何解决临时缓存区空间占用问题"></a> <code>ZeRO-R</code> 如何解决临时缓存区空间占用问题？</h4>
+<ul>
+<li>通常情况下，临时缓存区是用来做数据聚合的，例如 <code>All Reduce</code> 操作，模型越大，需要的临时缓存区也越大。</li>
+<li><code>ZeRO-R</code> 用了一个非常简单的策略：在模型大到一定程度后，使用固定尺寸的融合缓存区，即常数尺寸缓存区（<code>Constant Size Buffers</code>，简称 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>C</mi><mi>B</mi></msub></mrow><annotation encoding="application/x-tex">C_B</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.07153em;">C</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.32833099999999993em;"><span style="top:-2.5500000000000003em;margin-left:-0.07153em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.05017em;">B</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span>）</li>
+</ul>
+<h4 id="zero-r-如何解决显存碎片化问题"><a class="markdownIt-Anchor" href="#zero-r-如何解决显存碎片化问题"></a> <code>ZeRO-R</code> 如何解决显存碎片化问题？</h4>
+<ul>
+<li>问：为什么会产生显存碎片化问题？</li>
+<li>答：因为 <code>Activation Checkpointing</code> 的存在，不同的 <code>Activation</code> 有不同的生命周期，非 <code>checkpoint</code> 的 <code>Activation</code> 用完即弃，<code>checkpoint</code> 的 <code>Activation</code> 需要反向传播之后才可以丢弃，不同生命周期的存储空间交织就会出现显存碎片</li>
+<li>问：显存碎片化会带来什么问题？</li>
+<li>答：显存碎片化通常会有两个问题：
+<ol>
+<li>大量的碎片无法使用，使得实际空间占用不多，但出现 <code>OOM</code></li>
+<li>大量存储碎片会导致系统在分配内存时需要大量的搜索来找到合适的空间，会带来额外耗时</li>
+</ol>
+</li>
+<li>问：那 <code>ZeRO-R</code> 如何解决显存碎片化问题？</li>
+<li>答：预先给不同生命周期的 <code>Activation</code> 划分不同的存储空间，避免产生交织。例如：把显存划分成两段连续的存储空间，其中一段存储 <code>Checkpoint Activation</code> 另外一段存储 <code>Temporary Activation</code>。</li>
+</ul>
+<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
+<ul>
+<li>当大模型时代到来，算力和存储不够用了，大家也开始审视之前做的东西是不是时间/空间低效的，是不是还能榨点油水。</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/08/21/Megatron-LM-Training-Multi-Billion-Parameter-Language-Models-Using-Model-Parallelism/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1333,131 +1552,6 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/07/30/KV-Cache-Transformer/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2024/07/30/KV-Cache-Transformer/" class="post-title-link" itemprop="url">KV Cache Transformer</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-07-30 12:23:17" itemprop="dateCreated datePublished" datetime="2024-07-30T12:23:17+08:00">2024-07-30</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-03-21 10:13:09" itemprop="dateModified" datetime="2025-03-21T10:13:09+08:00">2025-03-21</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Transformer/" itemprop="url" rel="index"><span itemprop="name">Transformer</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2024/07/30/KV-Cache-Transformer/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2024/07/30/KV-Cache-Transformer/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
-<ul>
-<li>paper: <code>kv cache</code> 是一种生成式大模型加速的方法，没有原创的论文，比较早的提到这项技术的论文是：<a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2211.05102">《Efficient Scaling Transformer Inference》</a></li>
-<li>code: <a target="_blank" rel="noopener" href="https://github.com/huggingface/transformers/blob/f0bc49e7f61f74f055c47ad40e6010f57eed0b0b/src/transformers/models/gpt2/modeling_gpt2.py#L290">https://github.com/huggingface/transformers/blob/f0bc49e7f61f74f055c47ad40e6010f57eed0b0b/src/transformers/models/gpt2/modeling_gpt2.py#L290</a> <code>transformers repo</code> 中的 <code>GPT2</code> 模型代码中包含 <code>use_cache</code> 和 <code>layer_past</code> 就是 <code>kv cache</code> 的实现接口</li>
-</ul>
-<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
-<ul>
-<li><code>GPT like</code> 大语言模型目前在生成式大模型领域占了主导地位，这些模型每一次推理只得到一个 <code>token</code>，下一次推理会将得到的 <code>token</code> 放到上一次输入 <code>token</code> 序列的末尾作为新输入，直到达到 <code>max_seq_length</code> 或输出的 <code>token</code> 表示 <code>end of sequence</code></li>
-<li>这种 <code>GPT like</code> 的生成机制意味着每次推理需要将之前所有 <code>token</code> 再重复算一次，序列长度越长，计算量越大，耗时越长</li>
-<li><code>KV Cache</code> 通过缓存上一次推理过程中每一层 <code>transformer</code> 的 <code>key / value</code>，将推理的时间复杂度从 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="script">O</mi><mo stretchy="false">(</mo><msup><mi>n</mi><mn>2</mn></msup><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\mathcal{O}(n^2)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.064108em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathcal" style="margin-right:0.02778em;">O</span></span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">n</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141079999999999em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span> 降低到了 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="script">O</mi><mo stretchy="false">(</mo><mi>n</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\mathcal{O}(n)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathcal" style="margin-right:0.02778em;">O</span></span><span class="mopen">(</span><span class="mord mathnormal">n</span><span class="mclose">)</span></span></span></span>，且计算结果完全等价</li>
-</ul>
-<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
-<ul>
-<li>可以在本时间步使用上一个时间步缓存的 <code>key / value</code> 的必要理论依据是：
-<ol>
-<li>每个时间步输入的 <code>token</code> 序列除最后一个 <code>token</code> 之外都和上一个时间步输入相同</li>
-<li><code>attention mask</code> 是下三角矩阵</li>
-<li>对 <code>attention score</code> 矩阵做 <code>softmax</code> 是逐行的而不是全局的或逐列的</li>
-<li>除 <code>self-attention</code> 操作之外，<code>GPT like LLM</code> 的其他层（<code>layer norm</code>, <code>gelu</code>, <code>FFN</code> 等）对 <code>seq_len</code> 维度来说都是 <code>element-wise</code> 的，且在推理阶段是静态的</li>
-</ol>
-</li>
-<li>以上四个理论依据在 <code>GPT like</code> 模型中都满足，下面解释四个条件为什么是必不可少的：
-<ol>
-<li>如果上面第一个条件不满足，那么每次推理都是新的内容，缓存将毫无意义</li>
-<li>下三角矩阵和逐行做 <code>softmax</code> 是必不可少的，随着 <code>token</code> 长度加一，每一层的 <code>attention score</code> 矩阵都会在最右和最下分别加一列和一行，由于下三角的存在，除最后一行外，其他每一行的值都不会改变（新加的一列不参与计算），而且逐行做，新加的一列也不影响其他行</li>
-<li><code>self-attention</code> 是 <code>GPT like LLM</code> 中唯一一个在 <code>token feature</code> 间做信息融合的算子，其他算子都是在 <code>token feature</code> 内做且都是静态操作，所以随着序列长度变长，之前的序列特征都是静态的</li>
-</ol>
-</li>
-</ul>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> torch</span><br><span class="line"><span class="keyword">import</span> torch.nn <span class="keyword">as</span> nn</span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">SelfAttention</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, dim, layer_idx</span>):</span></span><br><span class="line">        <span class="built_in">super</span>(SelfAttention, self).__init__()</span><br><span class="line">        self.dim = dim</span><br><span class="line">        self.layer_idx = layer_idx</span><br><span class="line">        self.query = nn.Linear(dim, dim)</span><br><span class="line">        self.key = nn.Linear(dim, dim)</span><br><span class="line">        self.value = nn.Linear(dim, dim)</span><br><span class="line">        self.softmax = nn.Softmax(dim=-<span class="number">1</span>)  <span class="comment"># 重点是这里，逐行进行 softmax，而不是全局</span></span><br><span class="line">        self.dropout = nn.Dropout(<span class="number">0.1</span>)</span><br><span class="line">        self.layer_norm = nn.LayerNorm(dim)</span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">self, x, attn_mask=<span class="literal">None</span></span>):</span></span><br><span class="line">        q = self.query(x)</span><br><span class="line">        k = self.key(x)</span><br><span class="line">        v = self.value(x)</span><br><span class="line">        scores = torch.matmul(q, k.transpose(-<span class="number">2</span>, -<span class="number">1</span>))</span><br><span class="line">        scores = scores / torch.sqrt(torch.tensor(self.dim).<span class="built_in">float</span>())</span><br><span class="line">        <span class="keyword">if</span> attn_mask <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span>:</span><br><span class="line">            scores = scores.masked_fill(attn_mask == <span class="number">0</span>, <span class="built_in">float</span>(<span class="string">&quot;-inf&quot;</span>))</span><br><span class="line">        attention_weights = self.softmax(scores)</span><br><span class="line">        attention_weights = self.dropout(attention_weights)</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;layer_idx:&quot;</span>, self.layer_idx)</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;q.sum(-1) =&quot;</span>, q.squeeze().<span class="built_in">abs</span>().<span class="built_in">sum</span>(-<span class="number">1</span>).tolist())</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;k.sum(-1) =&quot;</span>, k.squeeze().<span class="built_in">abs</span>().<span class="built_in">sum</span>(-<span class="number">1</span>).tolist())</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;v.sum(-1) =&quot;</span>, v.squeeze().<span class="built_in">abs</span>().<span class="built_in">sum</span>(-<span class="number">1</span>).tolist())</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;attention_weights =\n&quot;</span>, attention_weights.squeeze())</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;#&quot;</span> * <span class="number">100</span>)</span><br><span class="line">        output = torch.matmul(attention_weights, v)</span><br><span class="line">        output = self.layer_norm(output + x)</span><br><span class="line">        <span class="keyword">return</span> output</span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">GPTModel</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, dim, num_layers</span>):</span></span><br><span class="line">        <span class="built_in">super</span>(GPTModel, self).__init__()</span><br><span class="line">        self.dim = dim</span><br><span class="line">        self.num_layers = num_layers</span><br><span class="line">        self.attentions = nn.ModuleList(</span><br><span class="line">            [SelfAttention(dim, i) <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(num_layers)]</span><br><span class="line">        )</span><br><span class="line">        self.linear1 = nn.Linear(dim, dim)</span><br><span class="line">        self.linear2 = nn.Linear(dim, dim)</span><br><span class="line">        self.dropout = nn.Dropout(<span class="number">0.1</span>)</span><br><span class="line">        self.layer_norm = nn.LayerNorm(dim)</span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">self, x, attn_mask=<span class="literal">None</span></span>):</span></span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(self.num_layers):</span><br><span class="line">            x = x + self.attentions[i](x, attn_mask=attn_mask)</span><br><span class="line">            x = self.layer_norm(x)</span><br><span class="line">            x = x + self.linear2(self.dropout(torch.relu(self.linear1(x))))</span><br><span class="line">            x = self.layer_norm(x)</span><br><span class="line">        <span class="keyword">return</span> x</span><br><span class="line"><span class="comment"># Example usage</span></span><br><span class="line">model = GPTModel(dim=<span class="number">64</span>, num_layers=<span class="number">2</span>)</span><br><span class="line">model.<span class="built_in">eval</span>()</span><br><span class="line">input_data = torch.randn(</span><br><span class="line">    <span class="number">1</span>, <span class="number">3</span>, <span class="number">64</span></span><br><span class="line">)  <span class="comment"># Example input data with shape (batch_size, sequence_length, dim)</span></span><br><span class="line">attn_mask = torch.tril(torch.ones(<span class="number">3</span>, <span class="number">3</span>))  <span class="comment"># Lower triangular attention mask</span></span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;time step 1:&quot;</span>)</span><br><span class="line">output = model(input_data, attn_mask=attn_mask)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;\n\ntime step 2:&quot;</span>)</span><br><span class="line">input_data = torch.cat((input_data, torch.randn(<span class="number">1</span>, <span class="number">1</span>, <span class="number">64</span>)), <span class="number">1</span>)</span><br><span class="line">attn_mask = torch.tril(torch.ones(<span class="number">4</span>, <span class="number">4</span>))  <span class="comment"># Lower triangular attention mask</span></span><br><span class="line">output = model(input_data, attn_mask=attn_mask)</span><br><span class="line"><span class="comment"># 输出结果：</span></span><br><span class="line"><span class="comment"># time step 1:</span></span><br><span class="line"><span class="comment"># layer_idx: 0</span></span><br><span class="line"><span class="comment"># q.sum(-1) = [31.20478057861328, 34.04328536987305, 33.6611328125]</span></span><br><span class="line"><span class="comment"># k.sum(-1) = [31.446550369262695, 29.15508460998535, 29.265644073486328]</span></span><br><span class="line"><span class="comment"># v.sum(-1) = [30.789640426635742, 33.80058670043945, 32.4859619140625]</span></span><br><span class="line"><span class="comment"># attention_weights =</span></span><br><span class="line"><span class="comment">#  tensor([[1.0000, 0.0000, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.6760, 0.3240, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.2452, 0.4188, 0.3360]], grad_fn=&lt;SqueezeBackward0&gt;)</span></span><br><span class="line"><span class="comment"># ####################################################################################################</span></span><br><span class="line"><span class="comment"># layer_idx: 1</span></span><br><span class="line"><span class="comment"># q.sum(-1) = [30.214162826538086, 34.45262145996094, 26.357181549072266]</span></span><br><span class="line"><span class="comment"># k.sum(-1) = [29.88446617126465, 31.186325073242188, 31.727235794067383]</span></span><br><span class="line"><span class="comment"># v.sum(-1) = [23.99290657043457, 35.66062545776367, 33.28850173950195]</span></span><br><span class="line"><span class="comment"># attention_weights =</span></span><br><span class="line"><span class="comment">#  tensor([[1.0000, 0.0000, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.3310, 0.6690, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.4525, 0.3270, 0.2204]], grad_fn=&lt;SqueezeBackward0&gt;)</span></span><br><span class="line"><span class="comment"># ####################################################################################################</span></span><br><span class="line"><span class="comment"># time step 2:</span></span><br><span class="line"><span class="comment"># layer_idx: 0</span></span><br><span class="line"><span class="comment"># q.sum(-1) = [31.20478057861328, 34.04328536987305, 33.6611328125, 27.077472686767578]</span></span><br><span class="line"><span class="comment"># k.sum(-1) = [31.446550369262695, 29.15508460998535, 29.265644073486328, 27.211992263793945]</span></span><br><span class="line"><span class="comment"># v.sum(-1) = [30.789640426635742, 33.80058670043945, 32.4859619140625, 29.695066452026367]</span></span><br><span class="line"><span class="comment"># attention_weights =</span></span><br><span class="line"><span class="comment">#  tensor([[1.0000, 0.0000, 0.0000, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.6760, 0.3240, 0.0000, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.2452, 0.4188, 0.3360, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.1818, 0.2616, 0.2813, 0.2752]], grad_fn=&lt;SqueezeBackward0&gt;)</span></span><br><span class="line"><span class="comment"># ####################################################################################################</span></span><br><span class="line"><span class="comment"># layer_idx: 1</span></span><br><span class="line"><span class="comment"># q.sum(-1) = [30.214162826538086, 34.45262145996094, 26.357181549072266, 29.209003448486328]</span></span><br><span class="line"><span class="comment"># k.sum(-1) = [29.88446617126465, 31.186325073242188, 31.727235794067383, 26.988731384277344]</span></span><br><span class="line"><span class="comment"># v.sum(-1) = [23.99290657043457, 35.66062545776367, 33.28850173950195, 27.92920684814453]</span></span><br><span class="line"><span class="comment"># attention_weights =</span></span><br><span class="line"><span class="comment">#  tensor([[1.0000, 0.0000, 0.0000, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.3310, 0.6690, 0.0000, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.4525, 0.3270, 0.2204, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.2740, 0.0698, 0.4069, 0.2492]], grad_fn=&lt;SqueezeBackward0&gt;)</span></span><br><span class="line"><span class="comment"># ####################################################################################################</span></span><br></pre></td></tr></table></figure>
-<blockquote>
-<p>可以看到随着时间步的推移，每一层的 <code>x / q / k / v / attention weight</code> 的前 <code>n-1</code> 个 <code>token feature</code> 都和上一个时间步相同，因此可以缓存</p>
-</blockquote>
-<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
-<ul>
-<li>由于在 <code>t</code> 时间步，需要计算 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>Q</mi><mi>t</mi></msup></mrow><annotation encoding="application/x-tex">Q^t</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.9879959999999999em;vertical-align:-0.19444em;"></span><span class="mord"><span class="mord mathnormal">Q</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.7935559999999999em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span></span></span></span></span></span></span></span> 和 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>K</mi><mrow><mn>0</mn><mo separator="true">,</mo><mn>1</mn><mo separator="true">,</mo><mi mathvariant="normal">.</mi><mi mathvariant="normal">.</mi><mi mathvariant="normal">.</mi><mo separator="true">,</mo><mi>t</mi></mrow></msup><mo separator="true">,</mo><mtext> </mtext><msup><mi>V</mi><mrow><mn>0</mn><mo separator="true">,</mo><mn>1</mn><mo separator="true">,</mo><mi mathvariant="normal">.</mi><mi mathvariant="normal">.</mi><mi mathvariant="normal">.</mi><mo separator="true">,</mo><mi>t</mi></mrow></msup></mrow><annotation encoding="application/x-tex">K^{0,1,...,t},\ V^{0,1,...,t}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.008548em;vertical-align:-0.19444em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.07153em;">K</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141079999999999em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">0</span><span class="mpunct mtight">,</span><span class="mord mtight">1</span><span class="mpunct mtight">,</span><span class="mord mtight">.</span><span class="mord mtight">.</span><span class="mord mtight">.</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight">t</span></span></span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace"> </span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.22222em;">V</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141079999999999em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">0</span><span class="mpunct mtight">,</span><span class="mord mtight">1</span><span class="mpunct mtight">,</span><span class="mord mtight">.</span><span class="mord mtight">.</span><span class="mord mtight">.</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight">t</span></span></span></span></span></span></span></span></span></span></span></span> 之间的内积，所以需要换成 <code>key / value</code> 的缓存，而不是 <code>query</code> 的缓存</li>
-<li><code>paged attention</code> 是通过类似内存分页管理的方式管理 <code>kv cache</code> 的一种方法，动态分配显存，速度更快，支持更高 <code>batch</code></li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1526,7 +1620,7 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">154</span>
+          <span class="site-state-item-count">155</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -1539,7 +1633,7 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">90</span>
+        <span class="site-state-item-count">92</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
