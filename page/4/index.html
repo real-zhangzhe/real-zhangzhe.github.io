@@ -180,6 +180,147 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/12/20/BAdam-A-Memory-Efficient-Full-Parameter-Optimization-Method-for-Large-Language-Models/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2024/12/20/BAdam-A-Memory-Efficient-Full-Parameter-Optimization-Method-for-Large-Language-Models/" class="post-title-link" itemprop="url">BAdam: A Memory Efficient Full Parameter Optimization Method for Large Language Models</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-12-20 15:57:17" itemprop="dateCreated datePublished" datetime="2024-12-20T15:57:17+08:00">2024-12-20</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-03-21 10:13:09" itemprop="dateModified" datetime="2025-03-21T10:13:09+08:00">2025-03-21</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/SFT/" itemprop="url" rel="index"><span itemprop="name">SFT</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2024/12/20/BAdam-A-Memory-Efficient-Full-Parameter-Optimization-Method-for-Large-Language-Models/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2024/12/20/BAdam-A-Memory-Efficient-Full-Parameter-Optimization-Method-for-Large-Language-Models/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2404.02827">https://arxiv.org/pdf/2404.02827</a></li>
+<li>code: <a target="_blank" rel="noopener" href="https://github.com/Ledzy/BAdam">https://github.com/Ledzy/BAdam</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li><code>BAdam</code> 全称是 <code>Blockwise Adam</code>，是一种内存高效的大型语言模型参数优化方法。</li>
+<li><code>BAdam</code> 的核心思想是将模型参数分块，每次只更新一个块的参数，而且对每个块用 <code>Adam</code> 连续更新 <code>K</code> 次，然后再更新下一个块。</li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<p><img src="https://s2.loli.net/2024/12/26/IxPZKgFz6Uwp821.png" alt="BAdam.png" /></p>
+<ul>
+<li><code>BAdam</code> 的算法流程如上图所示，其中 <code>K</code> 是一个超参数，表示每个块的参数用 <code>Adam</code> 更新次数。</li>
+<li>当一个块的参数更新 <code>K</code> 次后，就丢掉 <strong>这个块的所有优化器信息，包括梯度、一阶动量、二阶动量</strong>。</li>
+<li>假设模型有 <code>M billion</code> 参数，最低内存占用：
+<ul>
+<li><code>Adam</code>：
+<ul>
+<li>参数：<code>2M GB</code>（<code>fp16</code>）</li>
+<li>优化器：
+<ul>
+<li>梯度：<code>4M GB</code>（<code>fp32</code>）</li>
+<li>参数：<code>4M GB</code>（<code>fp32</code>）</li>
+<li>一阶动量：<code>4M GB</code>（<code>fp32</code>）</li>
+<li>二阶动量：<code>4M GB</code>（<code>fp32</code>）</li>
+</ul>
+</li>
+<li>总共：<code>18M GB</code></li>
+</ul>
+</li>
+<li><code>BAdam</code>：
+<ul>
+<li>参数：<code>2M GB</code>（<code>fp16</code>）</li>
+<li>优化器：
+<ul>
+<li>梯度：<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><mrow><mn>4</mn><mi>M</mi></mrow><mi>D</mi></mfrac></mrow><annotation encoding="application/x-tex">\frac{4M}{D}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.217331em;vertical-align:-0.345em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.872331em;"><span style="top:-2.6550000000000002em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.02778em;">D</span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.394em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">4</span><span class="mord mathnormal mtight" style="margin-right:0.10903em;">M</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.345em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span> <code>GB</code>（<code>fp32</code>）</li>
+<li>参数：<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><mrow><mn>4</mn><mi>M</mi></mrow><mi>D</mi></mfrac></mrow><annotation encoding="application/x-tex">\frac{4M}{D}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.217331em;vertical-align:-0.345em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.872331em;"><span style="top:-2.6550000000000002em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.02778em;">D</span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.394em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">4</span><span class="mord mathnormal mtight" style="margin-right:0.10903em;">M</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.345em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span> <code>GB</code>（<code>fp32</code>）</li>
+<li>一阶动量：<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><mrow><mn>4</mn><mi>M</mi></mrow><mi>D</mi></mfrac></mrow><annotation encoding="application/x-tex">\frac{4M}{D}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.217331em;vertical-align:-0.345em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.872331em;"><span style="top:-2.6550000000000002em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.02778em;">D</span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.394em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">4</span><span class="mord mathnormal mtight" style="margin-right:0.10903em;">M</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.345em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span> <code>GB</code>（<code>fp32</code>）</li>
+<li>二阶动量：<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><mrow><mn>4</mn><mi>M</mi></mrow><mi>D</mi></mfrac></mrow><annotation encoding="application/x-tex">\frac{4M}{D}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.217331em;vertical-align:-0.345em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.872331em;"><span style="top:-2.6550000000000002em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.02778em;">D</span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.394em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">4</span><span class="mord mathnormal mtight" style="margin-right:0.10903em;">M</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.345em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span> <code>GB</code>（<code>fp32</code>）</li>
+</ul>
+</li>
+<li>总共：<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mi>M</mi><mo>+</mo><mfrac><mrow><mn>16</mn><mi>M</mi></mrow><mi>D</mi></mfrac></mrow><annotation encoding="application/x-tex">2M+\frac{16M}{D}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.76666em;vertical-align:-0.08333em;"></span><span class="mord">2</span><span class="mord mathnormal" style="margin-right:0.10903em;">M</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:1.217331em;vertical-align:-0.345em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.872331em;"><span style="top:-2.6550000000000002em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.02778em;">D</span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.394em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">1</span><span class="mord mtight">6</span><span class="mord mathnormal mtight" style="margin-right:0.10903em;">M</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.345em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span> <code>GB</code>，其中 <code>D</code> 是块的数量。</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h2 id="thoughts"><a class="markdownIt-Anchor" href="#thoughts"></a> Thoughts</h2>
+<ul>
+<li><code>BAdam</code> 的核心思想是将模型参数分块更新，但实际上和 <code>Adam</code> 的思想是 <strong>完全不一样</strong></li>
+<li>因为 <code>Adam</code> 想要追求的是全训练过程的步长自适应，即每一个 <code>step</code> 的步长都来自于只有所有历史信息。</li>
+<li>而 <code>BAdam</code> 只能保证当前步长最多由之前 <code>K</code> 个 <code>step</code> 的信息决定，所以 <code>BAdam</code> 的收敛性和 <code>Adam</code> 是不一样的。</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/12/20/GaLore-Memory-Efficient-LLM-Training-by-Gradient-Low-Rank-Projection/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -2217,183 +2358,6 @@ y_t=r_{t+1}+\gamma\max_{a&#x27;}Q(s_{t+1},a&#x27;;\theta^-)
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/10/29/%E5%A4%A7%E6%A8%A1%E5%9E%8B%E9%87%8F%E5%8C%96-%E9%83%A8%E7%BD%B2%E2%80%94%E2%80%94%E5%9C%A8AX650%E4%B8%8A%E9%83%A8%E7%BD%B2Qwen%E6%A8%A1%E5%9E%8B/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2024/10/29/%E5%A4%A7%E6%A8%A1%E5%9E%8B%E9%87%8F%E5%8C%96-%E9%83%A8%E7%BD%B2%E2%80%94%E2%80%94%E5%9C%A8AX650%E4%B8%8A%E9%83%A8%E7%BD%B2Qwen%E6%A8%A1%E5%9E%8B/" class="post-title-link" itemprop="url">大模型量化/部署——在AX650上部署Qwen模型</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-10-29 14:21:46" itemprop="dateCreated datePublished" datetime="2024-10-29T14:21:46+08:00">2024-10-29</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-03-21 10:13:09" itemprop="dateModified" datetime="2025-03-21T10:13:09+08:00">2025-03-21</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Quantization/" itemprop="url" rel="index"><span itemprop="name">Quantization</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2024/10/29/%E5%A4%A7%E6%A8%A1%E5%9E%8B%E9%87%8F%E5%8C%96-%E9%83%A8%E7%BD%B2%E2%80%94%E2%80%94%E5%9C%A8AX650%E4%B8%8A%E9%83%A8%E7%BD%B2Qwen%E6%A8%A1%E5%9E%8B/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2024/10/29/%E5%A4%A7%E6%A8%A1%E5%9E%8B%E9%87%8F%E5%8C%96-%E9%83%A8%E7%BD%B2%E2%80%94%E2%80%94%E5%9C%A8AX650%E4%B8%8A%E9%83%A8%E7%BD%B2Qwen%E6%A8%A1%E5%9E%8B/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
-<ul>
-<li>code: <a target="_blank" rel="noopener" href="https://github.com/AXERA-TECH/ax-llm">https://github.com/AXERA-TECH/ax-llm</a></li>
-</ul>
-<h2 id="关键问题列表以-qwen25-05b-prefill-为例"><a class="markdownIt-Anchor" href="#关键问题列表以-qwen25-05b-prefill-为例"></a> 关键问题列表（以 Qwen2.5-0.5B-prefill 为例）</h2>
-<ol>
-<li>pulsar2 llm_build 模式和标准编译模式的区别？共用了什么部分？
-<ol>
-<li>标准编译模式有前端，llm_build 模式没有前端</li>
-<li>llm_build 量化不共用标准编译，weight 8 bit minmax / decoder layer 之间用 bf16 浮点 / 层内动态量化</li>
-</ol>
-</li>
-<li>ax-llm-build / ax-llm 两个 repo 的关系？他们用来做什么？
-<ol>
-<li>ax-llm-build 给上板准备除了模型之外的文件，例如 embed / 数据类型转换等</li>
-<li>ax-llm 输入编译后模型文件，输出是板上可运行的 chatbot</li>
-</ol>
-</li>
-<li>模型输出文件的含义？l%d.axmodel 表示层，qwen_post.axmodel 表示 hidden size -&gt; vocab size 的 fc 吗？model.embed_tokens.weight.bfloat16.bin 是 token embedding 吗？
-<ol>
-<li>token embedding / post.axmodel 都用 fc / 查表去做</li>
-</ol>
-</li>
-<li>为什么分层部署？动态量化发生在 decode layer 层之间吗？在 ppl 里用 cpu 动态量化 activation 吗？decoder layer 中有没有用到动态量化？
-<ol>
-<li>teng 可以做动态量化，不需要用 cpu</li>
-</ol>
-</li>
-<li>decode layer 用 flash attention 了吗？v2 / v3 ？
-<ol>
-<li>没有，用了标准 attention，softmax 单独计算</li>
-</ol>
-</li>
-<li>用 kv cache 了吗？如何用？DRAM 够用吗？
-<ol>
-<li>用了，squence length 限制到 2k 之后，DRAM 够用</li>
-</ol>
-</li>
-<li>GQA 用了吗？如何用？repeat 再做 self-attention？
-<ol>
-<li>有实际节约效率</li>
-</ol>
-</li>
-<li>有没有用到 llm 专用的量化算法？
-<ol>
-<li>没有</li>
-</ol>
-</li>
-<li>decode method 在 ppl 中用 cpu 实现吗？可以放到 npu 上吗？
-<ol>
-<li>用 cpu 实现，目前直接用 argmax 了</li>
-<li>用 npu 实现的话可以用 top-k</li>
-</ol>
-</li>
-<li>continue batching 用到了吗？（单 batch 似乎不用考虑这个问题，假如 ax650 作为云端芯片就需要考虑了）
-<ol>
-<li>没有</li>
-</ol>
-</li>
-<li>paged attention 用到了吗？（似乎用内存分页管理就够了？）
-<ol>
-<li>没有</li>
-</ol>
-</li>
-<li>有哪部分是用浮点运行的？哪部分用定点运行的？
-<ol>
-<li>除了 conv 相关的都用浮点，例如 softmax</li>
-</ol>
-</li>
-<li>对于长上下文如何处理？qwen2 似乎禁用了 sliding_window，那么如何处理长上下文？计算效率如何？
-<ol>
-<li>最长测试过 1024</li>
-</ol>
-</li>
-<li>ssm 状态空间模型支持吗？例如 mamba
-<ol>
-<li>没有，后续可能从节省 kv cache 角度会考虑支持</li>
-</ol>
-</li>
-<li>假如有一个 sparse attention 模型，会快吗？还是要补成 dense 再算？
-<ol>
-<li>没有专用加速算子，可能不会太快</li>
-</ol>
-</li>
-<li>可能考虑投机解码这种相对更高端的加速技术吗？例如 SpecInfer 这种
-<ol>
-<li>没有</li>
-</ol>
-</li>
-</ol>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -2462,20 +2426,20 @@ y_t=r_{t+1}+\gamma\max_{a&#x27;}Q(s_{t+1},a&#x27;;\theta^-)
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">159</span>
+          <span class="site-state-item-count">160</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">48</span>
+        <span class="site-state-item-count">49</span>
         <span class="site-state-item-name">categories</span></a>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">96</span>
+        <span class="site-state-item-count">98</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
