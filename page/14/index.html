@@ -180,6 +180,147 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2021/10/25/Non-Deep-Networks/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2021/10/25/Non-Deep-Networks/" class="post-title-link" itemprop="url">Non-Deep Networks</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2021-10-25 19:02:28" itemprop="dateCreated datePublished" datetime="2021-10-25T19:02:28+08:00">2021-10-25</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-03-21 10:13:09" itemprop="dateModified" datetime="2025-03-21T10:13:09+08:00">2025-03-21</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/CNN-Architecture-Design/" itemprop="url" rel="index"><span itemprop="name">CNN Architecture Design</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2021/10/25/Non-Deep-Networks/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2021/10/25/Non-Deep-Networks/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h1>
+<p><a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2110.07641.pdf">https://arxiv.org/pdf/2110.07641.pdf</a></p>
+<h1 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h1>
+<ul>
+<li>本文提出一种浅层神经网络 <code>ParNet</code>，12层深度可以在 <code>ImageNet</code> 上达到 <code>80.72%</code> 准确率的效果</li>
+<li>将网络变宽，因为多个横向 <code>Branch</code> 可以并行计算，而纵向深度只能顺序计算</li>
+<li>将 <code>RepVGG</code> 和 <code>SENet</code> 的结构合并成了 <code>RepVGG-SSE</code> 结构</li>
+<li><code>ParNet</code> 表示 <code>parallel substructure network</code></li>
+</ul>
+<h1 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h1>
+<h2 id="整体结构"><a class="markdownIt-Anchor" href="#整体结构"></a> 整体结构</h2>
+<p><img src="https://i.loli.net/2021/10/25/LbVGviBWj5Zq6Tz.png" alt="parnet2.png" /></p>
+<ul>
+<li>使用 <code>SENet</code> 结构的原因：<strong>网络深度过浅，下采样次数太少，只能通过 SE 结构获得全局信息</strong></li>
+<li>使用 <code>RepVGG</code> 结构的原因：<strong>结构重参数化白给的涨点，不要白不要</strong></li>
+<li>使用三个分支的原因：
+<ul>
+<li>三个分支分别处理不同分辨率级别的 <code>feature</code>，最终 <code>fusion</code></li>
+<li>选 “三” 是效果和速度的 <code>tradeoff</code></li>
+</ul>
+</li>
+<li>如何做 <code>model scale</code>:
+<ul>
+<li>传统网络（例如 <code>ResNet</code>）做 <code>model scale</code> 的方法：
+<ul>
+<li>缩放 <code>H、W</code>：减少下采样次数</li>
+<li>增加 <code>C</code>：增加卷积核数量</li>
+<li>增加深度：堆叠 <code>block</code></li>
+</ul>
+</li>
+<li><code>ParNet</code> 做 <code>model scale</code> 的方法：
+<ul>
+<li>增大 <code>H、W</code>：减少下采样次数</li>
+<li>增加 <code>C</code>：增加卷积核数量</li>
+<li>增加 <code>Stream</code>：增加横向 <code>Branch</code> 数量</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><code>SSE</code> 是指 <code>Skip-Squeeze-and-Excitation</code>：<strong>为降低网络层数，将 SE 结构中 GAP 后的 feature 做一层 Conv 而不是两层 MLP</strong></li>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>S</mi><mi>i</mi><mi>L</mi><mi>U</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo>=</mo><mi>x</mi><mo>∗</mo><mi>s</mi><mi>i</mi><mi>g</mi><mi>m</mi><mi>o</mi><mi>i</mi><mi>d</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">SiLU(x) = x * sigmoid(x)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.05764em;">S</span><span class="mord mathnormal">i</span><span class="mord mathnormal">L</span><span class="mord mathnormal" style="margin-right:0.10903em;">U</span><span class="mopen">(</span><span class="mord mathnormal">x</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:0.46528em;vertical-align:0em;"></span><span class="mord mathnormal">x</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">∗</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">s</span><span class="mord mathnormal">i</span><span class="mord mathnormal" style="margin-right:0.03588em;">g</span><span class="mord mathnormal">m</span><span class="mord mathnormal">o</span><span class="mord mathnormal">i</span><span class="mord mathnormal">d</span><span class="mopen">(</span><span class="mord mathnormal">x</span><span class="mclose">)</span></span></span></span></li>
+<li>本网络除了 <code>SSE</code> 结构之外，没有跳边连接</li>
+</ul>
+<h2 id="效果"><a class="markdownIt-Anchor" href="#效果"></a> 效果</h2>
+<p><img src="https://i.loli.net/2021/10/25/Bum9laqkfRN74cV.png" alt="parnet1.png" /></p>
+<blockquote>
+<p>这个图有点不公平，因为横坐标表示层数而不是参数量</p>
+</blockquote>
+<ul>
+<li>和 <code>ResNet</code> 对比<br />
+<img src="https://i.loli.net/2021/10/25/P7FdpI4Xk6znsvQ.png" alt="parnet3.png" /></li>
+<li>对下游任务也有涨点加速的作用<br />
+<img src="https://i.loli.net/2021/10/25/Bua6EwFgxLDlpOb.png" alt="parnet4.png" /></li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2021/10/17/DER-Dynamically-Expandable-Representation-for-Class-Incremental-Learning/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1367,142 +1508,10 @@ $ Z = Channel-MLP(LN(Y )) + Y$</li>
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2021/09/04/Deformable-3D-Convolution-for-Video-Super-Resolution/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2021/09/04/Deformable-3D-Convolution-for-Video-Super-Resolution/" class="post-title-link" itemprop="url">Deformable 3D Convolution for Video Super-Resolution</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2021-09-04 09:43:25" itemprop="dateCreated datePublished" datetime="2021-09-04T09:43:25+08:00">2021-09-04</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-03-21 10:13:09" itemprop="dateModified" datetime="2025-03-21T10:13:09+08:00">2025-03-21</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Video-Super-Resolution/" itemprop="url" rel="index"><span itemprop="name">Video Super-Resolution</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2021/09/04/Deformable-3D-Convolution-for-Video-Super-Resolution/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2021/09/04/Deformable-3D-Convolution-for-Video-Super-Resolution/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
-<p><a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2004.02803.pdf">https://arxiv.org/pdf/2004.02803.pdf</a></p>
-<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
-<ol>
-<li>Deformable 3D 简称 D3D，是 <a target="_blank" rel="noopener" href="https://ieeexplore.ieee.org/document/7410867">C3D</a> 的 <a target="_blank" rel="noopener" href="https://openaccess.thecvf.com/content_ICCV_2017/papers/Dai_Deformable_Convolutional_Networks_ICCV_2017_paper.pdf">Deformable</a> 版</li>
-<li>在视频超分中引入了可变形3D卷积，看上去很合理</li>
-<li>使用的超分网络结构很简单，与 <a target="_blank" rel="noopener" href="https://cv.snu.ac.kr/research/VDSR/VDSR_CVPR2016.pdf">VDSR</a> 有一点相似</li>
-</ol>
-<h2 id="datasetalgorithmmodelexperiment-detail"><a class="markdownIt-Anchor" href="#datasetalgorithmmodelexperiment-detail"></a> Dataset/Algorithm/Model/Experiment Detail</h2>
-<h3 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h3>
-<h2 id="1-d3d3d-卷积的可变形版本或者说可变性卷积的3d版"><a class="markdownIt-Anchor" href="#1-d3d3d-卷积的可变形版本或者说可变性卷积的3d版"></a> 1. D3D：3D 卷积的可变形版本（或者说可变性卷积的3D版）</h2>
-<p><img src="https://i.loli.net/2021/09/04/V7vEiabsq2QHY8P.png" alt="deform1.png" /><br />
-<strong>可变形2D卷积全过程</strong>（图来自论文<a target="_blank" rel="noopener" href="https://openaccess.thecvf.com/content_ICCV_2017/papers/Dai_Deformable_Convolutional_Networks_ICCV_2017_paper.pdf">Deformable Convolutional Networks</a>）<br />
-<img src="https://i.loli.net/2021/09/04/JvwUpsBhuylLqO2.png" alt="deform2.png" /><br />
-<strong>可变形3D卷积全过程</strong> （图来自本论文）<s>您这也太像了吧</s></p>
-<h3 id="c3d计算过程"><a class="markdownIt-Anchor" href="#c3d计算过程"></a> C3D计算过程：</h3>
-<br>
-$y(p_0) = \sum_{n=1}^Nw(p_n)*x(p_0 + p_n)$
-<br>
-其中 $p_0$ 表示卷积核中心所在feature上的位置， $p_n$ 表示卷积核到中心偏移，由于是C3D所以， $N=27$ ， $p_n = \{(-1,-1,-1), (-1,-1,0),...,(1,1,0),(1,1,1)\}$
-### D3D计算过程
-<br>
-$y(p_0) = \sum_{n=1}^Nw(p_n)*x(p_0 + p_n + \Delta p_n)$
-<br>
- $p_n$ 表示到卷积核到原始位置的偏移， $p_n + \Delta p_n$ 表示卷积核到中心偏移
-## 2. 超分网络结构
-![deform3.png](https://i.loli.net/2021/09/04/qNWlp6C1T4X8uw3.png)
-**图中’Conv‘表示C3D，3x3 Conv表示2D Conv**
-输入：连续 3 / 5 / 7 frames
-## Thoughts
-1. 对比了C3D和D3D的效果，说明D3D还是有点用的
-2. 与[EDVR](https://arxiv.org/pdf/1905.02716.pdf)对比可知，即使D3D单个算子再强大，网络设计也十分重要！
-3. 速度好慢，flops好大
-4. 脑补[C3D](https://ieeexplore.ieee.org/document/7410867)的[DConv](https://openaccess.thecvf.com/content_ICCV_2017/papers/Dai_Deformable_Convolutional_Networks_ICCV_2017_paper.pdf)作者会由衷的说一句：优(jiu)秀(zhe?)
-## 3. 算法效果对比
-![deform4.png](https://i.loli.net/2021/09/04/ZBLQHNac3ixsXuk.png)
-![deform5.png](https://i.loli.net/2021/09/04/rvE5inczPky7uTQ.png)
-输入帧数与算法效果的关系：
-![deform6.png](https://i.loli.net/2021/09/04/WUAOTtvZhLYzDXu.png)
-![deform7.png](https://i.loli.net/2021/09/04/g9zBL8kYeuIWR5U.png)
-![deform8.png](https://i.loli.net/2021/09/04/9uJvpgMiqDU1WHR.png)
-为什么不和[paperswithcode](https://paperswithcode.com/sota/video-super-resolution-on-vid4-4x-upscaling)里的VSR模型比一比？
-**Vid4数据集上：**
-![deform9.png](https://i.loli.net/2021/09/04/jJkKzqVPmxDH5hA.png)
-论文中对比结果巧妙的避开了前五（截图于 2020-08-01），~~优秀~~
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/13/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/13/">13</a><span class="page-number current">14</span><a class="page-number" href="/page/15/">15</a><a class="page-number" href="/page/16/">16</a><a class="extend next" rel="next" href="/page/15/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
+    <a class="extend prev" rel="prev" href="/page/13/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/13/">13</a><span class="page-number current">14</span><a class="page-number" href="/page/15/">15</a><span class="space">&hellip;</span><a class="page-number" href="/page/17/">17</a><a class="extend next" rel="next" href="/page/15/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
   </nav>
 
 
@@ -1567,7 +1576,7 @@ $y(p_0) = \sum_{n=1}^Nw(p_n)*x(p_0 + p_n + \Delta p_n)$
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">160</span>
+          <span class="site-state-item-count">161</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -1580,7 +1589,7 @@ $y(p_0) = \sum_{n=1}^Nw(p_n)*x(p_0 + p_n + \Delta p_n)$
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">98</span>
+        <span class="site-state-item-count">99</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>

@@ -180,6 +180,158 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/10/08/P-Tuning-v2-Prompt-Tuning-Can-Be-Comparable-to-Fine-tuning-Universally-Across-Scales-and-Tasks/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2024/10/08/P-Tuning-v2-Prompt-Tuning-Can-Be-Comparable-to-Fine-tuning-Universally-Across-Scales-and-Tasks/" class="post-title-link" itemprop="url">P-Tuning v2: Prompt Tuning Can Be Comparable to Fine-tuning Universally Across Scales and Tasks</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-10-08 08:54:23" itemprop="dateCreated datePublished" datetime="2024-10-08T08:54:23+08:00">2024-10-08</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-03-21 10:13:09" itemprop="dateModified" datetime="2025-03-21T10:13:09+08:00">2025-03-21</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Tuning/" itemprop="url" rel="index"><span itemprop="name">Tuning</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2024/10/08/P-Tuning-v2-Prompt-Tuning-Can-Be-Comparable-to-Fine-tuning-Universally-Across-Scales-and-Tasks/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2024/10/08/P-Tuning-v2-Prompt-Tuning-Can-Be-Comparable-to-Fine-tuning-Universally-Across-Scales-and-Tasks/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2110.07602">https://arxiv.org/pdf/2110.07602</a></li>
+<li>code: <a target="_blank" rel="noopener" href="https://github.com/THUDM/P-tuning-v2">https://github.com/THUDM/P-tuning-v2</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li>本文提出一种提示词微调的方法，是对 <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2103.10385"><code>P-Tuning</code></a> 的升级</li>
+<li><code>P-Tuning v2</code> 要解决的问题是：<strong>对于所有（或大多数）任务类型和模型参数规模，将提示词微调的精度达到和整体参数微调同样的效果</strong>，这也是这篇论文的题目</li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<p><img src="https://s2.loli.net/2024/10/08/cZJW9RoSl6yT2uz.png" alt="p_tuning_v2.png" /></p>
+<h3 id="对-p-tuning-的优化"><a class="markdownIt-Anchor" href="#对-p-tuning-的优化"></a> 对 <code>P-Tuning</code> 的优化</h3>
+<h4 id="1-p-tuning-只在模型输入层添加可学习的连续嵌入p-tuning-v2-在模型的每一层都添加"><a class="markdownIt-Anchor" href="#1-p-tuning-只在模型输入层添加可学习的连续嵌入p-tuning-v2-在模型的每一层都添加"></a> 1. <code>P-Tuning</code> 只在模型输入层添加可学习的连续嵌入，<code>P-Tuning v2</code> 在模型的每一层都添加</h4>
+<ol>
+<li><code>Prefix Tuning / Prompt Tuning / P-Tuning</code> 三种方法都是在模型输入中加入连续嵌入
+<ul>
+<li>添加方式可能是前缀，也可能是其他 <code>Concat Pattern</code></li>
+<li>通过 <code>Self-Attention</code> 的 <code>embedding</code> 间信息融合机制让虚拟连续嵌入影响整个模型</li>
+</ul>
+</li>
+<li><code>P-Tuning V2</code> 的做法则完全不同，是对模型的 <strong>每一层</strong> 都添加了可学习的虚拟连续嵌入
+<ul>
+<li>具体来说是通过初始化虚拟 <code>past_key_values</code> 来实现的</li>
+<li>用 <code>GPT2-small</code> 来举例（<code>12</code> 层 <code>transformer</code>，每层 <code>12</code> 个头，每个头的 <code>dim = 64</code>）
+<ul>
+<li>假设 <code>virtual_prompt_seq_len=3</code>，<code>input_prompt_seq_len=10</code></li>
+<li>那么需要先初始化 <code>past_key_values</code>，<code>shape = [12, 2, 12, 3, 64]</code>，分别表示：
+<ul>
+<li><code>num_layers</code></li>
+<li><code>key and value</code></li>
+<li><code>num_heads</code></li>
+<li><code>virtual_prompt_seq_len</code></li>
+<li><code>dim</code></li>
+<li><strong><code>shape = [12, 2, 12, 3, 64]</code> 以及修改后的输出层参数是可训练的所有参数</strong></li>
+</ul>
+</li>
+</ul>
+</li>
+<li>然后将序列长度为 <code>10</code> 的 <code>input token embeddings</code> 输入模型，第一层输出长度还是 <code>10</code></li>
+<li>第二层以及之后的每一层都将上一层输出的长度为 <code>10</code> 的序列和长度为 <code>3</code> 的 <code>virtual_prompt_key_values</code> 合并计算，并输出长度为 <code>10</code> 的序列</li>
+</ul>
+</li>
+</ol>
+<h4 id="2-不再使用-verbalizer而是使用-class-head"><a class="markdownIt-Anchor" href="#2-不再使用-verbalizer而是使用-class-head"></a> 2. 不再使用 <code>Verbalizer</code>，而是使用 <code>class head</code></h4>
+<ol>
+<li>什么是 <code>Verbalizer</code> ?
+<ul>
+<li>传统的预训练语言模型（例如 <code>Bert</code>）的输入是一个 <code>token</code> 序列，输出是一个 <code>token</code>，也就是说词表中每个词都有可能输出</li>
+<li>现在有个下游任务需要用 <code>Bert</code> 做情感分类，输入是一段话，输出是：{正面，负面，中性} 中的一种，而且用 <code>P-Tuning</code> 方法微调，那么直接把输入附加上一些虚拟连续提示嵌入，输出的结果还是整个词表，不是三分类</li>
+<li>这时候就需要 <code>Verbalizer</code> 的存在了，它的作用是将 <code>Bert</code> 模型的输出从词表空间映射到三分类空间，它的实现形式可以是规则，也可以是深度学习模型</li>
+</ul>
+</li>
+<li><code>P-Tuning V2</code> 如何抛弃 <code>Verbalizer</code>?
+<ul>
+<li>抛弃 <code>Verbalizer</code> 的方式很简单，就是打破 <strong><code>Prompt Tuning</code> 模型时不应修改模型参数和结构</strong> 的限制</li>
+<li>直接删除预训练模型输出层，改成任务相关的层并随机初始化，然后微调</li>
+</ul>
+</li>
+</ol>
+<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
+<ul>
+<li>看起来比 <code>P-Tuning v2</code> 更优雅，和 <code>kv cache attention</code> 结合起来，推理耗时增加较小</li>
+<li>据说对大模型来讲，这种方法和 <code>Prompt Tuning</code> 相比并没有显著精度优势（模型参数量小时，设计很重要；模型参数量大时，参数量几乎可以弥补一切设计上的非最优）</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/09/29/GPT-Understands-Too/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1523,170 +1675,10 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/08/15/SpecInfer-Accelerating-Large-Language-Model-Serving-with-Tree-based-Speculative-Inference-and-Verification/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2024/08/15/SpecInfer-Accelerating-Large-Language-Model-Serving-with-Tree-based-Speculative-Inference-and-Verification/" class="post-title-link" itemprop="url">SpecInfer: Accelerating Large Language Model Serving with Tree-based Speculative Inference and Verification</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-08-15 12:25:11" itemprop="dateCreated datePublished" datetime="2024-08-15T12:25:11+08:00">2024-08-15</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-03-21 10:13:09" itemprop="dateModified" datetime="2025-03-21T10:13:09+08:00">2025-03-21</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/LLM/" itemprop="url" rel="index"><span itemprop="name">LLM</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2024/08/15/SpecInfer-Accelerating-Large-Language-Model-Serving-with-Tree-based-Speculative-Inference-and-Verification/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2024/08/15/SpecInfer-Accelerating-Large-Language-Model-Serving-with-Tree-based-Speculative-Inference-and-Verification/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
-<ul>
-<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2305.09781">https://arxiv.org/pdf/2305.09781</a></li>
-<li>code: <a target="_blank" rel="noopener" href="https://github.com/flexflow/FlexFlow/">https://github.com/flexflow/FlexFlow/</a></li>
-</ul>
-<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
-<ul>
-<li>本文利用了 <code>Speculative decoding</code> 思想实现了一个 <code>SpecInfer</code> 大语言模型推理加速系统</li>
-<li>和标准 <code>Speculative decoding</code> 使用 <code>seq</code> 组织预测的 <code>token</code> 不同，<code>SpecInfer</code> 使用 <code>tree</code> 数据结构组织预测的 <code>token</code></li>
-<li><code>SpecInfer</code> 中的 <code>target</code> 模型可以并行验证整个 <code>token tree</code> 的正确性，而不是 <code>token seq</code>，且可以保证和原模型输出完全一致</li>
-</ul>
-<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
-<h3 id="增量式解码-序列式投机解码-树式投机解码三者对比"><a class="markdownIt-Anchor" href="#增量式解码-序列式投机解码-树式投机解码三者对比"></a> 增量式解码、序列式投机解码、树式投机解码三者对比</h3>
-<p><img src="https://s2.loli.net/2024/08/15/98NPOk4gMia1dIy.png" alt="specinfer_1.png" /></p>
-<blockquote>
-<p>左图表示传统增量式推理 <code>LLM</code> 的解码方式<br />
-右图从上到下依次表示：增量式解码、序列式投机解码、树式投机解码</p>
-</blockquote>
-<h3 id="候选树生成和验证流程"><a class="markdownIt-Anchor" href="#候选树生成和验证流程"></a> 候选树生成和验证流程</h3>
-<p><img src="https://s2.loli.net/2024/08/15/eW9VJYnQv6bcuMA.png" alt="specinfer_2.png" /></p>
-<blockquote>
-<p><code>SSM (small speculative model)</code> 给出候选树<br />
-<code>target model</code> 对候选树进行验证</p>
-</blockquote>
-<h3 id="如何对树式结构并行解码"><a class="markdownIt-Anchor" href="#如何对树式结构并行解码"></a> 如何对树式结构并行解码</h3>
-<p><img src="https://s2.loli.net/2024/08/16/caHNM5xfVn2ZrPq.png" alt="specinfer_3.png" /></p>
-<blockquote>
-<p><strong>注意：这的 “并行” 是指可以一次解码一棵树而不需要将树深度优先搜索得到多组序列然后一一解码</strong></p>
-</blockquote>
-<ol>
-<li>使用 <code>kv cache</code> 对解码过程进行加速是一个常见的方法，但树式结构无法直接使用 <code>kv cache</code>（因为要动态剪枝，如图左侧所示）</li>
-<li>因此本文提出一种新颖的方法使得树式结构可以并行解码，这个方法包括两个改进：
-<ol>
-<li>对树进行 <strong>深度优先搜索</strong>，使得树变成一个序列</li>
-<li>将传统的上三角 <code>attention mask</code> 变成一个 <code>topology-aware mask</code>，即通过 <code>mask</code> 来确定 <code>token</code> 两两之间的可见性（如图右侧所示），这种可见性包含：
-<ol>
-<li>每个 <code>token</code> 看不到之后的 <code>token</code>（矩阵下三角置 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mi mathvariant="normal">∞</mi></mrow><annotation encoding="application/x-tex">-\infty</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.66666em;vertical-align:-0.08333em;"></span><span class="mord">−</span><span class="mord">∞</span></span></span></span>）</li>
-<li>每个 <code>token</code> 看不到不在其拓扑路径上的 <code>token</code></li>
-</ol>
-</li>
-</ol>
-</li>
-</ol>
-<h3 id="总体算法流程"><a class="markdownIt-Anchor" href="#总体算法流程"></a> 总体算法流程</h3>
-<p><img src="https://s2.loli.net/2024/08/19/sOeLxDdgVC3QH4R.png" alt="specinfer_4.png" /></p>
-<ol>
-<li>先用 <code>small speculate model</code> 推理 <code>sequence</code> 得到候选树 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>N</mi></mrow><annotation encoding="application/x-tex">N</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span></span></span></span></li>
-<li>在使用 <code>LLM</code> 树式并行解码 <code>sequence</code> 得到大模型预测结果 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi></mrow><annotation encoding="application/x-tex">O</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord mathnormal" style="margin-right:0.02778em;">O</span></span></span></span></li>
-<li>用贪心算法或随机匹配算法对候选树 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>N</mi></mrow><annotation encoding="application/x-tex">N</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span></span></span></span> 逐个节点验证（接受或拒绝）</li>
-<li>重复直到 <code>&lt;EOS&gt;</code> 出现</li>
-</ol>
-<h3 id="贪心验证算法和随机验证算法"><a class="markdownIt-Anchor" href="#贪心验证算法和随机验证算法"></a> 贪心验证算法和随机验证算法</h3>
-<p><img src="https://s2.loli.net/2024/08/19/xTEuNg3K6irh4Rz.png" alt="specinfer_5.png" /></p>
-<ul>
-<li>这里的两种算法和 <a target="_blank" rel="noopener" href="https://zhangzhe.space/2024/08/14/Fast-Inference-from-Transformers-via-Speculative-Decoding/">https://zhangzhe.space/2024/08/14/Fast-Inference-from-Transformers-via-Speculative-Decoding/</a> 里的流程基本一致，不一样的地方仅仅在于 <code>tree / sequence</code> 两种候选 <code>token</code> 的组织形式</li>
-</ul>
-<h4 id="贪心验证"><a class="markdownIt-Anchor" href="#贪心验证"></a> 贪心验证</h4>
-<ol>
-<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>u</mi></mrow><annotation encoding="application/x-tex">u</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathnormal">u</span></span></span></span> 表示当前节点，从根节点开始广度优先遍历</li>
-<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>p</mi><mi>v</mi></msub><mo>=</mo><mi>u</mi></mrow><annotation encoding="application/x-tex">p_v=u</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.625em;vertical-align:-0.19444em;"></span><span class="mord"><span class="mord mathnormal">p</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.03588em;">v</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathnormal">u</span></span></span></span> 表示 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>v</mi></mrow><annotation encoding="application/x-tex">v</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathnormal" style="margin-right:0.03588em;">v</span></span></span></span> 是 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>u</mi></mrow><annotation encoding="application/x-tex">u</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathnormal">u</span></span></span></span> 的子节点</li>
-<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>t</mi><mi>v</mi></msub><mo>=</mo><mi>O</mi><mo stretchy="false">(</mo><mi>u</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">t_v=O(u)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.76508em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">t</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.03588em;">v</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.02778em;">O</span><span class="mopen">(</span><span class="mord mathnormal">u</span><span class="mclose">)</span></span></span></span> 表示大模型和投机模型预测结果一致</li>
-</ol>
-<h4 id="随机验证"><a class="markdownIt-Anchor" href="#随机验证"></a> 随机验证</h4>
-<ol>
-<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>u</mi></mrow><annotation encoding="application/x-tex">u</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathnormal">u</span></span></span></span> 表示当前节点，从根节点开始广度优先遍历</li>
-<li>当在 <code>[0, 1]</code> 之间随机均匀采样得到的随机数 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>r</mi><mo>&lt;</mo><mfrac><msub><mi>P</mi><mrow><mi>L</mi><mi>L</mi><mi>M</mi></mrow></msub><msub><mi>P</mi><mrow><mi>S</mi><mi>S</mi><mi>M</mi></mrow></msub></mfrac></mrow><annotation encoding="application/x-tex">r \lt \frac{P_{LLM}}{P_{SSM}}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.5782em;vertical-align:-0.0391em;"></span><span class="mord mathnormal" style="margin-right:0.02778em;">r</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">&lt;</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:1.3339409999999998em;vertical-align:-0.44530499999999995em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.8886359999999999em;"><span style="top:-2.6550000000000002em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.13889em;">P</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3448em;"><span style="top:-2.3567071428571427em;margin-left:-0.13889em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.05764em;">S</span><span class="mord mathnormal mtight" style="margin-right:0.05764em;">S</span><span class="mord mathnormal mtight" style="margin-right:0.10903em;">M</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.14329285714285717em;"><span></span></span></span></span></span></span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.410305em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.13889em;">P</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3448em;"><span style="top:-2.3567071428571427em;margin-left:-0.13889em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">L</span><span class="mord mathnormal mtight">L</span><span class="mord mathnormal mtight" style="margin-right:0.10903em;">M</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.14329285714285717em;"><span></span></span></span></span></span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.44530499999999995em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span> 时，接受这个节点，否则拒绝</li>
-</ol>
-<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
-<ul>
-<li>这篇论文站在 <a target="_blank" rel="noopener" href="https://zhangzhe.space/2024/08/14/Fast-Inference-from-Transformers-via-Speculative-Decoding/"><code>speculate decoding</code></a> 的肩膀上，加入了树结构的候选列表，算是 <code>speculate decoding</code> 的超集</li>
-<li><code>topology-aware mask</code> 和 <code>decoder attention mask</code> 结合的方法还是挺巧妙的</li>
-<li>由于是树结构存储候选词，那么多个 <code>SSM</code> 是天然适配的，算是个工程角度很好用的 <code>trick</code></li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/5/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/5/">5</a><span class="page-number current">6</span><a class="page-number" href="/page/7/">7</a><span class="space">&hellip;</span><a class="page-number" href="/page/16/">16</a><a class="extend next" rel="next" href="/page/7/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
+    <a class="extend prev" rel="prev" href="/page/5/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/5/">5</a><span class="page-number current">6</span><a class="page-number" href="/page/7/">7</a><span class="space">&hellip;</span><a class="page-number" href="/page/17/">17</a><a class="extend next" rel="next" href="/page/7/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
   </nav>
 
 
@@ -1751,7 +1743,7 @@
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">160</span>
+          <span class="site-state-item-count">161</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -1764,7 +1756,7 @@
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">98</span>
+        <span class="site-state-item-count">99</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>

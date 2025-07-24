@@ -180,6 +180,121 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2025/07/24/%E7%94%A8-langchain-%E5%AE%9E%E7%8E%B0-RAG-%E7%9A%84-demo/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2025/07/24/%E7%94%A8-langchain-%E5%AE%9E%E7%8E%B0-RAG-%E7%9A%84-demo/" class="post-title-link" itemprop="url">用 langchain 实现 RAG 的 demo</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2025-07-24 20:59:47 / Modified: 21:29:37" itemprop="dateCreated datePublished" datetime="2025-07-24T20:59:47+08:00">2025-07-24</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Agent/" itemprop="url" rel="index"><span itemprop="name">Agent</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2025/07/24/%E7%94%A8-langchain-%E5%AE%9E%E7%8E%B0-RAG-%E7%9A%84-demo/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2025/07/24/%E7%94%A8-langchain-%E5%AE%9E%E7%8E%B0-RAG-%E7%9A%84-demo/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li><code>langchain Semi-structured RAG cookbook</code>：<a target="_blank" rel="noopener" href="https://github.com/langchain-ai/langchain/blob/master/cookbook/Semi_Structured_RAG.ipynb">https://github.com/langchain-ai/langchain/blob/master/cookbook/Semi_Structured_RAG.ipynb</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li><code>langchain</code> 的 <code>Semi-structured RAG</code> 的 <code>demo</code>，包含 <code>PDF</code> 的 解析 -&gt; 向量化 -&gt; 存储 -&gt; 检索 -&gt; 回答 的全流程</li>
+<li>来自 <code>langchain</code> 官方的 <code>cookbook</code>，值得参考</li>
+</ul>
+<h2 id="总体流程"><a class="markdownIt-Anchor" href="#总体流程"></a> 总体流程</h2>
+<p><img src="https://s2.loli.net/2025/07/24/pPAL3JkjGKb5ohH.png" alt="langchain_rag_demo.png" /></p>
+<ol>
+<li><strong>解析 <code>PDF</code> 文件</strong>。用 <code>partition_pdf</code> 工具，将 <code>PDF</code> 文件解析为 <code>chunks</code>，分成文本和表格两种</li>
+<li><strong>总结 <code>chunks</code></strong>。用大模型 <code>API</code> 总结 <code>chunks</code>，得到 <code>summary</code>，用哪家的模型都行</li>
+<li><strong>向量化 <code>summary</code></strong>。调用 <code>embedding</code> 模型 <code>API</code> 对 <code>summary</code> 进行向量化，作为索引的 <code>key</code>（<code>value</code> 是原始文本/表格），存到 <code>Chroma</code> 数据库中</li>
+<li><strong>问答时自动检索</strong>。在问答时，会自动根据问题向量在 <code>Chroma</code> 数据库中检索出最相似的 <code>summary</code>，将 <code>summary</code> 向量对应的原始文本/表格作为 <code>prompt</code> 中的 <code>context</code> 域传给大模型，得到回答</li>
+</ol>
+<h2 id="具体实现代码"><a class="markdownIt-Anchor" href="#具体实现代码"></a> 具体实现代码</h2>
+<h3 id="1-解析-pdf-文件"><a class="markdownIt-Anchor" href="#1-解析-pdf-文件"></a> 1. 解析 <code>PDF</code> 文件</h3>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> typing <span class="keyword">import</span> <span class="type">Any</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">from</span> pydantic <span class="keyword">import</span> BaseModel</span><br><span class="line"><span class="keyword">from</span> unstructured.partition.pdf <span class="keyword">import</span> partition_pdf</span><br><span class="line"></span><br><span class="line">path = <span class="string">&quot;/Users/rlm/Desktop/Papers/LLaMA2/&quot;</span></span><br><span class="line"><span class="comment"># Get elements</span></span><br><span class="line">raw_pdf_elements = partition_pdf(</span><br><span class="line">    filename=path + <span class="string">&quot;LLaMA2.pdf&quot;</span>,</span><br><span class="line">    <span class="comment"># Unstructured first finds embedded image blocks</span></span><br><span class="line">    extract_images_in_pdf=<span class="literal">False</span>,</span><br><span class="line">    <span class="comment"># Use layout model (YOLOX) to get bounding boxes (for tables) and find titles</span></span><br><span class="line">    <span class="comment"># Titles are any sub-section of the document</span></span><br><span class="line">    infer_table_structure=<span class="literal">True</span>,</span><br><span class="line">    <span class="comment"># Post processing to aggregate text once we have the title</span></span><br><span class="line">    chunking_strategy=<span class="string">&quot;by_title&quot;</span>,</span><br><span class="line">    <span class="comment"># Chunking params to aggregate text blocks</span></span><br><span class="line">    <span class="comment"># Attempt to create a new chunk 3800 chars</span></span><br><span class="line">    <span class="comment"># Attempt to keep chunks &gt; 2000 chars</span></span><br><span class="line">    max_characters=<span class="number">4000</span>,</span><br><span class="line">    new_after_n_chars=<span class="number">3800</span>,</span><br><span class="line">    combine_text_under_n_chars=<span class="number">2000</span>,</span><br><span class="line">    image_output_dir_path=path,</span><br><span class="line">)</span><br></pre></td></tr></table></figure>
+<h3 id="2-总结-chunks-得到-summary"><a class="markdownIt-Anchor" href="#2-总结-chunks-得到-summary"></a> 2. 总结 <code>chunks</code> 得到 <code>summary</code></h3>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> langchain_core.output_parsers <span class="keyword">import</span> StrOutputParser</span><br><span class="line"><span class="keyword">from</span> langchain_core.prompts <span class="keyword">import</span> ChatPromptTemplate</span><br><span class="line"><span class="keyword">from</span> langchain_openai <span class="keyword">import</span> ChatOpenAI</span><br><span class="line"></span><br><span class="line"><span class="comment"># Prompt</span></span><br><span class="line">prompt_text = <span class="string">&quot;&quot;&quot;You are an assistant tasked with summarizing tables and text. \ </span></span><br><span class="line"><span class="string">Give a concise summary of the table or text. Table or text chunk: &#123;element&#125; &quot;&quot;&quot;</span></span><br><span class="line">prompt = ChatPromptTemplate.from_template(prompt_text)</span><br><span class="line"></span><br><span class="line"><span class="comment"># Summary chain</span></span><br><span class="line">model = ChatOpenAI(temperature=<span class="number">0</span>, model=<span class="string">&quot;gpt-4&quot;</span>)</span><br><span class="line">summarize_chain = &#123;<span class="string">&quot;element&quot;</span>: <span class="keyword">lambda</span> x: x&#125; | prompt | model | StrOutputParser()</span><br><span class="line"></span><br><span class="line"><span class="comment"># Apply to tables</span></span><br><span class="line">tables = [i.text <span class="keyword">for</span> i <span class="keyword">in</span> table_elements]</span><br><span class="line">table_summaries = summarize_chain.batch(tables, &#123;<span class="string">&quot;max_concurrency&quot;</span>: <span class="number">5</span>&#125;)</span><br><span class="line"></span><br><span class="line"><span class="comment"># Apply to texts</span></span><br><span class="line">texts = [i.text <span class="keyword">for</span> i <span class="keyword">in</span> text_elements]</span><br><span class="line">text_summaries = summarize_chain.batch(texts, &#123;<span class="string">&quot;max_concurrency&quot;</span>: <span class="number">5</span>&#125;)</span><br></pre></td></tr></table></figure>
+<blockquote>
+<p><code>langchain</code> 用 <code>|</code> 符号就可以把多个工具串成一个 <code>chain</code>，非常方便</p>
+</blockquote>
+<h3 id="3-向量化-summary-并存到-chroma-数据库中"><a class="markdownIt-Anchor" href="#3-向量化-summary-并存到-chroma-数据库中"></a> 3. 向量化 <code>summary</code> 并存到 <code>Chroma</code> 数据库中</h3>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> uuid</span><br><span class="line"></span><br><span class="line"><span class="keyword">from</span> langchain.retrievers.multi_vector <span class="keyword">import</span> MultiVectorRetriever</span><br><span class="line"><span class="keyword">from</span> langchain.storage <span class="keyword">import</span> InMemoryStore</span><br><span class="line"><span class="keyword">from</span> langchain_chroma <span class="keyword">import</span> Chroma</span><br><span class="line"><span class="keyword">from</span> langchain_core.documents <span class="keyword">import</span> Document</span><br><span class="line"><span class="keyword">from</span> langchain_openai <span class="keyword">import</span> OpenAIEmbeddings</span><br><span class="line"></span><br><span class="line"><span class="comment"># The vectorstore to use to index the child chunks</span></span><br><span class="line">vectorstore = Chroma(collection_name=<span class="string">&quot;summaries&quot;</span>, embedding_function=OpenAIEmbeddings())</span><br><span class="line"></span><br><span class="line"><span class="comment"># The storage layer for the parent documents</span></span><br><span class="line">store = InMemoryStore()</span><br><span class="line">id_key = <span class="string">&quot;doc_id&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># The retriever (empty to start)</span></span><br><span class="line">retriever = MultiVectorRetriever(</span><br><span class="line">    vectorstore=vectorstore,</span><br><span class="line">    docstore=store,</span><br><span class="line">    id_key=id_key,</span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="comment"># Add texts</span></span><br><span class="line">doc_ids = [<span class="built_in">str</span>(uuid.uuid4()) <span class="keyword">for</span> _ <span class="keyword">in</span> texts]</span><br><span class="line">summary_texts = [</span><br><span class="line">    Document(page_content=s, metadata=&#123;id_key: doc_ids[i]&#125;)</span><br><span class="line">    <span class="keyword">for</span> i, s <span class="keyword">in</span> <span class="built_in">enumerate</span>(text_summaries)</span><br><span class="line">]</span><br><span class="line">retriever.vectorstore.add_documents(summary_texts)</span><br><span class="line">retriever.docstore.mset(<span class="built_in">list</span>(<span class="built_in">zip</span>(doc_ids, texts)))</span><br><span class="line"></span><br><span class="line"><span class="comment"># Add tables</span></span><br><span class="line">table_ids = [<span class="built_in">str</span>(uuid.uuid4()) <span class="keyword">for</span> _ <span class="keyword">in</span> tables]</span><br><span class="line">summary_tables = [</span><br><span class="line">    Document(page_content=s, metadata=&#123;id_key: table_ids[i]&#125;)</span><br><span class="line">    <span class="keyword">for</span> i, s <span class="keyword">in</span> <span class="built_in">enumerate</span>(table_summaries)</span><br><span class="line">]</span><br><span class="line">retriever.vectorstore.add_documents(summary_tables)</span><br><span class="line">retriever.docstore.mset(<span class="built_in">list</span>(<span class="built_in">zip</span>(table_ids, tables)))</span><br></pre></td></tr></table></figure>
+<h3 id="4-问答时自动检索"><a class="markdownIt-Anchor" href="#4-问答时自动检索"></a> 4. 问答时自动检索</h3>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> langchain_core.runnables <span class="keyword">import</span> RunnablePassthrough</span><br><span class="line"></span><br><span class="line"><span class="comment"># Prompt template</span></span><br><span class="line">template = <span class="string">&quot;&quot;&quot;Answer the question based only on the following context, which can include text and tables:</span></span><br><span class="line"><span class="string">&#123;context&#125;</span></span><br><span class="line"><span class="string">Question: &#123;question&#125;</span></span><br><span class="line"><span class="string">&quot;&quot;&quot;</span></span><br><span class="line">prompt = ChatPromptTemplate.from_template(template)</span><br><span class="line"></span><br><span class="line"><span class="comment"># LLM</span></span><br><span class="line">model = ChatOpenAI(temperature=<span class="number">0</span>, model=<span class="string">&quot;gpt-4&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># RAG pipeline</span></span><br><span class="line">chain = (</span><br><span class="line">    &#123;<span class="string">&quot;context&quot;</span>: retriever, <span class="string">&quot;question&quot;</span>: RunnablePassthrough()&#125;</span><br><span class="line">    | prompt</span><br><span class="line">    | model</span><br><span class="line">    | StrOutputParser()</span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="comment"># run the chain</span></span><br><span class="line">chain.invoke(<span class="string">&quot;What is the number of training tokens for LLaMA2?&quot;</span>)</span><br></pre></td></tr></table></figure>
+<h2 id="总结"><a class="markdownIt-Anchor" href="#总结"></a> 总结</h2>
+<ol>
+<li><code>langchain</code> 做了非常多的工具，并给出一种将这些工具非常容易组合使用的方法</li>
+<li>更重要的是，<code>langsmith</code> 提供了非常方便的 <code>trace</code> 功能，可以非常方便地追踪一次问答过程中经过了哪些模型/工具/行为，以及这些模型/工具/行为的 <code>input</code> / <code>output</code> / 耗时等，非常方便</li>
+</ol>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2025/07/21/Qwen2-5-VL-Technical-Report/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1809,175 +1924,10 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2025/05/05/Qwen3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E5%85%88%E5%AF%BC%E7%AF%87/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2025/05/05/Qwen3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E5%85%88%E5%AF%BC%E7%AF%87/" class="post-title-link" itemprop="url">Qwen3 技术报告先导篇</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2025-05-05 21:40:44" itemprop="dateCreated datePublished" datetime="2025-05-05T21:40:44+08:00">2025-05-05</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-07 10:18:52" itemprop="dateModified" datetime="2025-05-07T10:18:52+08:00">2025-05-07</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/LLM/" itemprop="url" rel="index"><span itemprop="name">LLM</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2025/05/05/Qwen3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E5%85%88%E5%AF%BC%E7%AF%87/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2025/05/05/Qwen3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E5%85%88%E5%AF%BC%E7%AF%87/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
-<ul>
-<li>blog: <a target="_blank" rel="noopener" href="https://qwenlm.github.io/zh/blog/qwen3/">https://qwenlm.github.io/zh/blog/qwen3/</a></li>
-</ul>
-<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
-<ul>
-<li><code>Qwen3</code> 系列模型四月二十九日正式发布，但到目前为止，还没发布技术报告，只有一篇官方博客，介绍了 <code>Qwen3</code> 的一些基本信息</li>
-<li>本文围绕着官方博客介绍，结合实际使用情况，给出一些个人的理解</li>
-</ul>
-<h2 id="qwen3-系列模型"><a class="markdownIt-Anchor" href="#qwen3-系列模型"></a> Qwen3 系列模型</h2>
-<ul>
-<li>本次 <code>Qwen3</code> 主要发布了八个版本的模型，其中包含两个 <code>MOE</code> 模型和六个 <code>dense</code> 模型：
-<ul>
-<li><code>Qwen3-235B-A22B</code>：<code>MOE</code> 模型，<code>235B</code> 参数量，<code>22B</code> 激活参数量</li>
-<li><code>Qwen3-30B-A3B</code>：<code>MOE</code> 模型，<code>30B</code> 参数量，<code>3B</code> 激活参数量</li>
-<li><code>Qwen3-32B</code>：<code>dense</code> 模型，<code>32B</code> 参数量</li>
-<li><code>Qwen3-14B</code>：<code>dense</code> 模型，<code>14B</code> 参数量</li>
-<li><code>Qwen3-8B</code>：<code>dense</code> 模型，<code>8B</code> 参数量</li>
-<li><code>Qwen3-4B</code>：<code>dense</code> 模型，<code>4B</code> 参数量</li>
-<li><code>Qwen3-1.7B</code>：<code>dense</code> 模型，<code>1.7B</code> 参数量</li>
-<li><code>Qwen3-0.6B</code>：<code>dense</code> 模型，<code>0.6B</code> 参数量</li>
-</ul>
-</li>
-<li>还有对应的 <code>Base</code> 模型（只经过预训练）和 <code>fp8 Quantized</code> 模型（量化模型）</li>
-<li><code>Qwen3</code> 相较于上一代 <code>Qwen2.5</code>，一个较大的技术进步是：<strong>统一了 Reasoning 和非 Reasoning 模式</strong>，即不再区分<strong>推理模型和非推理模型（或者叫思考模型和非思考模型）</strong>，而是一个模型可以通过 <code>prompt</code> 来选择推理模式和非推理模式</li>
-</ul>
-<h2 id="qwen3-模型的主要特性"><a class="markdownIt-Anchor" href="#qwen3-模型的主要特性"></a> Qwen3 模型的主要特性</h2>
-<h3 id="预训练"><a class="markdownIt-Anchor" href="#预训练"></a> 预训练</h3>
-<ul>
-<li>相较于上一代 <code>Qwen2.5</code> 使用了 <code>18</code> 万亿个 <code>token</code> 做预训练，<code>Qwen3</code> 使用了 <code>36</code> 万亿个 <code>token</code> 做预训练（整整翻了一倍，这是多大的数据团队才能搞出来的，<s>太壕了</s>）</li>
-<li>包含了 <code>119</code> 种语言和方言，有大量数据是合成数据和在 <code>PDF</code> 上识别的文本数据</li>
-<li>预训练分成了三个阶段：
-<ul>
-<li>第一阶段：模型在超过 <code>30</code> 万亿个 <code>token</code> 上进行了预训练，上下文长度为 <code>4K token</code></li>
-<li>第二阶段：通过增加知识密集型数据（如 <code>STEM</code>、编程和推理任务）的比例来改进数据集，在 <code>5</code> 万亿个 <code>token</code> 上进行了预训练</li>
-<li>第三阶段：使用高质量的长上下文数据将上下文长度扩展到 <code>32K token</code></li>
-</ul>
-</li>
-<li>预训练实际效果：官方的说法是 <code>Qwen3-1.7B/4B/8B/14B/32B-Base</code> 分别与 <code>Qwen2.5-3B/7B/14B/32B/72B-Base</code> 表现相当</li>
-</ul>
-<h3 id="后训练"><a class="markdownIt-Anchor" href="#后训练"></a> 后训练</h3>
-<p><img src="https://s2.loli.net/2025/05/05/eEUjxX8bvydgNqt.png" alt="post-training.png" /></p>
-<ul>
-<li>简单概括：用 <code>SFT → RL → SFT+RL 混合 → RL</code> 四个阶段后训练 <code>Qwen3-235B-A22B</code> 和 <code>Qwen3-32B</code> 模型，然后蒸馏得到其他小尺寸模型（大 <code>MOE</code> 蒸小 <code>MOE</code>，大 <code>dense</code> 蒸小 <code>dense</code>）</li>
-<li>四个阶段分别是：
-<ul>
-<li>长思维链冷启动 ：使用监督微调（<code>SFT</code>）训练模型生成初步的长思维链推理能力，作为初始阶段的基础。</li>
-<li>长思维链强化学习 ：通过强化学习（<code>RL</code>）进一步提升模型在复杂推理任务中的表现，优化生成思维链的质量和连贯性。</li>
-<li>思维模式融合 ：结合 <code>SFT</code> 和 <code>RL</code> 的混合策略，将不同思维模式（如逻辑推理、知识检索等）整合到统一框架中，增强模型的灵活性。</li>
-<li>通用强化学习 ：以 <code>RL</code> 为主导，对模型进行全局优化，强化其在多样化任务中的通用性和鲁棒性。</li>
-</ul>
-</li>
-</ul>
-<h2 id="qwen3-使用"><a class="markdownIt-Anchor" href="#qwen3-使用"></a> Qwen3 使用</h2>
-<ul>
-<li>使用上和 <code>Qwen2.5</code> 没有太大区别，主要是增加了 <code>Reasoning</code> 模式的选择开关</li>
-<li>这个开关也非常简便，大概有两种方式可以选择：
-<ol>
-<li>在最新版 <code>Transformer</code> 库中 <code>tokenizer.apply_chat_template</code> 中可以设置 <code>enable_thinking=True # Switch between thinking and non-thinking modes. Default is True.</code></li>
-<li>另外一种方式就是始终保持上面的开关常开，然后在 <code>prompt</code> 中添加 <code>/no_think</code> 来关闭推理模式。<code>/no_think</code> 可加到 <code>system content</code> 或 <code>user content</code> 结尾。</li>
-</ol>
-</li>
-<li>在一些下游任务上做了 <code>SFT</code> 微调测试，发现 <code>Qwen3-1.7B</code> 经过 <code>SFT</code> 之后和 <code>Qwen2.5-3B-Instruct</code> 经过 <code>SFT</code> 之后的效果差不多，这一点和官方对预训练的说法一致</li>
-</ul>
-<h2 id="thoughts"><a class="markdownIt-Anchor" href="#thoughts"></a> Thoughts</h2>
-<ul>
-<li>在当今这个大模型结构同质化时代，预训练数据越多，模型的能力越强（同样效果下数据翻一倍模型尺寸可缩减一半！！），所以小厂没有这么多数据工程师，搞不到大量的高质量的数据，是很难在大模型上追赶大厂</li>
-<li>到今天为止，<code>Llama</code> 系列官方模型都不能做到原生支持中文，和 <code>Qwen</code> 系列模型原生支持 <code>119</code> 种语言和方言相比，感觉非常小家子气，注定会被扫进历史的垃圾堆里</li>
-<li><code>DeepSeek</code> 对 <code>Qwen</code> 的影响很大，比如：
-<ul>
-<li>从 <code>DeepSeek v3</code> 之后，<code>Qwen</code> 系列模型预训练和最终版的命名从：<code>Qwen2.5-7B/Qwen2.5-7B-Instruct</code> 变成了 <code>Qwen3-8B-Base/Qwen3-8B</code></li>
-<li>广泛的使用了<strong>模型蒸馏</strong>，确实极大的提高了小尺寸模型的能力（之前 <code>Qwen2.5-0.5B-Instruct</code> 基本就是个答非所问的傻子，现如今的 <code>Qwen3-0.6B</code> 在不开推理模式的情况下也可以解决很多数学问题，非常强）</li>
-<li>四段式后训练也和 <code>DeepSeek</code> 使用的后训练非常相似</li>
-</ul>
-</li>
-<li>合并推理和非推理模型的做法，是今后大模型的趋势，有不少模型都在朝着这个方向发展</li>
-<li>官方表示 <code>Qwen</code> 系列后续会向着 <code>Agent</code> 方向发展，铺垫了很久的 <code>MCP</code> 可能会产生新的 <code>Agent</code> 应用变革</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
-    <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><span class="space">&hellip;</span><a class="page-number" href="/page/16/">16</a><a class="extend next" rel="next" href="/page/2/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
+    <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><span class="space">&hellip;</span><a class="page-number" href="/page/17/">17</a><a class="extend next" rel="next" href="/page/2/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
   </nav>
 
 
@@ -2042,7 +1992,7 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">160</span>
+          <span class="site-state-item-count">161</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -2055,7 +2005,7 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">98</span>
+        <span class="site-state-item-count">99</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
