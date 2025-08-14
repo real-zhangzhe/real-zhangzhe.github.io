@@ -180,6 +180,134 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2025/08/14/A-Generalist-Agent/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2025/08/14/A-Generalist-Agent/" class="post-title-link" itemprop="url">A Generalist Agent</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2025-08-14 15:10:15 / Modified: 17:19:00" itemprop="dateCreated datePublished" datetime="2025-08-14T15:10:15+08:00">2025-08-14</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/VLA/" itemprop="url" rel="index"><span itemprop="name">VLA</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2025/08/14/A-Generalist-Agent/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2025/08/14/A-Generalist-Agent/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2205.06175">https://arxiv.org/pdf/2205.06175</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li>这篇论文构建了一个单一的通用智能体 <code>Gato</code>，它具有多模态、多任务、多实施方式能力。</li>
+<li>模型就是 <code>1.2B</code> 参数的 <code>decoder only Transformer</code> 架构，只用一份权重可以玩 Atari 游戏、给图片加字幕、控制机械手臂堆叠积木等 604 个任务。</li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<p><img src="https://s2.loli.net/2025/08/14/BbYy1cLzkH5QqOA.png" alt="Gato.png" /></p>
+<h3 id="编码方案"><a class="markdownIt-Anchor" href="#编码方案"></a> 编码方案</h3>
+<p><code>Gato</code> 将所有模态的输入和输出都编码为整数序列，输出除了不能输出图像之外，其他模态都可以输出。</p>
+<ul>
+<li>文本：通过 <code>SentencePiece</code> 方式编码，共 <code>32000</code> 个子单词编码为整数范围 <code>[0, 32000)</code></li>
+<li>图像：按照 <code>ViT</code> 的编码方式，切成不重叠的 <code>16x16</code> 的 <code>patches</code></li>
+<li>离散值：存储为 <code>[0, 1024)</code> 的整数序列</li>
+<li>连续值: 离散化为 <code>1024</code> 个箱子，并移到 <code>[32000, 33024)</code> 的范围</li>
+</ul>
+<h3 id="训练和部署方案"><a class="markdownIt-Anchor" href="#训练和部署方案"></a> 训练和部署方案</h3>
+<ol>
+<li>使用 <code>decoder only Transformer</code> 架构，做自回归训练，图像切成 <code>16x16</code> 的 <code>patches</code> 后，归一化到 <code>[-1, 1]</code> 之间，再用 <code>Resnet</code> 将图像编码成多个特征向量和其他模态的特征向量拼接起来，作为输入。</li>
+<li>什么参与自回归训练？什么不参与？
+<ul>
+<li>参与自回归训练的：文本符元、离散和连续值以及动作</li>
+<li>不参与自回归训练的：图像、智能体观测到的非文本信息（比如机械臂的关节参数等）</li>
+</ul>
+</li>
+<li>训练结束后，模型能做什么？
+<ul>
+<li>训练时候没有屏蔽什么，训练收敛的模型就能做什么。</li>
+</ul>
+</li>
+<li>训练时固定上下文长度为 <code>1024</code>，超过 <code>1024</code> 的数据会被随机截取 <code>1024</code></li>
+<li>推理时不限制上下文长度<br />
+<img src="https://s2.loli.net/2025/08/14/CxgKYfheaGRJumr.png" alt="gato2.png" /></li>
+</ol>
+<h3 id="实验结果"><a class="markdownIt-Anchor" href="#实验结果"></a> 实验结果</h3>
+<ul>
+<li>在 <code>604</code> 项任务中，有 <code>450</code> 项任务能够达到专家分数的 <code>50%</code></li>
+<li>论文中有每个任务类型的详细结果，可以参考论文</li>
+</ul>
+<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
+<ul>
+<li>把这么多种任务抽象成一种编码，然后用一个 <code>1.2B</code> 参数的模型来处理，这个想法很厉害</li>
+<li>编码方式有点复杂，可以对比下将图片之外的模态转成文本，然后用 <code>tokenizer</code> 编码的最终效果</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2025/08/10/On-the-Generalization-of-SFT-A-Reinforcement-Learning-Perspective-with-Reward-Rectification/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1592,213 +1720,6 @@ p_t &amp; \text{if}\ b_t=1 \\
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2025/05/11/High-Resolution-Image-Synthesis-with-Latent-Diffusion-Models/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2025/05/11/High-Resolution-Image-Synthesis-with-Latent-Diffusion-Models/" class="post-title-link" itemprop="url">High-Resolution Image Synthesis with Latent Diffusion Models</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2025-05-11 17:00:32" itemprop="dateCreated datePublished" datetime="2025-05-11T17:00:32+08:00">2025-05-11</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-30 11:21:22" itemprop="dateModified" datetime="2025-06-30T11:21:22+08:00">2025-06-30</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/stable-diffusion/" itemprop="url" rel="index"><span itemprop="name">stable diffusion</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2025/05/11/High-Resolution-Image-Synthesis-with-Latent-Diffusion-Models/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2025/05/11/High-Resolution-Image-Synthesis-with-Latent-Diffusion-Models/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
-<ul>
-<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2112.10752">https://arxiv.org/pdf/2112.10752</a></li>
-<li>code: <a target="_blank" rel="noopener" href="https://github.com/CompVis/latent-diffusion">https://github.com/CompVis/latent-diffusion</a></li>
-</ul>
-<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
-<ul>
-<li><code>LDM</code> 是 <code>stable diffusion</code> 系列的开山之作，让 <code>Diffusion Model</code> 在 <code>Image Synthesis</code> 领域大放异彩</li>
-<li>传统的 <code>Diffusion Model</code> 有两大问题：
-<ol>
-<li>没办法控制生成内容，只能确保生成的内容和训练数据集风格比较类似</li>
-<li>在像素尺度上做去噪，计算量大，导致只能生成较小分辨率的图，且很慢</li>
-</ol>
-</li>
-<li><code>LDM</code> 解决了上述的两个问题：
-<ol>
-<li>通过编码器将 文本 / <code>mask</code> / <code>bbox</code> 等条件信息转成 <code>conditioning embedding</code>，再通过 <code>cross attention</code> 机制将条件信息和 <code>latent space</code> 中的噪声结合起来做去噪，让条件信息可引导图片生成</li>
-<li>通过 <code>VAE</code> 将图片压缩到 <code>latent space</code> 中，再进行去噪，计算量小，速度快</li>
-</ol>
-</li>
-</ul>
-<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
-<h3 id="总体流程"><a class="markdownIt-Anchor" href="#总体流程"></a> 总体流程</h3>
-<p><img src="https://s2.loli.net/2025/05/22/Vlkz7YnqIDxTWhH.png" alt="LDM.png" /></p>
-<ol>
-<li>生成隐空间下的随机噪声</li>
-<li>将条件信息通过各自类型的编码器编码成 <code>conditioning embedding</code>，例如文本编码使用 <code>CLIP text encoder</code></li>
-<li>将 <code>latent noise</code> 和 <code>conditioning embedding</code> 和 <code>timestep embedding</code> 输入到 <code>UNet</code> 中进行多轮迭代去噪（<code>50</code> step）</li>
-<li>去噪后的 <code>latent</code> 通过 <code>VAE decoder</code> 解码成图片</li>
-</ol>
-<h3 id="conditioning-unet"><a class="markdownIt-Anchor" href="#conditioning-unet"></a> Conditioning UNet</h3>
-<ul>
-<li>通过 <strong>交叉注意力机制</strong> 将 <strong>文本条件</strong> 和 <strong>时序</strong> 通过 <code>UNet</code> 嵌入到 <code>Noised Latent</code> 中</li>
-<li>具体来说：<strong>TimeEmbedding 直接和图像特征相加，TextEmbedding 和图像特征做 CrossAttention，（TextEmbedding 作为 KV，图像特征作为 Q）</strong></li>
-<li><code>Conditioning UNet</code> 示意图，两次下采样 + 中间块 + 两次上采样</li>
-</ul>
-<pre class="mermaid">graph TD
-    Input[Noised Latent: 32x32x4] --> DownBlock1[CrossAttnDownBlock2D]
-    DownBlock1 --> DownBlock2[CrossAttnDownBlock2D]
-    DownBlock2 --> MidBlock[UNetMidBlock2DCrossAttn]
-    MidBlock --> UpBlock1[CrossAttnUpBlock2D]
-    UpBlock1 --> UpBlock2[CrossAttnUpBlock2D]
-    UpBlock2 --> Output[Denoised Latent: 32x32x4]
-  
-    TextEncoder[Text Encoder] -->|Text Embedding| DownBlock1
-    TextEncoder -->|Text Embedding| DownBlock2
-    TextEncoder -->|Text Embedding| MidBlock
-    TextEncoder -->|Text Embedding| UpBlock1
-    TextEncoder -->|Text Embedding| UpBlock2
-  
-    Time[Timestep] -->|Time Embedding| DownBlock1
-    Time -->|Time Embedding| DownBlock2
-    Time -->|Time Embedding| MidBlock
-    Time -->|Time Embedding| UpBlock1
-    Time -->|Time Embedding| UpBlock2</pre>
-<ul>
-<li><code>CrossAttnBlock2D</code> 结构示意</li>
-</ul>
-<pre class="mermaid">graph TD
-    %% 输入节点
-    Input[输入特征图 h_in] --> ResNet
-    TimeEmb[时间嵌入 t_emb] --> MLP
-    TextEmb[文本条件 y_text] --> ProjText
-  
-    %% 主干计算路径
-    ResNet[ResNet块] --> Add
-    MLP[MLP时间投影] --> Add
-    Add[逐元素相加] --> GroupNorm
-    GroupNorm[GroupNorm] --> Conv1
-    Conv1[Conv2D 1x1] --> CrossAttn
-  
-    %% 交叉注意力分支
-    ProjText[文本投影 W_k/W_v] --> CrossAttn
-    Conv2[Conv2D 1x1] --> Merge
-    CrossAttn[交叉注意力层] --> Merge
-  
-    %% 残差连接
-    Input --> Conv2
-    Merge[特征合并] --> LayerNorm
-    LayerNorm[LayerNorm] --> Output[输出特征图 h_out]</pre>
-<ul>
-<li><code>DecoderAttentionBlock2D</code> 结构示意</li>
-</ul>
-<pre class="mermaid">graph TD
-    X[("Input x<br>Shape: 1,512,32,32")] --> Norm["Normalize (GroupNorm)<br>Output: 1,512,32,32"]
-  
-    Norm --> Q["Q Conv2d(1x1)<br>Output: 1,512,32,32"]
-    Norm --> K["K Conv2d(1x1)<br>Output: 1,512,32,32"]
-    Norm --> V["V Conv2d(1x1)<br>Output: 1,512,32,32"]
-  
-    Q --> ReshapeQ["Reshape & Permute<br>1,512,32,32 → 1,1024,512"]
-    K --> ReshapeK["Reshape<br>1,512,32,32 → 1,512,1024"]
-  
-    ReshapeQ --> MatmulQK["Matmul(Q,K)<br>1,1024,512 × 1,512,1024 → 1,1024,1024"]
-    ReshapeK --> MatmulQK
-  
-    MatmulQK --> Scale["Scale (×1/√512)<br>1,1024,1024"]
-    Scale --> Softmax["Softmax<br>1,1024,1024"]
-  
-    V --> ReshapeV["Reshape<br>1,512,32,32 → 1,512,1024"]
-    Softmax --> PermuteSoftmax["Permute<br>1,1024,1024 → 1,1024,1024"]
-  
-    ReshapeV --> MatmulVW["Matmul(V, Softmax)<br>1,512,1024 × 1,1024,1024 → 1,512,1024"]
-    PermuteSoftmax --> MatmulVW
-  
-    MatmulVW --> ReshapeOut["Reshape<br>1,512,1024 → 1,512,32,32"]
-  
-    ReshapeOut --> ProjOut["Proj_out Conv2d(1x1)<br>1,512,32,32"]
-    ProjOut --> Add["Add (x + h_)<br>1,512,32,32"]
-  
-    X --> Add
-    Add --> Output[("Final Output<br>1,512,32,32")]</pre>
-<ul>
-<li>下面附上 <code>Conditioning UNet block</code> 的实现代码，可以看出非常优雅：</li>
-</ul>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> torch</span><br><span class="line"><span class="keyword">import</span> torch.nn <span class="keyword">as</span> nn</span><br><span class="line"><span class="keyword">import</span> torch.nn.functional <span class="keyword">as</span> F</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Attention</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, in_dim, context_dim=<span class="literal">None</span></span>):</span></span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        self.to_q = nn.Linear(in_dim, in_dim, bias=<span class="literal">False</span>)</span><br><span class="line">        self.to_k = nn.Linear(</span><br><span class="line">            context_dim <span class="keyword">if</span> context_dim <span class="keyword">else</span> in_dim, in_dim, bias=<span class="literal">False</span></span><br><span class="line">        )</span><br><span class="line">        self.to_v = nn.Linear(</span><br><span class="line">            context_dim <span class="keyword">if</span> context_dim <span class="keyword">else</span> in_dim, in_dim, bias=<span class="literal">False</span></span><br><span class="line">        )</span><br><span class="line">        self.to_out = nn.Sequential(nn.Linear(in_dim, in_dim), nn.Dropout(<span class="number">0.0</span>))</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">self, x, context=<span class="literal">None</span></span>):</span></span><br><span class="line">        q = self.to_q(x)</span><br><span class="line">        k = self.to_k(context <span class="keyword">if</span> context <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span> <span class="keyword">else</span> x)</span><br><span class="line">        v = self.to_v(context <span class="keyword">if</span> context <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span> <span class="keyword">else</span> x)</span><br><span class="line"></span><br><span class="line">        attn = torch.einsum(<span class="string">&quot;b i d, b j d -&gt; b i j&quot;</span>, q, k) * (x.shape[-<span class="number">1</span>] ** -<span class="number">0.5</span>)</span><br><span class="line">        attn = F.softmax(attn, dim=-<span class="number">1</span>)</span><br><span class="line">        out = torch.einsum(<span class="string">&quot;b i j, b j d -&gt; b i d&quot;</span>, attn, v)</span><br><span class="line">        <span class="keyword">return</span> self.to_out(out)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">GEGLU</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, in_dim, hidden_dim</span>):</span></span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        self.proj = nn.Linear(in_dim, hidden_dim * <span class="number">2</span>)</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">self, x</span>):</span></span><br><span class="line">        x_proj = self.proj(x)</span><br><span class="line">        x1, x2 = x_proj.chunk(<span class="number">2</span>, dim=-<span class="number">1</span>)</span><br><span class="line">        <span class="keyword">return</span> x1 * F.gelu(x2)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">FeedForward</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, in_dim, hidden_dim</span>):</span></span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        self.net = nn.Sequential(</span><br><span class="line">            GEGLU(in_dim, hidden_dim), nn.Dropout(<span class="number">0.0</span>), nn.Linear(hidden_dim, in_dim)</span><br><span class="line">        )</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">self, x</span>):</span></span><br><span class="line">        <span class="keyword">return</span> self.net(x)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">BasicTransformerBlock</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, dim</span>):</span></span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        self.norm1 = nn.LayerNorm(dim, eps=<span class="number">1e-5</span>)</span><br><span class="line">        self.attn1 = Attention(dim)</span><br><span class="line">        self.norm2 = nn.LayerNorm(dim, eps=<span class="number">1e-5</span>)</span><br><span class="line">        self.attn2 = Attention(dim, context_dim=<span class="number">768</span>)</span><br><span class="line">        self.norm3 = nn.LayerNorm(dim, eps=<span class="number">1e-5</span>)</span><br><span class="line">        self.ff = FeedForward(dim, <span class="number">1280</span>)</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">self, x, context=<span class="literal">None</span></span>):</span></span><br><span class="line">        <span class="comment"># Self attention</span></span><br><span class="line">        x = self.attn1(self.norm1(x)) + x</span><br><span class="line">        <span class="comment"># Cross attention</span></span><br><span class="line">        x = self.attn2(self.norm2(x), context=context) + x</span><br><span class="line">        <span class="comment"># Feed forward</span></span><br><span class="line">        x = self.ff(self.norm3(x)) + x</span><br><span class="line">        <span class="keyword">return</span> x</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Transformer2DModel</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, in_channels</span>):</span></span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        self.norm = nn.GroupNorm(<span class="number">32</span>, in_channels, eps=<span class="number">1e-6</span>, affine=<span class="literal">True</span>)</span><br><span class="line">        self.proj_in = nn.Conv2d(in_channels, in_channels, kernel_size=<span class="number">1</span>)</span><br><span class="line">        self.transformer_blocks = nn.ModuleList([BasicTransformerBlock(in_channels)])</span><br><span class="line">        self.proj_out = nn.Conv2d(in_channels, in_channels, kernel_size=<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">self, x, context=<span class="literal">None</span></span>):</span></span><br><span class="line">        b, c, h, w = x.shape</span><br><span class="line">        x_in = x</span><br><span class="line">        x = self.norm(x)</span><br><span class="line">        x = self.proj_in(x)</span><br><span class="line">        x = x.permute(<span class="number">0</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">1</span>).reshape(b, h * w, c)</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> block <span class="keyword">in</span> self.transformer_blocks:</span><br><span class="line">            x = block(x, context)</span><br><span class="line"></span><br><span class="line">        x = x.reshape(b, h, w, c).permute(<span class="number">0</span>, <span class="number">3</span>, <span class="number">1</span>, <span class="number">2</span>)</span><br><span class="line">        x = self.proj_out(x)</span><br><span class="line">        <span class="keyword">return</span> x + x_in</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">ResnetBlock2D</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, in_channels</span>):</span></span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        self.norm1 = nn.GroupNorm(<span class="number">32</span>, in_channels, eps=<span class="number">1e-5</span>, affine=<span class="literal">True</span>)</span><br><span class="line">        self.conv1 = nn.Conv2d(in_channels, in_channels, kernel_size=<span class="number">3</span>, padding=<span class="number">1</span>)</span><br><span class="line">        self.time_emb_proj = nn.Linear(<span class="number">1280</span>, in_channels)</span><br><span class="line">        self.norm2 = nn.GroupNorm(<span class="number">32</span>, in_channels, eps=<span class="number">1e-5</span>, affine=<span class="literal">True</span>)</span><br><span class="line">        self.dropout = nn.Dropout(<span class="number">0.0</span>)</span><br><span class="line">        self.conv2 = nn.Conv2d(in_channels, in_channels, kernel_size=<span class="number">3</span>, padding=<span class="number">1</span>)</span><br><span class="line">        self.nonlinearity = nn.SiLU()</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">self, x, time_emb=<span class="literal">None</span></span>):</span></span><br><span class="line">        h = x</span><br><span class="line">        h = self.norm1(h)</span><br><span class="line">        h = self.nonlinearity(h)</span><br><span class="line">        h = self.conv1(h)</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> time_emb <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span>:</span><br><span class="line">            time_emb = self.nonlinearity(time_emb)</span><br><span class="line">            time_emb = self.time_emb_proj(time_emb)[:, :, <span class="literal">None</span>, <span class="literal">None</span>]</span><br><span class="line">            h = h + time_emb</span><br><span class="line"></span><br><span class="line">        h = self.norm2(h)</span><br><span class="line">        h = self.nonlinearity(h)</span><br><span class="line">        h = self.dropout(h)</span><br><span class="line">        h = self.conv2(h)</span><br><span class="line">        <span class="keyword">return</span> h + x</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Downsample2D</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, channels</span>):</span></span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        self.conv = nn.Conv2d(channels, channels, kernel_size=<span class="number">3</span>, stride=<span class="number">2</span>, padding=<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">self, x</span>):</span></span><br><span class="line">        <span class="keyword">return</span> self.conv(x)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">CrossAttnDownBlock2D</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, in_channels=<span class="number">320</span></span>):</span></span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        self.attentions = nn.ModuleList(</span><br><span class="line">            [Transformer2DModel(in_channels) <span class="keyword">for</span> _ <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">2</span>)]</span><br><span class="line">        )</span><br><span class="line">        self.resnets = nn.ModuleList([ResnetBlock2D(in_channels) <span class="keyword">for</span> _ <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">2</span>)])</span><br><span class="line">        self.downsamplers = nn.ModuleList([Downsample2D(in_channels)])</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">self, x, context=<span class="literal">None</span>, time_emb=<span class="literal">None</span></span>):</span></span><br><span class="line">        <span class="keyword">for</span> attn, resnet <span class="keyword">in</span> <span class="built_in">zip</span>(self.attentions, self.resnets):</span><br><span class="line">            x = attn(x, context)</span><br><span class="line">            x = resnet(x, time_emb)</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> downsampler <span class="keyword">in</span> self.downsamplers:</span><br><span class="line">            x = downsampler(x)</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> x</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment"># 测试代码</span></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">&quot;__main__&quot;</span>:</span><br><span class="line">    block = CrossAttnDownBlock2D(in_channels=<span class="number">320</span>)</span><br><span class="line">    x = torch.randn(<span class="number">1</span>, <span class="number">320</span>, <span class="number">64</span>, <span class="number">64</span>)</span><br><span class="line">    context = torch.randn(<span class="number">1</span>, <span class="number">77</span>, <span class="number">768</span>)  <span class="comment"># 文本条件，77 个 token 组成的文本序列经过 CLIP 编码成向量 </span></span><br><span class="line">    time_emb = torch.randn(<span class="number">1</span>, <span class="number">1280</span>)  <span class="comment"># 时间嵌入，一个时间步（例如：961）变成一个 enbedding</span></span><br><span class="line"></span><br><span class="line">    output = block(x, context, time_emb)</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">f&quot;输入形状: <span class="subst">&#123;x.shape&#125;</span> -&gt; 输出形状: <span class="subst">&#123;output.shape&#125;</span>&quot;</span>)</span><br><span class="line">    <span class="comment"># 预期输出: torch.Size([1, 320, 32, 32])</span></span><br></pre></td></tr></table></figure>
-<h2 id="thoughts"><a class="markdownIt-Anchor" href="#thoughts"></a> Thoughts</h2>
-<ul>
-<li>论文思路无比清晰，且说服力很强，把很多领域的知识结合起来，真正把图像生成在实用性方面推到了一个新的高度</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1867,20 +1788,20 @@ p_t &amp; \text{if}\ b_t=1 \\
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">162</span>
+          <span class="site-state-item-count">163</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">49</span>
+        <span class="site-state-item-count">50</span>
         <span class="site-state-item-name">categories</span></a>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">99</span>
+        <span class="site-state-item-count">100</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>

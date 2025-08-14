@@ -180,6 +180,171 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2023/08/16/BEVFormer-Learning-Bird%E2%80%99s-Eye-View-Representation-from-Multi-Camera-Images-via-Spatiotemporal-Transformers/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/08/16/BEVFormer-Learning-Bird%E2%80%99s-Eye-View-Representation-from-Multi-Camera-Images-via-Spatiotemporal-Transformers/" class="post-title-link" itemprop="url">BEVFormer: Learning Bird’s-Eye-View Representation from Multi-Camera Images via Spatiotemporal Transformers</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-08-16 12:02:58" itemprop="dateCreated datePublished" datetime="2023-08-16T12:02:58+08:00">2023-08-16</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-03-21 10:13:09" itemprop="dateModified" datetime="2025-03-21T10:13:09+08:00">2025-03-21</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/BEV/" itemprop="url" rel="index"><span itemprop="name">BEV</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2023/08/16/BEVFormer-Learning-Bird%E2%80%99s-Eye-View-Representation-from-Multi-Camera-Images-via-Spatiotemporal-Transformers/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2023/08/16/BEVFormer-Learning-Bird%E2%80%99s-Eye-View-Representation-from-Multi-Camera-Images-via-Spatiotemporal-Transformers/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2203.17270.pdf">https://arxiv.org/pdf/2203.17270.pdf</a></li>
+<li>chinese paper: <a target="_blank" rel="noopener" href="https://drive.google.com/file/d/1dKnD6gUHhBXZ8gT733cIU_A7dHEEzNTP/view?pli=1">https://drive.google.com/file/d/1dKnD6gUHhBXZ8gT733cIU_A7dHEEzNTP/view?pli=1</a></li>
+<li>code: <a target="_blank" rel="noopener" href="https://github.com/fundamentalvision/BEVFormer">https://github.com/fundamentalvision/BEVFormer</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li>传统 <code>BEV</code> 算法中 <code>View Transform</code> 都是通过 <code>LSS</code> 实现 <code>Image View</code> 到 <code>BEV View</code> 的转变，这种视角转换方法依赖于图像视角的深度估计（显式（例如 <code>BEVDepth</code>）或隐式（例如 <code>LSS / BEVDet</code> 等））。</li>
+<li>本文提出一种新的通过时空注意力机制实现的 <code>View Transform</code> 方法，在 <code>Neuscenes</code> 数据集上取得了不错的 <code>3D</code> 目标检测成绩（略差于 <code>BEVDet4D</code>）。</li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<p><img src="https://s2.loli.net/2024/10/09/wkgV4SOFjJtncAX.png" alt="bevformer.png" /></p>
+<h3 id="整体架构"><a class="markdownIt-Anchor" href="#整体架构"></a> 整体架构</h3>
+<h4 id="1-输入"><a class="markdownIt-Anchor" href="#1-输入"></a> 1. 输入</h4>
+<ul>
+<li>输入包含两部分，分别是：
+<ul>
+<li>环视图（<code>6</code> 张）</li>
+<li><code>BEV Queries</code>（<code>shape = [num_voxel, dim]</code>）</li>
+<li><code>History BEV Feature</code>（上一帧的 <code>BEV Feature</code> 输出，<code>shape = [num_voxel, dim]</code>）</li>
+</ul>
+</li>
+</ul>
+<h4 id="2-输出"><a class="markdownIt-Anchor" href="#2-输出"></a> 2. 输出</h4>
+<ul>
+<li>输出为当前帧的 <code>BEV Feature</code>（<code>shape = [num_voxel, dim]</code>），记作 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>B</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">B_t</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.05017em;">B</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2805559999999999em;"><span style="top:-2.5500000000000003em;margin-left:-0.05017em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span></li>
+<li>暂时不考虑任务头</li>
+</ul>
+<h4 id="3-网络模块"><a class="markdownIt-Anchor" href="#3-网络模块"></a> 3. 网络模块</h4>
+<ol>
+<li>图像特征提取
+<ul>
+<li><code>6</code> 张图片单独做 <code>CNN base</code> 特征提取，输出记作 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>F</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">F_t</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">F</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2805559999999999em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span></li>
+</ul>
+</li>
+<li>时序信息融合：
+<ul>
+<li>将构造的 <code>BEV Queries</code>（记作 <code>Q</code>），和上一帧的 <code>BEV Feature</code>（记作 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>B</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></mrow><annotation encoding="application/x-tex">B_{t-1}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.891661em;vertical-align:-0.208331em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.05017em;">B</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.301108em;"><span style="top:-2.5500000000000003em;margin-left:-0.05017em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">t</span><span class="mbin mtight">−</span><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.208331em;"><span></span></span></span></span></span></span></span></span></span>）做 <code>Self-Attention</code></li>
+<li>其中 <code>Q</code> 作为 <code>Query</code>，<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>B</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></mrow><annotation encoding="application/x-tex">B_{t-1}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.891661em;vertical-align:-0.208331em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.05017em;">B</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.301108em;"><span style="top:-2.5500000000000003em;margin-left:-0.05017em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">t</span><span class="mbin mtight">−</span><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.208331em;"><span></span></span></span></span></span></span></span></span></span> 作为 <code>Key / value</code>，做 <code>Attention</code> 运算</li>
+<li>虽然这里的 <code>Query / Key / Value</code> 并不同源，但依然被称为是 <code>Self-Attention</code> 而不是 <code>Cross-Attention</code>，是因为 <code>Q</code> 和 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>B</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></mrow><annotation encoding="application/x-tex">B_{t-1}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.891661em;vertical-align:-0.208331em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.05017em;">B</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.301108em;"><span style="top:-2.5500000000000003em;margin-left:-0.05017em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">t</span><span class="mbin mtight">−</span><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.208331em;"><span></span></span></span></span></span></span></span></span></span> 都属于 <code>BEV</code> 语义</li>
+<li>输出记作 <code>Q'</code></li>
+</ul>
+</li>
+<li>空间交叉注意力（<strong>视角转换</strong>）
+<ul>
+<li>此步骤是本文的重点，<code>BEVFormer</code> 通过这一步将透视图特征转换为俯视图特征</li>
+<li>输入为:
+<ul>
+<li><code>Q'</code></li>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>F</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">F_t</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">F</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2805559999999999em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span></li>
+</ul>
+</li>
+<li>做 <code>Cross-Attention</code> 运算，其中：
+<ul>
+<li><code>Q'</code> 作为 <code>Queries</code></li>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>F</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">F_t</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">F</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2805559999999999em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> 作为 <code>Key / Value</code></li>
+</ul>
+</li>
+<li>用预设的无意义且可学习的 <code>BEV Queries</code> 去查询图片总体特征，得到 <code>BEV Feature</code> 输出，记作 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>B</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">B_t</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.05017em;">B</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2805559999999999em;"><span style="top:-2.5500000000000003em;margin-left:-0.05017em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span></li>
+</ul>
+</li>
+<li>任务相关头
+<ul>
+<li>输入为：<code>BEV Feature</code></li>
+<li>输出为：<code>BEV</code> 视角下的检测 / 分割等任务预测结果</li>
+<li>模型结构：可以是 <code>CNN base</code> 也可以是 <code>Transformer base</code> 的</li>
+</ul>
+</li>
+</ol>
+<ul>
+<li>以上提到的所有 <code>Attention</code> 过程都需要额外添加 <code>Position embedding</code></li>
+</ul>
+<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
+<ul>
+<li>过程并不复杂，只要看过经典的 <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2005.12872"><code>DETR</code></a>，都熟悉这种套路：<strong>预设一个无意义的（随机初始化但可学习） <code>pattern</code> 序列作为 <code>Query</code> 去查询 <code>image features</code>，得到有意义的结果（或者说是可监督的结果）</strong></li>
+<li>后续的部分工作对其改进是：<strong>将随机初始化预设的 <code>Query</code> 有意义化（例如通过一个轻量化 <code>2D</code> 检测头预检测，得到 <code>proposal</code> 并编码为 <code>Query</code>）</strong></li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2023/08/06/BEVDepth-Acquisition-of-Reliable-Depth-for-Multi-view-3D-Object-Detection/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1291,144 +1456,6 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2023/05/25/Segment-Anything/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/05/25/Segment-Anything/" class="post-title-link" itemprop="url">Segment Anything</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-05-25 12:34:05" itemprop="dateCreated datePublished" datetime="2023-05-25T12:34:05+08:00">2023-05-25</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-03-21 10:13:09" itemprop="dateModified" datetime="2025-03-21T10:13:09+08:00">2025-03-21</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Semantic-Segmentation/" itemprop="url" rel="index"><span itemprop="name">Semantic Segmentation</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2023/05/25/Segment-Anything/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2023/05/25/Segment-Anything/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
-<ul>
-<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2304.02643.pdf">https://arxiv.org/pdf/2304.02643.pdf</a></li>
-<li>code: <a target="_blank" rel="noopener" href="https://github.com/facebookresearch/segment-anything">https://github.com/facebookresearch/segment-anything</a></li>
-<li>demo: <a target="_blank" rel="noopener" href="https://segment-anything.com/demo">https://segment-anything.com/demo</a></li>
-</ul>
-<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
-<ul>
-<li>本文提出一种类似 <code>chatGPT</code> 的交互式 <code>Zero-shot</code> 分割算法，用户给出一个 <code>prompt</code>（支持 point / box / mask / text），模型会根据 <code>Prompt</code> 语义完成分割，无需在特定分割任务数据上 <code>fine-tuning</code>（类似于 <code>GPT2</code> 和之后的系列模型）</li>
-<li>本文一个非常重要的理念是 <code>Data Centric</code>，即以数据为中心而不是以模型为中心，这一点和 <code>GPT</code> 系列也不谋而合
-<ul>
-<li>传统视觉算法是在固定的数据集上修改模型结构实现模型效果的提升，实际是以模型为中心</li>
-<li>数据为中心的算法通常固定模型结构，通过例如 <code>RLHF（reinforcement learning from human feedback）</code> 的方法，使用模型辅助标注员高效标注大量数据（11 亿个 mask 区域），重复迭代提高效果</li>
-</ul>
-</li>
-<li>模型本身由三部分组成：
-<ul>
-<li><code>image_encoder</code>：提取图片特征，使用的是 <code>ViT</code> 模型，在交互过程中只需要推理一次</li>
-<li><code>prompt_encoder</code>： 提取 <code>prompt</code> 特征，将人的输入（例如点或框）编码到特征空间</li>
-<li><code>mask_decoder</code>： 输入为图片特征和 <code>prompt</code> 特征，融合后输出分割 <code>mask</code></li>
-</ul>
-</li>
-</ul>
-<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
-<h3 id="任务定义"><a class="markdownIt-Anchor" href="#任务定义"></a> 任务定义</h3>
-<p><img src="https://s2.loli.net/2023/05/25/VG4amYwQoBSdZy6.png" alt="sam3.png" /></p>
-<blockquote>
-<p>理论上支持 point / box / mask / text，但 demo 和 code 都只包含了 point / box / mask</p>
-</blockquote>
-<h3 id="模型结构"><a class="markdownIt-Anchor" href="#模型结构"></a> 模型结构</h3>
-<p><img src="https://s2.loli.net/2023/05/25/1sqlX4fCx7dJzGB.png" alt="sam4.png" /></p>
-<blockquote>
-<p>image encoder 是 VIT<br />
-prompt encoder 对于 box / point prompt 只是简单的位置编码；对于 mask 是几层简单的卷积<br />
-lightweight mask decoder 是轻量级 transformer</p>
-</blockquote>
-<h3 id="data-centric"><a class="markdownIt-Anchor" href="#data-centric"></a> Data centric</h3>
-<p><img src="https://s2.loli.net/2023/05/25/Ih4ijawrJHqYBxX.png" alt="sam2.png" /></p>
-<blockquote>
-<p>模型为中心和数据为中心的对比</p>
-</blockquote>
-<h3 id="使用效果"><a class="markdownIt-Anchor" href="#使用效果"></a> 使用效果</h3>
-<p><img src="https://s2.loli.net/2023/05/25/zQ5CE9bZKotV1wB.png" alt="sam1.png" /></p>
-<blockquote>
-<p>图中的框为用户输入的 <code>prompt</code>，模型会根据 <code>prompt</code> 输出分割结果</p>
-</blockquote>
-<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
-<ul>
-<li><code>Data centric</code> 感觉一定是未来，但形式一定不会以 <code>RLHF</code> 形式存在，而更多的以自监督形式存在</li>
-<li><code>prompt</code> 未来会取代 <code>fine-tuning</code> 这个词</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1497,20 +1524,20 @@ lightweight mask decoder 是轻量级 transformer</p>
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">162</span>
+          <span class="site-state-item-count">163</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">49</span>
+        <span class="site-state-item-count">50</span>
         <span class="site-state-item-name">categories</span></a>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">99</span>
+        <span class="site-state-item-count">100</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
