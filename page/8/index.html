@@ -180,6 +180,131 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/07/30/KV-Cache-Transformer/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2024/07/30/KV-Cache-Transformer/" class="post-title-link" itemprop="url">KV Cache Transformer</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-07-30 12:23:17" itemprop="dateCreated datePublished" datetime="2024-07-30T12:23:17+08:00">2024-07-30</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-03-21 10:13:09" itemprop="dateModified" datetime="2025-03-21T10:13:09+08:00">2025-03-21</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Transformer/" itemprop="url" rel="index"><span itemprop="name">Transformer</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2024/07/30/KV-Cache-Transformer/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2024/07/30/KV-Cache-Transformer/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <code>kv cache</code> 是一种生成式大模型加速的方法，没有原创的论文，比较早的提到这项技术的论文是：<a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2211.05102">《Efficient Scaling Transformer Inference》</a></li>
+<li>code: <a target="_blank" rel="noopener" href="https://github.com/huggingface/transformers/blob/f0bc49e7f61f74f055c47ad40e6010f57eed0b0b/src/transformers/models/gpt2/modeling_gpt2.py#L290">https://github.com/huggingface/transformers/blob/f0bc49e7f61f74f055c47ad40e6010f57eed0b0b/src/transformers/models/gpt2/modeling_gpt2.py#L290</a> <code>transformers repo</code> 中的 <code>GPT2</code> 模型代码中包含 <code>use_cache</code> 和 <code>layer_past</code> 就是 <code>kv cache</code> 的实现接口</li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li><code>GPT like</code> 大语言模型目前在生成式大模型领域占了主导地位，这些模型每一次推理只得到一个 <code>token</code>，下一次推理会将得到的 <code>token</code> 放到上一次输入 <code>token</code> 序列的末尾作为新输入，直到达到 <code>max_seq_length</code> 或输出的 <code>token</code> 表示 <code>end of sequence</code></li>
+<li>这种 <code>GPT like</code> 的生成机制意味着每次推理需要将之前所有 <code>token</code> 再重复算一次，序列长度越长，计算量越大，耗时越长</li>
+<li><code>KV Cache</code> 通过缓存上一次推理过程中每一层 <code>transformer</code> 的 <code>key / value</code>，将推理的时间复杂度从 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="script">O</mi><mo stretchy="false">(</mo><msup><mi>n</mi><mn>2</mn></msup><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\mathcal{O}(n^2)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.064108em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathcal" style="margin-right:0.02778em;">O</span></span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">n</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141079999999999em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span> 降低到了 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="script">O</mi><mo stretchy="false">(</mo><mi>n</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\mathcal{O}(n)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathcal" style="margin-right:0.02778em;">O</span></span><span class="mopen">(</span><span class="mord mathnormal">n</span><span class="mclose">)</span></span></span></span>，且计算结果完全等价</li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<ul>
+<li>可以在本时间步使用上一个时间步缓存的 <code>key / value</code> 的必要理论依据是：
+<ol>
+<li>每个时间步输入的 <code>token</code> 序列除最后一个 <code>token</code> 之外都和上一个时间步输入相同</li>
+<li><code>attention mask</code> 是下三角矩阵</li>
+<li>对 <code>attention score</code> 矩阵做 <code>softmax</code> 是逐行的而不是全局的或逐列的</li>
+<li>除 <code>self-attention</code> 操作之外，<code>GPT like LLM</code> 的其他层（<code>layer norm</code>, <code>gelu</code>, <code>FFN</code> 等）对 <code>seq_len</code> 维度来说都是 <code>element-wise</code> 的，且在推理阶段是静态的</li>
+</ol>
+</li>
+<li>以上四个理论依据在 <code>GPT like</code> 模型中都满足，下面解释四个条件为什么是必不可少的：
+<ol>
+<li>如果上面第一个条件不满足，那么每次推理都是新的内容，缓存将毫无意义</li>
+<li>下三角矩阵和逐行做 <code>softmax</code> 是必不可少的，随着 <code>token</code> 长度加一，每一层的 <code>attention score</code> 矩阵都会在最右和最下分别加一列和一行，由于下三角的存在，除最后一行外，其他每一行的值都不会改变（新加的一列不参与计算），而且逐行做，新加的一列也不影响其他行</li>
+<li><code>self-attention</code> 是 <code>GPT like LLM</code> 中唯一一个在 <code>token feature</code> 间做信息融合的算子，其他算子都是在 <code>token feature</code> 内做且都是静态操作，所以随着序列长度变长，之前的序列特征都是静态的</li>
+</ol>
+</li>
+</ul>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> torch</span><br><span class="line"><span class="keyword">import</span> torch.nn <span class="keyword">as</span> nn</span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">SelfAttention</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, dim, layer_idx</span>):</span></span><br><span class="line">        <span class="built_in">super</span>(SelfAttention, self).__init__()</span><br><span class="line">        self.dim = dim</span><br><span class="line">        self.layer_idx = layer_idx</span><br><span class="line">        self.query = nn.Linear(dim, dim)</span><br><span class="line">        self.key = nn.Linear(dim, dim)</span><br><span class="line">        self.value = nn.Linear(dim, dim)</span><br><span class="line">        self.softmax = nn.Softmax(dim=-<span class="number">1</span>)  <span class="comment"># 重点是这里，逐行进行 softmax，而不是全局</span></span><br><span class="line">        self.dropout = nn.Dropout(<span class="number">0.1</span>)</span><br><span class="line">        self.layer_norm = nn.LayerNorm(dim)</span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">self, x, attn_mask=<span class="literal">None</span></span>):</span></span><br><span class="line">        q = self.query(x)</span><br><span class="line">        k = self.key(x)</span><br><span class="line">        v = self.value(x)</span><br><span class="line">        scores = torch.matmul(q, k.transpose(-<span class="number">2</span>, -<span class="number">1</span>))</span><br><span class="line">        scores = scores / torch.sqrt(torch.tensor(self.dim).<span class="built_in">float</span>())</span><br><span class="line">        <span class="keyword">if</span> attn_mask <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span>:</span><br><span class="line">            scores = scores.masked_fill(attn_mask == <span class="number">0</span>, <span class="built_in">float</span>(<span class="string">&quot;-inf&quot;</span>))</span><br><span class="line">        attention_weights = self.softmax(scores)</span><br><span class="line">        attention_weights = self.dropout(attention_weights)</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;layer_idx:&quot;</span>, self.layer_idx)</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;q.sum(-1) =&quot;</span>, q.squeeze().<span class="built_in">abs</span>().<span class="built_in">sum</span>(-<span class="number">1</span>).tolist())</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;k.sum(-1) =&quot;</span>, k.squeeze().<span class="built_in">abs</span>().<span class="built_in">sum</span>(-<span class="number">1</span>).tolist())</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;v.sum(-1) =&quot;</span>, v.squeeze().<span class="built_in">abs</span>().<span class="built_in">sum</span>(-<span class="number">1</span>).tolist())</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;attention_weights =\n&quot;</span>, attention_weights.squeeze())</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;#&quot;</span> * <span class="number">100</span>)</span><br><span class="line">        output = torch.matmul(attention_weights, v)</span><br><span class="line">        output = self.layer_norm(output + x)</span><br><span class="line">        <span class="keyword">return</span> output</span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">GPTModel</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, dim, num_layers</span>):</span></span><br><span class="line">        <span class="built_in">super</span>(GPTModel, self).__init__()</span><br><span class="line">        self.dim = dim</span><br><span class="line">        self.num_layers = num_layers</span><br><span class="line">        self.attentions = nn.ModuleList(</span><br><span class="line">            [SelfAttention(dim, i) <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(num_layers)]</span><br><span class="line">        )</span><br><span class="line">        self.linear1 = nn.Linear(dim, dim)</span><br><span class="line">        self.linear2 = nn.Linear(dim, dim)</span><br><span class="line">        self.dropout = nn.Dropout(<span class="number">0.1</span>)</span><br><span class="line">        self.layer_norm = nn.LayerNorm(dim)</span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">self, x, attn_mask=<span class="literal">None</span></span>):</span></span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(self.num_layers):</span><br><span class="line">            x = x + self.attentions[i](x, attn_mask=attn_mask)</span><br><span class="line">            x = self.layer_norm(x)</span><br><span class="line">            x = x + self.linear2(self.dropout(torch.relu(self.linear1(x))))</span><br><span class="line">            x = self.layer_norm(x)</span><br><span class="line">        <span class="keyword">return</span> x</span><br><span class="line"><span class="comment"># Example usage</span></span><br><span class="line">model = GPTModel(dim=<span class="number">64</span>, num_layers=<span class="number">2</span>)</span><br><span class="line">model.<span class="built_in">eval</span>()</span><br><span class="line">input_data = torch.randn(</span><br><span class="line">    <span class="number">1</span>, <span class="number">3</span>, <span class="number">64</span></span><br><span class="line">)  <span class="comment"># Example input data with shape (batch_size, sequence_length, dim)</span></span><br><span class="line">attn_mask = torch.tril(torch.ones(<span class="number">3</span>, <span class="number">3</span>))  <span class="comment"># Lower triangular attention mask</span></span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;time step 1:&quot;</span>)</span><br><span class="line">output = model(input_data, attn_mask=attn_mask)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;\n\ntime step 2:&quot;</span>)</span><br><span class="line">input_data = torch.cat((input_data, torch.randn(<span class="number">1</span>, <span class="number">1</span>, <span class="number">64</span>)), <span class="number">1</span>)</span><br><span class="line">attn_mask = torch.tril(torch.ones(<span class="number">4</span>, <span class="number">4</span>))  <span class="comment"># Lower triangular attention mask</span></span><br><span class="line">output = model(input_data, attn_mask=attn_mask)</span><br><span class="line"><span class="comment"># 输出结果：</span></span><br><span class="line"><span class="comment"># time step 1:</span></span><br><span class="line"><span class="comment"># layer_idx: 0</span></span><br><span class="line"><span class="comment"># q.sum(-1) = [31.20478057861328, 34.04328536987305, 33.6611328125]</span></span><br><span class="line"><span class="comment"># k.sum(-1) = [31.446550369262695, 29.15508460998535, 29.265644073486328]</span></span><br><span class="line"><span class="comment"># v.sum(-1) = [30.789640426635742, 33.80058670043945, 32.4859619140625]</span></span><br><span class="line"><span class="comment"># attention_weights =</span></span><br><span class="line"><span class="comment">#  tensor([[1.0000, 0.0000, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.6760, 0.3240, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.2452, 0.4188, 0.3360]], grad_fn=&lt;SqueezeBackward0&gt;)</span></span><br><span class="line"><span class="comment"># ####################################################################################################</span></span><br><span class="line"><span class="comment"># layer_idx: 1</span></span><br><span class="line"><span class="comment"># q.sum(-1) = [30.214162826538086, 34.45262145996094, 26.357181549072266]</span></span><br><span class="line"><span class="comment"># k.sum(-1) = [29.88446617126465, 31.186325073242188, 31.727235794067383]</span></span><br><span class="line"><span class="comment"># v.sum(-1) = [23.99290657043457, 35.66062545776367, 33.28850173950195]</span></span><br><span class="line"><span class="comment"># attention_weights =</span></span><br><span class="line"><span class="comment">#  tensor([[1.0000, 0.0000, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.3310, 0.6690, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.4525, 0.3270, 0.2204]], grad_fn=&lt;SqueezeBackward0&gt;)</span></span><br><span class="line"><span class="comment"># ####################################################################################################</span></span><br><span class="line"><span class="comment"># time step 2:</span></span><br><span class="line"><span class="comment"># layer_idx: 0</span></span><br><span class="line"><span class="comment"># q.sum(-1) = [31.20478057861328, 34.04328536987305, 33.6611328125, 27.077472686767578]</span></span><br><span class="line"><span class="comment"># k.sum(-1) = [31.446550369262695, 29.15508460998535, 29.265644073486328, 27.211992263793945]</span></span><br><span class="line"><span class="comment"># v.sum(-1) = [30.789640426635742, 33.80058670043945, 32.4859619140625, 29.695066452026367]</span></span><br><span class="line"><span class="comment"># attention_weights =</span></span><br><span class="line"><span class="comment">#  tensor([[1.0000, 0.0000, 0.0000, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.6760, 0.3240, 0.0000, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.2452, 0.4188, 0.3360, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.1818, 0.2616, 0.2813, 0.2752]], grad_fn=&lt;SqueezeBackward0&gt;)</span></span><br><span class="line"><span class="comment"># ####################################################################################################</span></span><br><span class="line"><span class="comment"># layer_idx: 1</span></span><br><span class="line"><span class="comment"># q.sum(-1) = [30.214162826538086, 34.45262145996094, 26.357181549072266, 29.209003448486328]</span></span><br><span class="line"><span class="comment"># k.sum(-1) = [29.88446617126465, 31.186325073242188, 31.727235794067383, 26.988731384277344]</span></span><br><span class="line"><span class="comment"># v.sum(-1) = [23.99290657043457, 35.66062545776367, 33.28850173950195, 27.92920684814453]</span></span><br><span class="line"><span class="comment"># attention_weights =</span></span><br><span class="line"><span class="comment">#  tensor([[1.0000, 0.0000, 0.0000, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.3310, 0.6690, 0.0000, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.4525, 0.3270, 0.2204, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.2740, 0.0698, 0.4069, 0.2492]], grad_fn=&lt;SqueezeBackward0&gt;)</span></span><br><span class="line"><span class="comment"># ####################################################################################################</span></span><br></pre></td></tr></table></figure>
+<blockquote>
+<p>可以看到随着时间步的推移，每一层的 <code>x / q / k / v / attention weight</code> 的前 <code>n-1</code> 个 <code>token feature</code> 都和上一个时间步相同，因此可以缓存</p>
+</blockquote>
+<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
+<ul>
+<li>由于在 <code>t</code> 时间步，需要计算 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>Q</mi><mi>t</mi></msup></mrow><annotation encoding="application/x-tex">Q^t</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.9879959999999999em;vertical-align:-0.19444em;"></span><span class="mord"><span class="mord mathnormal">Q</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.7935559999999999em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span></span></span></span></span></span></span></span> 和 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>K</mi><mrow><mn>0</mn><mo separator="true">,</mo><mn>1</mn><mo separator="true">,</mo><mi mathvariant="normal">.</mi><mi mathvariant="normal">.</mi><mi mathvariant="normal">.</mi><mo separator="true">,</mo><mi>t</mi></mrow></msup><mo separator="true">,</mo><mtext> </mtext><msup><mi>V</mi><mrow><mn>0</mn><mo separator="true">,</mo><mn>1</mn><mo separator="true">,</mo><mi mathvariant="normal">.</mi><mi mathvariant="normal">.</mi><mi mathvariant="normal">.</mi><mo separator="true">,</mo><mi>t</mi></mrow></msup></mrow><annotation encoding="application/x-tex">K^{0,1,...,t},\ V^{0,1,...,t}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.008548em;vertical-align:-0.19444em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.07153em;">K</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141079999999999em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">0</span><span class="mpunct mtight">,</span><span class="mord mtight">1</span><span class="mpunct mtight">,</span><span class="mord mtight">.</span><span class="mord mtight">.</span><span class="mord mtight">.</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight">t</span></span></span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace"> </span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.22222em;">V</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141079999999999em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">0</span><span class="mpunct mtight">,</span><span class="mord mtight">1</span><span class="mpunct mtight">,</span><span class="mord mtight">.</span><span class="mord mtight">.</span><span class="mord mtight">.</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight">t</span></span></span></span></span></span></span></span></span></span></span></span> 之间的内积，所以需要换成 <code>key / value</code> 的缓存，而不是 <code>query</code> 的缓存</li>
+<li><code>paged attention</code> 是通过类似内存分页管理的方式管理 <code>kv cache</code> 的一种方法，动态分配显存，速度更快，支持更高 <code>batch</code></li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/07/18/FlashAttention-2-Faster-Attention-with-Better-Parallelism-and-Work-Partitioning/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -3592,186 +3717,6 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/01/10/[WIP]Nerf/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2024/01/10/%5BWIP%5DNerf/" class="post-title-link" itemprop="url">Nerf</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-01-10 09:10:21" itemprop="dateCreated datePublished" datetime="2024-01-10T09:10:21+08:00">2024-01-10</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-03-21 10:13:09" itemprop="dateModified" datetime="2025-03-21T10:13:09+08:00">2025-03-21</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Nerf/" itemprop="url" rel="index"><span itemprop="name">Nerf</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2024/01/10/%5BWIP%5DNerf/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2024/01/10/%5BWIP%5DNerf/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="1-三维重建流程"><a class="markdownIt-Anchor" href="#1-三维重建流程"></a> 1. 三维重建流程</h1>
-<h2 id="11-运动恢复结构structure-from-motion-sfm"><a class="markdownIt-Anchor" href="#11-运动恢复结构structure-from-motion-sfm"></a> 1.1 运动恢复结构（Structure from Motion, SfM）</h2>
-<ul>
-<li>输入：
-<ul>
-<li>多视角图像</li>
-<li>相机内参</li>
-</ul>
-</li>
-<li>输出：
-<ul>
-<li>稀疏三维点云</li>
-<li>相机外参（位姿）</li>
-</ul>
-</li>
-<li>主要过程：
-<ul>
-<li>特征提取： 从图像中提取出能够用于匹配的特征点，如角点、边缘等。</li>
-<li>特征匹配： 在图像序列中匹配相对应的特征点，以建立图像之间的对应关系。</li>
-<li>相机定位： 利用特征匹配信息，估计相机在不同图像之间的运动，即相机的位姿。</li>
-<li>三维重建： 基于相机的位姿估计和特征点的视差信息，计算出场景中物体的三维坐标。</li>
-</ul>
-</li>
-</ul>
-<h2 id="12-多立体视觉multi-view-stereo-mvs"><a class="markdownIt-Anchor" href="#12-多立体视觉multi-view-stereo-mvs"></a> 1.2 多立体视觉（Multi-View Stereo, MVS）</h2>
-<ul>
-<li>输入：
-<ul>
-<li>多视角图像</li>
-<li>相机内外参</li>
-<li>稀疏三维点云</li>
-</ul>
-</li>
-<li>输出：
-<ul>
-<li>稠密三维点云</li>
-</ul>
-</li>
-<li>主要过程：
-<ul>
-<li>图像对齐： 通过相机定位和特征匹配，将多个图像对齐，确保它们在同一坐标系下。</li>
-<li>深度图生成： 对每个像素估计其在场景中的深度或距离。这可以通过多个视角的图像之间的视差信息来实现，视差越大表示物体离</li>
-<li>机越近。</li>
-<li>点云重建： 利用深度图，将每个像素映射到三维空间中，形成一个点云表示物体的表面。</li>
-</ul>
-</li>
-</ul>
-<h2 id="13-表面重建"><a class="markdownIt-Anchor" href="#13-表面重建"></a> 1.3 表面重建</h2>
-<ul>
-<li>输入：稠密三维点云</li>
-<li>输出：场景/模型的三角网格（三角面片）</li>
-<li>主要过程：
-<ul>
-<li>网格生成： 将点云转换为更为紧凑和结构化的表示，通常是三角网格。</li>
-</ul>
-</li>
-<li>表面模型通常可导入可视化软件，也可进行物理仿真</li>
-</ul>
-<h2 id="14-纹理重建"><a class="markdownIt-Anchor" href="#14-纹理重建"></a> 1.4 纹理重建</h2>
-<ul>
-<li>输入：
-<ul>
-<li>多视角图像</li>
-<li>相机内外参</li>
-</ul>
-</li>
-<li>输出：
-<ul>
-<li>场景/模型的纹理图像</li>
-</ul>
-</li>
-<li>主要过程：
-<ul>
-<li>纹理映射（Texture Mapping）： 将从图像中捕捉到的纹理信息映射到三维模型的表面上。这可以通过将图像中的颜色信息映射相应的三维模型表面上的顶点或像素来实现。这样，模型就能够呈现出与真实世界相似的外观。</li>
-<li>相邻像素插值： 由于模型表面上的顶点或像素数量有限，需要进行插值操作，以在整个表面上创建平滑和连续的纹理。这通常涉及对相邻像素之间的颜色进行插值，以便在纹理映射的过程中产生平滑的过渡效果。</li>
-<li>去除失真和伸缩： 在将图像纹理映射到三维模型时，可能会发生一些失真和伸缩。为了保持模型的准确性和真实性，需要进行一些校正步骤，以修复这些失真。</li>
-</ul>
-</li>
-<li>纹理重建后即可可视化</li>
-</ul>
-<h1 id="2-神经辐射场neural-radiance-fields-nerf"><a class="markdownIt-Anchor" href="#2-神经辐射场neural-radiance-fields-nerf"></a> 2. 神经辐射场（Neural Radiance Fields, NeRF）</h1>
-<ul>
-<li>将三维重建流程存储在 <strong>三角面片和纹理信息</strong> 的三维信息用神经网络拟合（隐式建模）。</li>
-<li>缺点是无法进行物理仿真。</li>
-<li>优点：
-<ul>
-<li>ppl 简单</li>
-<li>无空洞</li>
-<li>高逼真</li>
-</ul>
-</li>
-</ul>
-<h1 id="wip"><a class="markdownIt-Anchor" href="#wip"></a> WIP</h1>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -3840,7 +3785,7 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">164</span>
+          <span class="site-state-item-count">165</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -3853,7 +3798,7 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">101</span>
+        <span class="site-state-item-count">102</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
