@@ -180,6 +180,176 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2025/01/06/%E5%A4%A7%E6%A8%A1%E5%9E%8BRLHF%E5%85%A5%E9%97%A8/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2025/01/06/%E5%A4%A7%E6%A8%A1%E5%9E%8BRLHF%E5%85%A5%E9%97%A8/" class="post-title-link" itemprop="url">大模型RLHF入门</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-01-06 17:32:12" itemprop="dateCreated datePublished" datetime="2025-01-06T17:32:12+08:00">2025-01-06</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-09-05 13:58:03" itemprop="dateModified" datetime="2025-09-05T13:58:03+08:00">2025-09-05</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/LLM/" itemprop="url" rel="index"><span itemprop="name">LLM</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2025/01/06/%E5%A4%A7%E6%A8%A1%E5%9E%8BRLHF%E5%85%A5%E9%97%A8/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2025/01/06/%E5%A4%A7%E6%A8%A1%E5%9E%8BRLHF%E5%85%A5%E9%97%A8/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li>本文是大模型RLHF的入门教程，目的是用尽可能简单的方式介绍大模型RLHF的基本概念和原理，不涉及过多实现细节。</li>
+</ul>
+<h2 id="什么是-rlhf"><a class="markdownIt-Anchor" href="#什么是-rlhf"></a> 什么是 RLHF</h2>
+<ul>
+<li><code>RLHF</code> 是 <code>Reinforcement Learning with Human Feedback (人类反馈强化学习)</code> 的缩写，目的是在强化学习任务中引入人类反馈，以提高强化学习模型的性能</li>
+<li>大多数分类体系下，<code>SFT</code> 属于 <code>RLHF</code> 中的一个步骤，但本文不讨论 <code>SFT</code>，假设起点模型已经做好了 <code>pre-train</code> 和 <code>SFT</code></li>
+<li><code>RLHF</code> 的目标是：
+<ul>
+<li><code>helpful</code></li>
+<li><code>honst</code></li>
+<li><code>harmless</code></li>
+</ul>
+</li>
+</ul>
+<h2 id="rlhf-相关术语"><a class="markdownIt-Anchor" href="#rlhf-相关术语"></a> RLHF 相关术语</h2>
+<ul>
+<li><code>policy model</code>：策略模型，即待训练的强化学习模型</li>
+<li><code>reference model</code>：参考模型（基准模型），通常是冻结参数的原始 <code>policy model</code>，防止模型在 <code>RL</code> 过程中出现退化（可理解为正则化项）</li>
+<li><code>reward model</code>：奖励模型，用于评估 <code>policy model</code> 生成的结果的好坏，相当于强化学习的 <code>environment</code></li>
+<li><code>value model</code>：价值模型，通常是 <code>policy model</code> 的一个子模块，用于评估状态的价值（也可以理解为对环境的估计），辅助 <code>policy model</code> 的决策，仅仅在 <code>RLHF</code> 过程中有效，训练结束后会被丢弃</li>
+</ul>
+<h2 id="rlhf-的流程"><a class="markdownIt-Anchor" href="#rlhf-的流程"></a> RLHF 的流程</h2>
+<h3 id="1-训练奖励模型"><a class="markdownIt-Anchor" href="#1-训练奖励模型"></a> 1. 训练奖励模型</h3>
+<ul>
+<li>奖励模型通常选比原模型尺寸小的预训练模型，将 <code>head</code> 换成一个标量输出的 <code>head</code></li>
+<li>奖励模型的输入是 <code>prompt + response</code>，输出是一个奖励标量，即：奖励模型作用的对象是一个序列，不是一个 <code>token</code></li>
+<li>训练数据格式是：(<code>prompt</code>, <code>response_chosen</code>, <code>response_reject</code>)
+<ul>
+<li><code>prompt</code>：输入给策略模型的问题</li>
+<li><code>response_chosen</code>：期待的大模型输出</li>
+<li><code>response_reject</code>：不期待的大模型输出</li>
+</ul>
+</li>
+<li>训练损失函数：<code>pairwise ranking loss</code>，本质就是对比学习</li>
+</ul>
+<p class='katex-block'><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mi>L</mi><mo>=</mo><mo>−</mo><msub><mi>E</mi><mrow><mo stretchy="false">(</mo><mi>x</mi><mo separator="true">,</mo><msub><mi>y</mi><mi>w</mi></msub><mo separator="true">,</mo><msub><mi>y</mi><mi>l</mi></msub><mo stretchy="false">)</mo></mrow></msub><mi>log</mi><mo>⁡</mo><mi>σ</mi><mo stretchy="false">(</mo><mi>R</mi><mo stretchy="false">(</mo><mi>x</mi><mo separator="true">,</mo><msub><mi>y</mi><mi>w</mi></msub><mo stretchy="false">)</mo><mo>−</mo><mi>R</mi><mo stretchy="false">(</mo><mi>x</mi><mo separator="true">,</mo><msub><mi>y</mi><mi>l</mi></msub><mo stretchy="false">)</mo><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">L=-E_{(x,y_w,y_l)}\log \sigma(R(x, y_w) - R(x, y_l))
+</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord mathnormal">L</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:1.1052em;vertical-align:-0.3551999999999999em;"></span><span class="mord">−</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.05764em;">E</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.34480000000000005em;"><span style="top:-2.5198em;margin-left:-0.05764em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mopen mtight">(</span><span class="mord mathnormal mtight">x</span><span class="mpunct mtight">,</span><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.16454285714285719em;"><span style="top:-2.357em;margin-left:-0.03588em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mathnormal mtight" style="margin-right:0.02691em;">w</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.143em;"><span></span></span></span></span></span></span><span class="mpunct mtight">,</span><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3448em;"><span style="top:-2.3487714285714287em;margin-left:-0.03588em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mathnormal mtight" style="margin-right:0.01968em;">l</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15122857142857138em;"><span></span></span></span></span></span></span><span class="mclose mtight">)</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.3551999999999999em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mop">lo<span style="margin-right:0.01389em;">g</span></span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal" style="margin-right:0.03588em;">σ</span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.00773em;">R</span><span class="mopen">(</span><span class="mord mathnormal">x</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.03588em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:-0.03588em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.02691em;">w</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.00773em;">R</span><span class="mopen">(</span><span class="mord mathnormal">x</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.03588em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.33610799999999996em;"><span style="top:-2.5500000000000003em;margin-left:-0.03588em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.01968em;">l</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">)</span><span class="mclose">)</span></span></span></span></span></p>
+<ul>
+<li>其中：
+<ul>
+<li><code>x</code>：<code>prompt</code></li>
+<li><code>y_w</code>：<code>win response</code>，也就是 <code>response_chosen</code></li>
+<li><code>y_l</code>：<code>lose response</code>，也就是 <code>response_reject</code></li>
+</ul>
+</li>
+</ul>
+<h3 id="2-强化学习阶段"><a class="markdownIt-Anchor" href="#2-强化学习阶段"></a> 2. 强化学习阶段</h3>
+<h4 id="21-rollout-阶段"><a class="markdownIt-Anchor" href="#21-rollout-阶段"></a> 2.1 Rollout 阶段</h4>
+<p>对每个 Prompt x：</p>
+<ol>
+<li>用当前 Actor <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>π</mi><mi>θ</mi></msub></mrow><annotation encoding="application/x-tex">\pi_\theta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.58056em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.03588em;">π</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.33610799999999996em;"><span style="top:-2.5500000000000003em;margin-left:-0.03588em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.02778em;">θ</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> 自回归采样一条完整回答 <code>y=(y_1, …, y_T)</code>，直到遇到结束符</li>
+<li>把 <code>(x, y)</code> 拼成一整句喂给冻结的 <code>Reward Model</code>，得到一个标量 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>r</mi><mi>T</mi></msub></mrow><annotation encoding="application/x-tex">r_T</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.58056em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.02778em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.32833099999999993em;"><span style="top:-2.5500000000000003em;margin-left:-0.02778em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.13889em;">T</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span></li>
+<li>同时用 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>π</mi><mrow><mi>r</mi><mi>e</mi><mi>f</mi></mrow></msub></mrow><annotation encoding="application/x-tex">\pi_{ref}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.716668em;vertical-align:-0.286108em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.03588em;">π</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361079999999999em;"><span style="top:-2.5500000000000003em;margin-left:-0.03588em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.02778em;">r</span><span class="mord mathnormal mtight">e</span><span class="mord mathnormal mtight" style="margin-right:0.10764em;">f</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span></span></span></span> 算同样这条回答的 <code>log-prob</code>：<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>log</mi><mo>⁡</mo><msub><mi>π</mi><mrow><mi>r</mi><mi>e</mi><mi>f</mi></mrow></msub><mo stretchy="false">(</mo><mi>y</mi><mi mathvariant="normal">∣</mi><mi>x</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\log \pi_{ref}(y|x)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.036108em;vertical-align:-0.286108em;"></span><span class="mop">lo<span style="margin-right:0.01389em;">g</span></span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.03588em;">π</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361079999999999em;"><span style="top:-2.5500000000000003em;margin-left:-0.03588em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.02778em;">r</span><span class="mord mathnormal mtight">e</span><span class="mord mathnormal mtight" style="margin-right:0.10764em;">f</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.03588em;">y</span><span class="mord">∣</span><span class="mord mathnormal">x</span><span class="mclose">)</span></span></span></span></li>
+</ol>
+<h4 id="22-reward-shaping-阶段"><a class="markdownIt-Anchor" href="#22-reward-shaping-阶段"></a> 2.2 Reward Shaping 阶段</h4>
+<ul>
+<li>由于 <code>Reward Model</code> 只给整句打分，而 <code>PPO</code> 需要每一步都有 <code>Advantage</code>，所以要先构造 “即时奖励” 再让 <code>GAE</code> 去算回报：</li>
+</ul>
+<p class='katex-block'><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msub><mi>r</mi><mi>t</mi></msub><mo>=</mo><mrow><mo fence="true">{</mo><mtable rowspacing="0.24999999999999992em" columnalign="right left right" columnspacing="0em 1em"><mtr><mtd><mstyle scriptlevel="0" displaystyle="true"><mrow><msub><mi>r</mi><mi>T</mi></msub><mo>−</mo><mi>β</mi><mo>⋅</mo><mi>K</mi><msub><mi>L</mi><mi>t</mi></msub></mrow></mstyle></mtd><mtd><mstyle scriptlevel="0" displaystyle="true"><mrow></mrow></mstyle></mtd><mtd><mstyle scriptlevel="0" displaystyle="true"><mrow><mtext>if </mtext><mi>t</mi><mo>=</mo><mi>T</mi></mrow></mstyle></mtd></mtr><mtr><mtd><mstyle scriptlevel="0" displaystyle="true"><mrow><mo>−</mo><mi>β</mi><mo>⋅</mo><mi>K</mi><msub><mi>L</mi><mi>t</mi></msub></mrow></mstyle></mtd><mtd><mstyle scriptlevel="0" displaystyle="true"><mrow></mrow></mstyle></mtd><mtd><mstyle scriptlevel="0" displaystyle="true"><mrow><mtext>if </mtext><mi>t</mi><mo>&lt;</mo><mi>T</mi></mrow></mstyle></mtd></mtr></mtable></mrow></mrow><annotation encoding="application/x-tex"> r_t=\left\{
+\begin{aligned}
+r_T-\beta\cdot KL_t &amp;&amp; \text{if}\ t=T \\
+-\beta\cdot KL_t &amp;&amp; \text{if}\ t&lt;T
+\end{aligned}
+\right.
+</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.58056em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.02778em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2805559999999999em;"><span style="top:-2.5500000000000003em;margin-left:-0.02778em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:3.00003em;vertical-align:-1.25003em;"></span><span class="minner"><span class="mopen delimcenter" style="top:0em;"><span class="delimsizing size4">{</span></span><span class="mord"><span class="mtable"><span class="col-align-r"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.7500000000000002em;"><span style="top:-3.91em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord"><span class="mord mathnormal" style="margin-right:0.02778em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.32833099999999993em;"><span style="top:-2.5500000000000003em;margin-left:-0.02778em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.13889em;">T</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mord mathnormal" style="margin-right:0.05278em;">β</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">⋅</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mord mathnormal" style="margin-right:0.07153em;">K</span><span class="mord"><span class="mord mathnormal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2805559999999999em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span><span style="top:-2.41em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">−</span><span class="mord mathnormal" style="margin-right:0.05278em;">β</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">⋅</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mord mathnormal" style="margin-right:0.07153em;">K</span><span class="mord"><span class="mord mathnormal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2805559999999999em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.2500000000000002em;"><span></span></span></span></span></span><span class="col-align-l"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.7500000000000002em;"><span style="top:-3.75em;"><span class="pstrut" style="height:2.84em;"></span><span class="mord"><span class="mord"></span></span></span><span style="top:-2.25em;"><span class="pstrut" style="height:2.84em;"></span><span class="mord"><span class="mord"></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.2500000000000002em;"><span></span></span></span></span></span><span class="arraycolsep" style="width:1em;"></span><span class="col-align-r"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.7500000000000002em;"><span style="top:-3.91em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord text"><span class="mord">if</span></span><span class="mspace"> </span><span class="mord mathnormal">t</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mord mathnormal" style="margin-right:0.13889em;">T</span></span></span><span style="top:-2.41em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord text"><span class="mord">if</span></span><span class="mspace"> </span><span class="mord mathnormal">t</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">&lt;</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mord mathnormal" style="margin-right:0.13889em;">T</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.2500000000000002em;"><span></span></span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span></span></p>
+<p class='katex-block'><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mi>K</mi><msub><mi>L</mi><mi>t</mi></msub><mo>=</mo><mi>log</mi><mo>⁡</mo><msub><mi>π</mi><mi>θ</mi></msub><mo stretchy="false">(</mo><msub><mi>y</mi><mi>t</mi></msub><mi mathvariant="normal">∣</mi><mi>x</mi><mo separator="true">,</mo><mi>y</mi><mo>&lt;</mo><mi>t</mi><mo stretchy="false">)</mo><mo>−</mo><mi>log</mi><mo>⁡</mo><msub><mi>π</mi><mrow><mi>r</mi><mi>e</mi><mi>f</mi></mrow></msub><mo stretchy="false">(</mo><msub><mi>y</mi><mi>t</mi></msub><mi mathvariant="normal">∣</mi><mi>x</mi><mo separator="true">,</mo><mi>y</mi><mo>&lt;</mo><mi>t</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">KL_t=\log \pi_\theta(y_t|x,y&lt;t) - \log \pi_{ref}(y_t|x,y&lt;t)
+</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord mathnormal" style="margin-right:0.07153em;">K</span><span class="mord"><span class="mord mathnormal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2805559999999999em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mop">lo<span style="margin-right:0.01389em;">g</span></span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.03588em;">π</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.33610799999999996em;"><span style="top:-2.5500000000000003em;margin-left:-0.03588em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.02778em;">θ</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.03588em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2805559999999999em;"><span style="top:-2.5500000000000003em;margin-left:-0.03588em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord">∣</span><span class="mord mathnormal">x</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal" style="margin-right:0.03588em;">y</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">&lt;</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">t</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:1.036108em;vertical-align:-0.286108em;"></span><span class="mop">lo<span style="margin-right:0.01389em;">g</span></span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.03588em;">π</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361079999999999em;"><span style="top:-2.5500000000000003em;margin-left:-0.03588em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.02778em;">r</span><span class="mord mathnormal mtight">e</span><span class="mord mathnormal mtight" style="margin-right:0.10764em;">f</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.03588em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2805559999999999em;"><span style="top:-2.5500000000000003em;margin-left:-0.03588em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord">∣</span><span class="mord mathnormal">x</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal" style="margin-right:0.03588em;">y</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">&lt;</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">t</span><span class="mclose">)</span></span></span></span></span></p>
+<ul>
+<li>其中：
+<ul>
+<li><code>KL</code> 表示 <code>KL</code> 散度损失，用于方式模型偏离参考模型太远</li>
+<li>参考模型：经过 <code>SFT</code> 之后冻结的模型</li>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi></mrow><annotation encoding="application/x-tex">\beta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8888799999999999em;vertical-align:-0.19444em;"></span><span class="mord mathnormal" style="margin-right:0.05278em;">β</span></span></span></span> 是 <code>KL</code> 散度系数， 要调得够大（<code>0.1–0.5</code>），否则 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>π</mi><mi>θ</mi></msub></mrow><annotation encoding="application/x-tex">\pi_\theta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.58056em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.03588em;">π</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.33610799999999996em;"><span style="top:-2.5500000000000003em;margin-left:-0.03588em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.02778em;">θ</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> 会迅速 “讨好” <code>RM</code>，生成乱码或重复文本</li>
+</ul>
+</li>
+</ul>
+<h2 id="thoughts"><a class="markdownIt-Anchor" href="#thoughts"></a> Thoughts</h2>
+<ul>
+<li>用对比学习的方式训练奖励模型，可以减少人工标注数据量，同时降低数据标注的主观性噪声</li>
+<li>强化学习的部分设计的挺巧妙的，不过仍然是单回合强化学习，如果从 <code>Agentic RL</code> 角度看，需要多回合强化学习来微调模型使得模型更像一个 <code>Agent</code></li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2025/01/04/%E5%A4%A7%E6%A8%A1%E5%9E%8BRAG%E5%85%A5%E9%97%A8/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1764,205 +1934,6 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/12/13/%E4%B8%8A%E6%89%8B%E8%AE%AD%E7%BB%83%E5%A4%A7%E6%A8%A1%E5%9E%8B-1-%E2%80%94%E2%80%94%E7%94%A8Alpaca-cleaned%E6%8C%87%E4%BB%A4%E5%BE%AE%E8%B0%83Llama-3-2-3B/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2024/12/13/%E4%B8%8A%E6%89%8B%E8%AE%AD%E7%BB%83%E5%A4%A7%E6%A8%A1%E5%9E%8B-1-%E2%80%94%E2%80%94%E7%94%A8Alpaca-cleaned%E6%8C%87%E4%BB%A4%E5%BE%AE%E8%B0%83Llama-3-2-3B/" class="post-title-link" itemprop="url">上手训练大模型(1)——用Alpaca-cleaned指令微调Llama-3.2-3B</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-12-13 10:20:21" itemprop="dateCreated datePublished" datetime="2024-12-13T10:20:21+08:00">2024-12-13</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-03-21 10:13:09" itemprop="dateModified" datetime="2025-03-21T10:13:09+08:00">2025-03-21</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/LLM/" itemprop="url" rel="index"><span itemprop="name">LLM</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2024/12/13/%E4%B8%8A%E6%89%8B%E8%AE%AD%E7%BB%83%E5%A4%A7%E6%A8%A1%E5%9E%8B-1-%E2%80%94%E2%80%94%E7%94%A8Alpaca-cleaned%E6%8C%87%E4%BB%A4%E5%BE%AE%E8%B0%83Llama-3-2-3B/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2024/12/13/%E4%B8%8A%E6%89%8B%E8%AE%AD%E7%BB%83%E5%A4%A7%E6%A8%A1%E5%9E%8B-1-%E2%80%94%E2%80%94%E7%94%A8Alpaca-cleaned%E6%8C%87%E4%BB%A4%E5%BE%AE%E8%B0%83Llama-3-2-3B/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
-<ul>
-<li>本文是上手训练大模型系列的第一篇，主要介绍了如何用指令微调数据集去微调一个大模型。</li>
-<li>为了快速走通流程，本文选择了较小的指令微调数据集和较小的模型。</li>
-</ul>
-<h2 id="详细介绍"><a class="markdownIt-Anchor" href="#详细介绍"></a> 详细介绍</h2>
-<h3 id="sft"><a class="markdownIt-Anchor" href="#sft"></a> <code>SFT</code></h3>
-<ul>
-<li><code>SFT</code> 全称是 <code>Supervised Fine-Tuning</code>，监督微调，是预训练大模型在变成实际可用模型必须经过的一个步骤。</li>
-<li>训练的基础配置（例如：<code>optimizer</code>、<code>learning rete</code>、<code>weight decay</code>）等一般都是从预训练模型继承过来的。</li>
-<li>但实际上训练范式已经完全变化了，从无监督的预训练变成了有监督的微调，具体来说：
-<ul>
-<li>预训练过程中，模型只需要预测下一个 <code>token</code>，直到输出 <code>EOS</code> 或者达到最大长度。</li>
-<li>在 <code>Instruct-SFT</code> 阶段，模型的输入是一条指令（通常是 <code>Instruction + Input</code>，即指令和输入），输出是指令对应的输出。指令部分的预测不会被用于 <code>loss</code> 的计算，只有输入部分的预测会被用于 <code>loss</code> 的计算。</li>
-</ul>
-</li>
-<li>用一个例子来说明，假如有一条数据：“请计算：1 + 1 = 2”
-<ul>
-<li>在预训练阶段
-<ul>
-<li>模型 <code>input</code> 是 [“请”，“计算”，“：”，“1”，“+”，“1”，“=”，“2”]</li>
-<li>模型 <code>label</code> 是 [“计算”，“：”，“1”，“+”，“1”，“=”，“2”, “pad”]，其中 <code>pad</code> 是占位符，表示这个位置不需要预测。</li>
-<li>除 <code>pad</code> 之外，其他位置的预测都会被用于 <code>loss</code> 的计算。</li>
-</ul>
-</li>
-<li>在 <code>Instruct-SFT</code> 阶段
-<ul>
-<li>模型 <code>input</code> 是 [“请”，“计算”，“：”，“1”，“+”，“1”，“=”]</li>
-<li>模型 <code>label</code> 是 [“pad”, “pad”, “pad”, “pad”, “pad”, “pad”, “2”]</li>
-<li>只有最后一个位置的预测会被用于 <code>loss</code> 的计算。</li>
-</ul>
-</li>
-</ul>
-</li>
-<li>从实际推理效果看：
-<ul>
-<li><code>SFT</code> 前，模型的输出重复性较高，指令遵循能力很差。</li>
-<li><code>SFT</code> 后，模型的输出重复性降低，指令遵循能力明显提升，但可能产生格式依赖问题。</li>
-</ul>
-</li>
-</ul>
-<h3 id="alpaca-cleaned-数据集"><a class="markdownIt-Anchor" href="#alpaca-cleaned-数据集"></a> <code>Alpaca-cleaned</code> 数据集</h3>
-<ul>
-<li><code>Alpaca-cleaned</code> 是一个指令微调数据集，数据集地址：<a target="_blank" rel="noopener" href="https://huggingface.co/datasets/yahma/alpaca-cleaned">Alpaca-cleaned</a></li>
-<li>数据集包含 <code>51,760</code> 条数据，每条数据包含 <code>instruction</code> 和 <code>input</code> 和 <code>output</code> 三个字段。</li>
-<li>其中 <code>instruction</code> 是指令，<code>input</code> 是输入，<code>output</code> 是输出，<code>input</code> 字段可能为空。</li>
-<li>例如：
-<ul>
-<li><code>instruction</code> 是 “请计算如下数学题：”</li>
-<li><code>input</code> 是 “1 + 1 =”</li>
-<li><code>output</code> 是 “2”</li>
-</ul>
-</li>
-</ul>
-<h3 id="llama-32-3b"><a class="markdownIt-Anchor" href="#llama-32-3b"></a> <code>Llama-3.2-3B</code></h3>
-<ul>
-<li><code>Llama-3.2-3B</code> 是 <code>meta</code> 开源的预训练大模型（未经过 <code>SFT</code> 和 <code>RLHF</code>），模型地址：<a target="_blank" rel="noopener" href="https://huggingface.co/meta-llama/Llama-3.2-3B">Llama-3.2-3B</a></li>
-<li>词表大小 <code>128,256</code>，支持英语、德语、法语、意大利语、葡萄牙语、印地语、西班牙语和泰语等多种语言（就是不支持中文，好烦）。</li>
-<li>模型有 <code>32</code> 层 <code>Transformer</code>，每个 <code>Transformer</code> 有 <code>32</code> 个 <code>Head</code>，使用了 <code>GQA</code> 降低了 <code>Transformer</code> 的计算复杂度，<code>hidden size</code> 是 <code>4096</code>。</li>
-</ul>
-<h3 id="指令微调"><a class="markdownIt-Anchor" href="#指令微调"></a> 指令微调</h3>
-<ul>
-<li>指令微调的流程如下：
-<ol>
-<li><strong>加载预训练模型和 <code>tokenizer</code></strong></li>
-<li><strong>加载数据集并进行预处理</strong></li>
-<li><strong>分布式训练</strong></li>
-</ol>
-</li>
-<li>具体实现代码如下：</li>
-</ul>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> os</span><br><span class="line"><span class="keyword">import</span> torch</span><br><span class="line"><span class="keyword">import</span> torch.distributed <span class="keyword">as</span> dist</span><br><span class="line"><span class="keyword">from</span> datasets <span class="keyword">import</span> load_dataset</span><br><span class="line"><span class="keyword">from</span> datasets <span class="keyword">import</span> Split</span><br><span class="line"><span class="keyword">from</span> transformers <span class="keyword">import</span> AutoTokenizer, AutoModelForCausalLM</span><br><span class="line"><span class="keyword">from</span> torch.utils.data <span class="keyword">import</span> IterableDataset, DataLoader</span><br><span class="line"><span class="keyword">import</span> deepspeed</span><br><span class="line"><span class="keyword">from</span> torch.utils.tensorboard <span class="keyword">import</span> SummaryWriter</span><br><span class="line"><span class="comment"># 初始化 DeepSpeed</span></span><br><span class="line">deepspeed.init_distributed()</span><br><span class="line"><span class="comment"># 设置环境变量以避免 tokenizers 并行化问题</span></span><br><span class="line">os.environ[<span class="string">&quot;TOKENIZERS_PARALLELISM&quot;</span>] = <span class="string">&quot;false&quot;</span></span><br><span class="line"><span class="comment"># 设置分布式训练所需的环境变量</span></span><br><span class="line">local_rank = <span class="built_in">int</span>(os.getenv(<span class="string">&quot;LOCAL_RANK&quot;</span>, <span class="string">&quot;0&quot;</span>))</span><br><span class="line">world_size = <span class="built_in">int</span>(os.getenv(<span class="string">&quot;WORLD_SIZE&quot;</span>, <span class="string">&quot;1&quot;</span>))</span><br><span class="line">os.environ[<span class="string">&quot;RANK&quot;</span>] = <span class="built_in">str</span>(local_rank)</span><br><span class="line">os.environ[<span class="string">&quot;WORLD_SIZE&quot;</span>] = <span class="built_in">str</span>(world_size)</span><br><span class="line">os.environ[<span class="string">&quot;MASTER_ADDR&quot;</span>] = <span class="string">&quot;localhost&quot;</span></span><br><span class="line">os.environ[<span class="string">&quot;MASTER_PORT&quot;</span>] = <span class="string">&quot;23333&quot;</span></span><br><span class="line"><span class="comment"># NCCL 超时参数配置</span></span><br><span class="line">os.environ[<span class="string">&quot;NCCL_BLOCKING_WAIT&quot;</span>] = <span class="string">&quot;1&quot;</span></span><br><span class="line">os.environ[<span class="string">&quot;NCCL_ASYNC_ERROR_HANDLING&quot;</span>] = <span class="string">&quot;1&quot;</span></span><br><span class="line">os.environ[<span class="string">&quot;NCCL_DEBUG&quot;</span>] = <span class="string">&quot;INFO&quot;</span></span><br><span class="line">os.environ[<span class="string">&quot;NCCL_TIMEOUT&quot;</span>] = <span class="string">&quot;600&quot;</span></span><br><span class="line"><span class="comment"># 初始化进程组</span></span><br><span class="line"><span class="keyword">if</span> <span class="keyword">not</span> dist.is_initialized():</span><br><span class="line">    dist.init_process_group(backend=<span class="string">&quot;nccl&quot;</span>)</span><br><span class="line"><span class="comment"># config</span></span><br><span class="line">model_path = <span class="string">&quot;./models/meta-llama/Llama-3.2-3B&quot;</span></span><br><span class="line">dataset_path = <span class="string">&quot;./dataset/LLM/yahma___alpaca-cleaned&quot;</span></span><br><span class="line">ds_config = <span class="string">&quot;./ds_config.json&quot;</span></span><br><span class="line">log_dir = <span class="string">&quot;./logs&quot;</span></span><br><span class="line">max_length = <span class="number">1024</span></span><br><span class="line">batch_size = <span class="number">8</span></span><br><span class="line">train_epochs = <span class="number">3</span></span><br><span class="line"><span class="comment"># Load the local alpaca dataset</span></span><br><span class="line">dataset_stream = load_dataset(dataset_path, split=Split.TRAIN, streaming=<span class="literal">True</span>)</span><br><span class="line"><span class="comment"># tokenizer</span></span><br><span class="line">tokenizer = AutoTokenizer.from_pretrained(model_path, token=<span class="literal">True</span>)</span><br><span class="line">tokenizer.pad_token = tokenizer.eos_token  <span class="comment"># llama-3.2 tokenizer padding token not set</span></span><br><span class="line"><span class="comment"># model</span></span><br><span class="line">model = AutoModelForCausalLM.from_pretrained(model_path, token=<span class="literal">True</span>)</span><br><span class="line">model.to(<span class="string">f&quot;cuda:<span class="subst">&#123;local_rank&#125;</span>&quot;</span>)  <span class="comment"># 将模型移动到对应的 GPU</span></span><br><span class="line"><span class="comment"># dataset</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">StreamDataset</span>(<span class="params">IterableDataset</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, data_stream, tokenizer, max_length=max_length</span>):</span></span><br><span class="line">        self.data_stream = data_stream</span><br><span class="line">        self.tokenizer = tokenizer</span><br><span class="line">        self.max_length = max_length</span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__iter__</span>(<span class="params">self</span>):</span></span><br><span class="line">        <span class="keyword">for</span> data <span class="keyword">in</span> self.data_stream:</span><br><span class="line">            instruction = data[<span class="string">&quot;instruction&quot;</span>]</span><br><span class="line">            input_text = data[<span class="string">&quot;input&quot;</span>]</span><br><span class="line">            output = data[<span class="string">&quot;output&quot;</span>]</span><br><span class="line">            <span class="comment"># 构造 Prompt</span></span><br><span class="line">            <span class="keyword">if</span> input_text.strip():</span><br><span class="line">                prompt = <span class="string">f&quot;### Instruction:\n<span class="subst">&#123;instruction&#125;</span>\n\n### Input:\n<span class="subst">&#123;input_text&#125;</span>\n\n### Response:\n&quot;</span></span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                prompt = <span class="string">f&quot;### Instruction:\n<span class="subst">&#123;instruction&#125;</span>\n\n### Response:\n&quot;</span></span><br><span class="line">            <span class="comment"># 拼接完整输入序列：prompt + output</span></span><br><span class="line">            full_text = prompt + output</span><br><span class="line">            <span class="comment"># Tokenize</span></span><br><span class="line">            input_ids = tokenizer(</span><br><span class="line">                full_text,</span><br><span class="line">                truncation=<span class="literal">True</span>,</span><br><span class="line">                max_length=self.max_length,</span><br><span class="line">                padding=<span class="string">&quot;max_length&quot;</span>,</span><br><span class="line">            )[<span class="string">&quot;input_ids&quot;</span>]</span><br><span class="line">            <span class="comment"># 构造 labels: 仅监督 output 部分</span></span><br><span class="line">            <span class="comment"># 找到 output 起始位置</span></span><br><span class="line">            prompt_length = <span class="built_in">len</span>(</span><br><span class="line">                tokenizer(prompt, padding=<span class="string">&quot;do_not_pad&quot;</span>, truncation=<span class="literal">False</span>)[<span class="string">&quot;input_ids&quot;</span>]</span><br><span class="line">            )</span><br><span class="line">            labels = [-<span class="number">100</span>] * prompt_length + input_ids[prompt_length:]  <span class="comment"># 忽略 prompt 的部分</span></span><br><span class="line">            labels = labels[: self.max_length]  <span class="comment"># 截断</span></span><br><span class="line">            labels = labels + [-<span class="number">100</span>] * (max_length - <span class="built_in">len</span>(labels))  <span class="comment"># Padding 保持一致长度</span></span><br><span class="line">            <span class="keyword">yield</span> &#123;</span><br><span class="line">                <span class="string">&quot;input_ids&quot;</span>: torch.tensor(input_ids, dtype=torch.long),</span><br><span class="line">                <span class="string">&quot;labels&quot;</span>: torch.tensor(labels, dtype=torch.long),</span><br><span class="line">            &#125;</span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__len__</span>(<span class="params">self</span>):</span></span><br><span class="line">        <span class="keyword">return</span> <span class="number">51760</span>  <span class="comment"># cleaned alpaca dataset rows</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">train</span>():</span></span><br><span class="line">    <span class="comment"># DataLoader</span></span><br><span class="line">    train_dataset = StreamDataset(dataset_stream, tokenizer)</span><br><span class="line">    train_dataloader = DataLoader(train_dataset, batch_size=batch_size)</span><br><span class="line">    <span class="comment"># TensorBoard SummaryWriter</span></span><br><span class="line">    writer = SummaryWriter(log_dir=log_dir) <span class="keyword">if</span> dist.get_rank() == <span class="number">0</span> <span class="keyword">else</span> <span class="literal">None</span></span><br><span class="line">    <span class="comment"># DeepSpeed 初始化</span></span><br><span class="line">    model_engine, optimizer, _, _ = deepspeed.initialize(</span><br><span class="line">        model=model,</span><br><span class="line">        model_parameters=model.parameters(),</span><br><span class="line">        config=ds_config,</span><br><span class="line">        training_data=train_dataset,</span><br><span class="line">    )</span><br><span class="line">    <span class="comment"># 训练循环</span></span><br><span class="line">    <span class="keyword">for</span> epoch <span class="keyword">in</span> <span class="built_in">range</span>(train_epochs):  <span class="comment"># num_train_epochs</span></span><br><span class="line">        <span class="keyword">for</span> step, batch <span class="keyword">in</span> <span class="built_in">enumerate</span>(train_dataloader):</span><br><span class="line">            inputs = &#123;</span><br><span class="line">                key: value.to(<span class="string">f&quot;cuda:<span class="subst">&#123;local_rank&#125;</span>&quot;</span>) <span class="keyword">for</span> key, value <span class="keyword">in</span> batch.items()</span><br><span class="line">            &#125;</span><br><span class="line">            outputs = model_engine(**inputs)  <span class="comment"># 添加 labels 参数</span></span><br><span class="line">            loss = outputs.loss</span><br><span class="line">            model_engine.backward(loss)</span><br><span class="line">            model_engine.step()</span><br><span class="line">            <span class="comment"># 日志打印和 TensorBoard 记录</span></span><br><span class="line">            <span class="keyword">if</span> dist.get_rank() == <span class="number">0</span>:</span><br><span class="line">                <span class="keyword">if</span> step % <span class="number">10</span> == <span class="number">0</span>:</span><br><span class="line">                    <span class="built_in">print</span>(</span><br><span class="line">                        <span class="string">f&quot;Epoch: <span class="subst">&#123;epoch&#125;</span>, Step: <span class="subst">&#123;step&#125;</span>/<span class="subst">&#123;<span class="built_in">len</span>(train_dataloader)&#125;</span>, Loss: <span class="subst">&#123;loss.item()&#125;</span>&quot;</span></span><br><span class="line">                    )</span><br><span class="line">                    writer.add_scalar(</span><br><span class="line">                        <span class="string">&quot;Loss/train&quot;</span>, loss.item(), epoch * <span class="built_in">len</span>(train_dataloader) + step</span><br><span class="line">                    )</span><br><span class="line">        checkpoint_path = <span class="string">f&quot;./checkpoints&quot;</span></span><br><span class="line">        model_engine.save_checkpoint(checkpoint_path, tag=<span class="string">f&quot;epoch_<span class="subst">&#123;epoch&#125;</span>&quot;</span>)</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">f&quot;Checkpoint saved at <span class="subst">&#123;checkpoint_path&#125;</span>&quot;</span>)</span><br><span class="line">    <span class="comment"># 关闭 TensorBoard SummaryWriter</span></span><br><span class="line">    <span class="keyword">if</span> writer:</span><br><span class="line">        writer.close()</span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">&quot;__main__&quot;</span>:</span><br><span class="line">    train()</span><br></pre></td></tr></table></figure>
-<ul>
-<li>总体上使用了：
-<ul>
-<li><code>transformers</code> 加载模型和 <code>tokenizer</code>。</li>
-<li><code>datasets</code> 加载开源数据集。</li>
-<li><code>deepspeed</code> 进行分布式训练，包含大规模分布式训练和零冗余优化以及混合精度训练等。</li>
-</ul>
-</li>
-</ul>
-<h3 id="模型格式转换"><a class="markdownIt-Anchor" href="#模型格式转换"></a> 模型格式转换</h3>
-<ul>
-<li>使用 <code>deepspeed</code> 训练和保存的模型格式是 <code>deepspeed</code> 特有的，无法直接加载到 <code>transformers</code> 中，因此需要进行模型格式转换。</li>
-<li><code>deepspeed</code> 保存的模型结构如下:</li>
-</ul>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">checkpoints/</span><br><span class="line">├── epoch_xxx</span><br><span class="line">│   ├── mp_rank_00_model_states.pt</span><br><span class="line">│   ├── zero_pp_rank_0_mp_rank_00_optim_states.pt</span><br><span class="line">│   ├── zero_pp_rank_1_mp_rank_00_optim_states.pt</span><br><span class="line">│   ├── zero_pp_rank_2_mp_rank_00_optim_states.pt</span><br><span class="line">│   └── zero_pp_rank_3_mp_rank_00_optim_states.pt</span><br><span class="line">└── latest</span><br></pre></td></tr></table></figure>
-<ul>
-<li>转换过程分成两步：
-<ol>
-<li>使用 <code>deepspeed</code> 在保存模型同时提供的 <code>zero_to_fp32.py</code> 脚本将模型转换为 <code>fp32</code> 格式（主要是将不同的 <code>part</code> 的 <code>fp16</code> 模型参数用 <code>ring reduce</code> 聚合成完整的并转成 <code>fp32</code>），转换后的模型格式是 <code>pytorch</code> 适用的（<code>zero_to_fp32.py</code> 只会转换 <code>latest</code> 指向的 <code>epoch</code>）。</li>
-<li>将 <code>pytorch</code> 格式的模型转成 <code>transformers</code> 格式。</li>
-</ol>
-</li>
-<li>第一步代码 <code>deepseed</code> 提供了，第二步代码如下：</li>
-</ul>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> os</span><br><span class="line"><span class="keyword">from</span> transformers <span class="keyword">import</span> AutoModelForCausalLM, AutoTokenizer</span><br><span class="line">final_model_save_path = <span class="string">&quot;./checkpoints/final_transformers_model&quot;</span>  <span class="comment"># 保存最终模型的路径</span></span><br><span class="line">original_model_path = <span class="string">&quot;./models/meta-llama/Llama-3.2-3B&quot;</span>  <span class="comment"># 原始模型的路径</span></span><br><span class="line">sharded_model_dir = <span class="string">&quot;./checkpoints/fp32_checkpoints&quot;</span>  <span class="comment"># SFT fp32 分片模型的路径</span></span><br><span class="line"><span class="comment"># 1. 将原始模型配置复制到最终模型目录，需要让 transformers 自动识别模型</span></span><br><span class="line">os.system(</span><br><span class="line">    <span class="string">f&quot;cp <span class="subst">&#123;os.path.join(original_model_path, <span class="string">&#x27;config.json&#x27;</span>)&#125;</span> <span class="subst">&#123;final_model_save_path&#125;</span>&quot;</span></span><br><span class="line">)</span><br><span class="line"><span class="comment"># 2. 将分片模型转换为 transformers 模型</span></span><br><span class="line">model = AutoModelForCausalLM.from_pretrained(sharded_model_dir)</span><br><span class="line">model.save_pretrained(final_model_save_path)</span><br><span class="line"><span class="comment"># 3. 补全 tokenizer 配置</span></span><br><span class="line">tokenizer = AutoTokenizer.from_pretrained(original_model_path, token=<span class="literal">True</span>)</span><br><span class="line">tokenizer.save_pretrained(final_model_save_path)</span><br></pre></td></tr></table></figure>
-<ul>
-<li>转换后的模型变成了 <code>transformers</code> 可以识别的格式，可以直接加载到 <code>transformers</code> 中进行推理。</li>
-</ul>
-<h3 id="推理"><a class="markdownIt-Anchor" href="#推理"></a> 推理</h3>
-<ul>
-<li>将转换后的模型加载到 <code>transformers</code> 中，即可使用 <code>pipeline</code> 进行推理。</li>
-<li>推理代码如下：</li>
-</ul>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> torch</span><br><span class="line"><span class="keyword">from</span> transformers <span class="keyword">import</span> pipeline</span><br><span class="line">model_id = <span class="string">&quot;./checkpoints/final_transformers_model&quot;</span></span><br><span class="line">pipe = pipeline(</span><br><span class="line">    <span class="string">&quot;text-generation&quot;</span>, model=model_id, torch_dtype=torch.bfloat16, device_map=<span class="string">&quot;auto&quot;</span></span><br><span class="line">)</span><br><span class="line">instruction = <span class="string">&quot;Use Python code to implement.&quot;</span></span><br><span class="line">input_text = <span class="string">&quot;Find prime numbers within 100.&quot;</span></span><br><span class="line">total_input = <span class="string">f&quot;### Instruction:\n<span class="subst">&#123;instruction&#125;</span>\n\n### Input:\n<span class="subst">&#123;input_text&#125;</span>\n\n### Response:\n&quot;</span></span><br><span class="line"><span class="built_in">print</span>(</span><br><span class="line">    pipe(total_input, max_length=<span class="number">1024</span>)[<span class="number">0</span>][</span><br><span class="line">        <span class="string">&quot;generated_text&quot;</span></span><br><span class="line">    ]</span><br><span class="line">)</span><br></pre></td></tr></table></figure>
-<h2 id="thoughts"><a class="markdownIt-Anchor" href="#thoughts"></a> Thoughts</h2>
-<ul>
-<li>大模型是个非常依赖工具的领域，<code>transformers</code>、<code>datasets</code>、<code>deepspeed</code> 等工具的使用对于大模型的最终效果非常重要。</li>
-<li>大模型即使在微调阶段，能做的也不多，什么都不能改，数据集的质量对于模型的影响非常大。</li>
-<li>指令微调前后，模型差距不是一星半点。</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -2031,7 +2002,7 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">166</span>
+          <span class="site-state-item-count">167</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
