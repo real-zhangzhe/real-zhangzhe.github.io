@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"real-zhangzhe.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="URL  paper: https:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;2412.01506 code: https:&#x2F;&#x2F;github.com&#x2F;Microsoft&#x2F;TRELLIS model: https:&#x2F;&#x2F;huggingface.co&#x2F;microsoft&#x2F;TRELLIS-text-xlarge   TL;DR  本文提出一个图&#x2F;文生 3D 的模型 TRELLIS 和一种 3D 表征方式 SLAT">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Structured 3D Latents for Scalable and Versatile 3D Generation">
+<meta property="og:url" content="https://real-zhangzhe.github.io/2025/10/26/Structured-3D-Latents-for-Scalable-and-Versatile-3D-Generation/index.html">
+<meta property="og:site_name" content="Zhangzhe&#39;s Blog">
+<meta property="og:description" content="URL  paper: https:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;2412.01506 code: https:&#x2F;&#x2F;github.com&#x2F;Microsoft&#x2F;TRELLIS model: https:&#x2F;&#x2F;huggingface.co&#x2F;microsoft&#x2F;TRELLIS-text-xlarge   TL;DR  本文提出一个图&#x2F;文生 3D 的模型 TRELLIS 和一种 3D 表征方式 SLAT">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://s2.loli.net/2025/10/22/2CIpe3jnG7q1yVb.png">
+<meta property="article:published_time" content="2025-10-26T07:40:10.000Z">
+<meta property="article:modified_time" content="2025-12-02T03:28:07.519Z">
+<meta property="article:author" content="Zhangzhe">
+<meta property="article:tag" content="3D">
+<meta property="article:tag" content="DiT">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://s2.loli.net/2025/10/22/2CIpe3jnG7q1yVb.png">
+
+<link rel="canonical" href="https://real-zhangzhe.github.io/2025/10/26/Structured-3D-Latents-for-Scalable-and-Versatile-3D-Generation/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>Structured 3D Latents for Scalable and Versatile 3D Generation | Zhangzhe's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Zhangzhe's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">The projection of my life.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/archives/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2025/10/26/Structured-3D-Latents-for-Scalable-and-Versatile-3D-Generation/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Structured 3D Latents for Scalable and Versatile 3D Generation
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-10-26 15:40:10" itemprop="dateCreated datePublished" datetime="2025-10-26T15:40:10+08:00">2025-10-26</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-12-02 11:28:07" itemprop="dateModified" datetime="2025-12-02T11:28:07+08:00">2025-12-02</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/3D/" itemprop="url" rel="index"><span itemprop="name">3D</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2025/10/26/Structured-3D-Latents-for-Scalable-and-Versatile-3D-Generation/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2025/10/26/Structured-3D-Latents-for-Scalable-and-Versatile-3D-Generation/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2412.01506">https://arxiv.org/pdf/2412.01506</a></li>
+<li>code: <a target="_blank" rel="noopener" href="https://github.com/Microsoft/TRELLIS">https://github.com/Microsoft/TRELLIS</a></li>
+<li>model: <a target="_blank" rel="noopener" href="https://huggingface.co/microsoft/TRELLIS-text-xlarge">https://huggingface.co/microsoft/TRELLIS-text-xlarge</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li>本文提出一个图/文生 <code>3D</code> 的模型 <code>TRELLIS</code> 和一种 <code>3D</code> 表征方式 <code>SLAT (Structured LATent)</code>，具体来说 <code>SLAT</code> 表征包含两个部分：
+<ul>
+<li><code>coords</code>: 整数坐标 (N, 4) int32 - [batch, x, y, z]，用于描述 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><msup><mn>6</mn><mn>3</mn></msup></mrow><annotation encoding="application/x-tex">16^3</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8141079999999999em;vertical-align:0em;"></span><span class="mord">1</span><span class="mord"><span class="mord">6</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141079999999999em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">3</span></span></span></span></span></span></span></span></span></span></span> <code>voxel</code> 空间下的物体 <strong>表面</strong> 占据的体素坐标</li>
+<li><code>feats</code>: 浮点特征 (N, 8) float32 - 8通道特征向量，用于描述每一个激活体素坐标上的特征编码，编码长度为 <code>8</code></li>
+</ul>
+</li>
+<li>关键就是两个 <code>DiT</code> 模型，两个模型的输出结果合并就是 <code>SLAT</code> 表征，两个 <code>DiT</code> 都是使用流匹配范式训练的
+<ul>
+<li>第一个 <code>DiT</code> 模型从图像/文本特征中得到 <code>3D</code> 物体的表明占据体素坐标，这个模型被称为 <code>SparseStructureFlowModel</code></li>
+<li>第二个 <code>DiT</code> 模型从图像/文本特征以及体素占据坐标得到每个激活体素的特征向量，这个模型被称为 <code>ElasticSLatFlowModel</code></li>
+</ul>
+</li>
+<li>模型在 <code>3D</code> 数据集上通过自监督方式训练得到，可从图片或文本得到不同的 <code>3D</code> 输出格式（<code>3D Gaussian、Radiance Field、mesh</code> 等）</li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<p><img src="https://s2.loli.net/2025/10/22/2CIpe3jnG7q1yVb.png" alt="2025-10-22_12-32.png" /></p>
+<h3 id="1-推理过程"><a class="markdownIt-Anchor" href="#1-推理过程"></a> 1. 推理过程</h3>
+<ul>
+<li>以图片 -&gt; 3D 为例：</li>
+</ul>
+<pre class="mermaid">flowchart TD
+    A[输入图片] --> B[预处理 518x518]
+    B --> C[DINOv2编码 Bx1369x1024]
+    C --> D[Stage 1: Sparse Structure Flow]
+    D --> E[噪声 Bx8x16x16x16]
+    E --> F[DiT Transformer 24层]
+    C --> F
+    F --> G[Sparse Structure Latent Bx8x16x16x16]
+    G --> H[Decoder]
+    H --> I[稀疏坐标 Nx4]
+    I --> J[Stage 2: SLAT Flow]
+    J --> K[稀疏噪声 SparseTensor Nx8]
+    K --> L[稀疏DiT Transformer 24层]
+    C --> L
+    L --> M[SLAT表征 SparseTensor Nx8 分辨率64^3]
+    M --> N[Gaussian解码器]
+    M --> O[Radiance Field解码器]
+    M --> P[Mesh解码器]
+    N --> Q[3D Gaussians]
+    O --> S[Strivect辐射场]
+    P --> T[三角网格]</pre>
+<h4 id="0-图像预处理"><a class="markdownIt-Anchor" href="#0-图像预处理"></a> 0: 图像预处理</h4>
+<ul>
+<li>功能：去除背景、裁剪、归一化</li>
+<li>输入：原始PIL图像（任意尺寸）</li>
+<li>输出：<strong>518×518 RGB图像，带alpha通道</strong></li>
+<li>处理步骤：
+<ul>
+<li>使用 rembg (U2-Net) 去除背景</li>
+<li>根据前景内容裁剪并居中</li>
+<li>调整大小到 518×518</li>
+</ul>
+</li>
+</ul>
+<h4 id="1-图像条件编码"><a class="markdownIt-Anchor" href="#1-图像条件编码"></a> 1: 图像条件编码</h4>
+<ul>
+<li>模型：DINOv2 ViT-L/14-reg</li>
+<li>输入：(B, 3, 518, 518) - 预处理后的图像</li>
+<li>输出：<strong>(B, N, 1024)</strong> - 图像特征tokens，其中 N = (518/14)² = 1369（37 x 37）</li>
+<li>处理：通过 DINOv2 提取 patch tokens</li>
+</ul>
+<h4 id="2-稀疏结构生成-stage-1"><a class="markdownIt-Anchor" href="#2-稀疏结构生成-stage-1"></a> 2: 稀疏结构生成 (Stage 1)</h4>
+<ul>
+<li>模型：SparseStructureFlowModel（DiT）</li>
+<li>输入：
+<ul>
+<li>Noise: (B, 8, 16, 16, 16) - 3D噪声张量</li>
+<li>Image condition: (B, 1369, 1024) - DINOv2特征</li>
+<li>Timestep: (B,) - Flow matching时间步</li>
+</ul>
+</li>
+<li>处理流程：
+<ul>
+<li>将3D噪声 patchify（如果patch_size&gt;1）</li>
+<li>添加3D位置编码</li>
+<li>通过24层 DiT transformer blocks，进行图像条件的交叉注意力</li>
+<li>Unpatchify 回3D体积</li>
+</ul>
+</li>
+<li>输出：(B, 8, 16, 16, 16) - 稀疏结构latent</li>
+<li>解码到坐标：
+<ul>
+<li>通过 SparseStructureDecoder 解码为occupancy grid</li>
+<li>Resolution: 16³</li>
+<li>提取 occupancy &gt; 0 的体素坐标</li>
+</ul>
+</li>
+<li>解码器输出：(B, 1, 16, 16, 16) - occupancy概率</li>
+<li>提取坐标：<strong>(N_occupied, 4)</strong> - [batch_idx, x, y, z]，其中 N_occupied 是非空体素数量</li>
+</ul>
+<h4 id="3-slat-生成-stage-2-核心表征"><a class="markdownIt-Anchor" href="#3-slat-生成-stage-2-核心表征"></a> 3: SLAT 生成 (Stage 2) - 核心表征</h4>
+<ul>
+<li>模型：ElasticSLatFlowModel</li>
+<li>输入：
+<ul>
+<li>Sparse noise: SparseTensor
+<ul>
+<li>coords: (N_voxels, 4) - 从Stage 1得到的坐标</li>
+<li>feats: (N_voxels, 8) - 随机噪声特征</li>
+</ul>
+</li>
+<li>Image condition: (B, 1369, 1024) - DINOv2特征</li>
+<li>Timestep: (B,) - Flow matching时间步</li>
+</ul>
+</li>
+<li>处理流程：
+<ul>
+<li>通过sparse linear层和下采样ResBlocks处理输入 (2倍下采样)</li>
+<li>添加稀疏3D位置编码</li>
+<li>通过24层稀疏DiT transformer blocks，带图像交叉注意力</li>
+<li>通过上采样ResBlocks和skip connections恢复分辨率</li>
+<li>输出层产生8通道特征</li>
+</ul>
+</li>
+<li>输出 - SLAT表征：<strong>SparseTensor</strong>
+<ul>
+<li>coords: (N_voxels, 4) - [batch_idx, x, y, z]，坐标在64³空间</li>
+<li>feats: (N_voxels, 8) - 8通道特征，应用归一化</li>
+</ul>
+</li>
+</ul>
+<h4 id="4-slat-解码到多种3d表征"><a class="markdownIt-Anchor" href="#4-slat-解码到多种3d表征"></a> 4: SLAT 解码到多种3D表征</h4>
+<ul>
+<li>SLAT (Structured Latent) 是TRELLIS的统一3D表征，以稀疏张量格式存储，可以解码为三种不同的3D资产格式：
+<ul>
+<li>Gaussian Splatting 解码</li>
+<li>Radiance Field 解码</li>
+<li>Mesh 解码</li>
+</ul>
+</li>
+</ul>
+<h3 id="2-训练过程"><a class="markdownIt-Anchor" href="#2-训练过程"></a> 2. 训练过程</h3>
+<h4 id="0-数据准备与多视角特征提取"><a class="markdownIt-Anchor" href="#0-数据准备与多视角特征提取"></a> 0. 数据准备与多视角特征提取</h4>
+<ul>
+<li>输入：
+<ul>
+<li>3D 资产模型（mesh 或 point cloud）</li>
+<li>渲染器生成的多视角 RGB 图像（约 150 views）</li>
+<li>每张图的相机姿态（R, t, intrinsics）</li>
+</ul>
+</li>
+<li>过程：
+<ul>
+<li>使用预训练视觉模型 DINOv2 提取每张图的 patch-level 特征（每张图被切成 37x37 个 patch，每个 patch 提取成 1024 长度的特征向量）；</li>
+<li>将 3D 资产 voxel 化（64 x 64 x 64 分辨率）</li>
+<li>体素稀疏化，只保留表面区域激活体素，平均每个样本保留 20k 左右的体素；</li>
+<li>通过已知相机位姿把这些特征反投影到 3D voxel grid；</li>
+<li>在每个 voxel 聚合多视角特征（平均 / max pooling）→ 得到 voxel feature grid f(x, y, z)；</li>
+</ul>
+</li>
+<li>输出：
+<ul>
+<li>稀疏 3D 特征 (pi, fi) 组成的序列（active voxels），pi 表示体素 i 的位置坐标，fi 表示体素 i 的特征向量</li>
+</ul>
+</li>
+</ul>
+<h4 id="1-训练稀疏结构生成模型-sparsestructureflowmodel"><a class="markdownIt-Anchor" href="#1-训练稀疏结构生成模型-sparsestructureflowmodel"></a> 1. 训练稀疏结构生成模型 SparseStructureFlowModel</h4>
+<ul>
+<li>输入：
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>Shape</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>noise</td>
+<td>(B, 8, 16, 16, 16)</td>
+<td>初始高斯噪声</td>
+</tr>
+<tr>
+<td>image_feats</td>
+<td>(B, 1369, 1024)</td>
+<td>DINOv2 提取的图像特征</td>
+</tr>
+<tr>
+<td>t</td>
+<td>(B,)</td>
+<td>flow matching 时间步</td>
+</tr>
+</tbody>
+</table>
+</li>
+<li>输出：
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>Shape</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>latent</td>
+<td>(B, 8, 16, 16, 16)</td>
+<td>生成的体素 latent</td>
+</tr>
+<tr>
+<td>occupancy</td>
+<td>(B, 1, 16, 16, 16)</td>
+<td>occupancy 概率 (经解码器预测)</td>
+</tr>
+</tbody>
+</table>
+</li>
+<li>监督信号：监督目标来自 ground-truth occupancy grids（稀疏体素结构），根据 3d 资产可以得到（64 下采样到 16）</li>
+</ul>
+<h4 id="2-训练-slat-核心生成-elasticslatflowmodel"><a class="markdownIt-Anchor" href="#2-训练-slat-核心生成-elasticslatflowmodel"></a> 2. 训练 SLAT 核心生成 (ElasticSLatFlowModel)</h4>
+<ul>
+<li>输入：
+<table>
+<thead>
+<tr>
+<th>输入</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Sparse coords</td>
+<td>Stage 1 输出的非空体素坐标</td>
+</tr>
+<tr>
+<td>Sparse feats</td>
+<td>随机噪声特征 (8维)</td>
+</tr>
+<tr>
+<td>Image feats</td>
+<td>DINOv2 图像特征</td>
+</tr>
+<tr>
+<td>t</td>
+<td>时间步，用于 flow matching</td>
+</tr>
+</tbody>
+</table>
+</li>
+<li>输出：
+<table>
+<thead>
+<tr>
+<th>输出</th>
+<th>Shape</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SLAT coords</td>
+<td>(N_voxels, 4)</td>
+<td>稀疏坐标 (batch,x,y,z)</td>
+</tr>
+<tr>
+<td>SLAT feats</td>
+<td>(N_voxels, 8)</td>
+<td>稀疏latent特征</td>
+</tr>
+</tbody>
+</table>
+</li>
+<li>监督信号（SLAT 表征无法直接监督，需要 decode 为 3D 才可以）：
+<ul>
+<li>多视图渲染监督
+<ul>
+<li>对每个 3D 资产有多视角图像</li>
+<li>SLAT → 解码为 NeRF / Gaussian → 渲染成图像</li>
+<li>与真实视图计算重建损失</li>
+</ul>
+</li>
+<li>几何一致性监督：SLAT → 解码为 mesh / occupancy → 与真实 mesh 计算 Chamfer 距离</li>
+<li>稀疏特征正则化：约束 latent 特征的分布，促进稀疏性和稳定性</li>
+</ul>
+</li>
+</ul>
+<h4 id="3-训练多格式解码器"><a class="markdownIt-Anchor" href="#3-训练多格式解码器"></a> 3. 训练多格式解码器</h4>
+<ul>
+<li>SLAT 是统一稀疏latent论文中提到它可被解码为三种不同的 3D 资产类型：Gaussian / Radiance Field / Mesh</li>
+<li>这三个解码器各自独立训练，共享同一 SLAT latent 空间</li>
+</ul>
+<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
+<ul>
+<li><code>3D</code> 生成基本都几何结构 + 纹理信息分开训练，都是用 <code>Diffusion</code> 模型在隐空间做，图像 / 文本作为 <code>Diffusion</code> 的 <code>condition</code></li>
+<li>生成的 <code>3D</code> 模型 -&gt; 渲染得到某个视角的 <code>2D</code> 图片，和原始 <code>3D</code> 模型对应视角渲染图片做 <code>pixel-level</code> 的损失，是自监督 <code>3D</code> 生成模型绕不开的</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/3D/" rel="tag"># 3D</a>
+              <a href="/tags/DiT/" rel="tag"># DiT</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2025/10/23/EMMA-End-to-End-Multimodal-Model-for-Autonomous-Driving/" rel="prev" title="EMMA: End-to-End Multimodal Model for Autonomous Driving">
+      <i class="fa fa-chevron-left"></i> EMMA: End-to-End Multimodal Model for Autonomous Driving
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2025/12/06/MammothModa2-A-Unified-AR-Diffusion-Framework-for-Multimodal-Understanding-and-Generation/" rel="next" title="MammothModa2: A Unified AR-Diffusion Framework for Multimodal Understanding and Generation">
+      MammothModa2: A Unified AR-Diffusion Framework for Multimodal Understanding and Generation <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#url"><span class="nav-number">1.</span> <span class="nav-text"> URL</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#tldr"><span class="nav-number">2.</span> <span class="nav-text"> TL;DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#algorithm"><span class="nav-number">3.</span> <span class="nav-text"> Algorithm</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-%E6%8E%A8%E7%90%86%E8%BF%87%E7%A8%8B"><span class="nav-number">3.1.</span> <span class="nav-text"> 1. 推理过程</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#0-%E5%9B%BE%E5%83%8F%E9%A2%84%E5%A4%84%E7%90%86"><span class="nav-number">3.1.1.</span> <span class="nav-text"> 0: 图像预处理</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#1-%E5%9B%BE%E5%83%8F%E6%9D%A1%E4%BB%B6%E7%BC%96%E7%A0%81"><span class="nav-number">3.1.2.</span> <span class="nav-text"> 1: 图像条件编码</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-%E7%A8%80%E7%96%8F%E7%BB%93%E6%9E%84%E7%94%9F%E6%88%90-stage-1"><span class="nav-number">3.1.3.</span> <span class="nav-text"> 2: 稀疏结构生成 (Stage 1)</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-slat-%E7%94%9F%E6%88%90-stage-2-%E6%A0%B8%E5%BF%83%E8%A1%A8%E5%BE%81"><span class="nav-number">3.1.4.</span> <span class="nav-text"> 3: SLAT 生成 (Stage 2) - 核心表征</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#4-slat-%E8%A7%A3%E7%A0%81%E5%88%B0%E5%A4%9A%E7%A7%8D3d%E8%A1%A8%E5%BE%81"><span class="nav-number">3.1.5.</span> <span class="nav-text"> 4: SLAT 解码到多种3D表征</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-%E8%AE%AD%E7%BB%83%E8%BF%87%E7%A8%8B"><span class="nav-number">3.2.</span> <span class="nav-text"> 2. 训练过程</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#0-%E6%95%B0%E6%8D%AE%E5%87%86%E5%A4%87%E4%B8%8E%E5%A4%9A%E8%A7%86%E8%A7%92%E7%89%B9%E5%BE%81%E6%8F%90%E5%8F%96"><span class="nav-number">3.2.1.</span> <span class="nav-text"> 0. 数据准备与多视角特征提取</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#1-%E8%AE%AD%E7%BB%83%E7%A8%80%E7%96%8F%E7%BB%93%E6%9E%84%E7%94%9F%E6%88%90%E6%A8%A1%E5%9E%8B-sparsestructureflowmodel"><span class="nav-number">3.2.2.</span> <span class="nav-text"> 1. 训练稀疏结构生成模型 SparseStructureFlowModel</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-%E8%AE%AD%E7%BB%83-slat-%E6%A0%B8%E5%BF%83%E7%94%9F%E6%88%90-elasticslatflowmodel"><span class="nav-number">3.2.3.</span> <span class="nav-text"> 2. 训练 SLAT 核心生成 (ElasticSLatFlowModel)</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-%E8%AE%AD%E7%BB%83%E5%A4%9A%E6%A0%BC%E5%BC%8F%E8%A7%A3%E7%A0%81%E5%99%A8"><span class="nav-number">3.2.4.</span> <span class="nav-text"> 3. 训练多格式解码器</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#thought"><span class="nav-number">4.</span> <span class="nav-text"> Thought</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Zhangzhe</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives">
+          <span class="site-state-item-count">173</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">51</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhangzhe</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js', () => {
+    // 初始化 Mermaid 配置
+    mermaid.initialize({
+      theme    : 'dark',  // 设置主题
+      logLevel : 3,  // 设置日志等级
+      flowchart: { curve: 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 },
+      themeVariables: {
+        'fontFamily': 'Microsoft YaHei, Arial, sans-serif',  // 设置中文字体
+      }
+    });
+
+    // 初始化 Mermaid 图表
+    mermaid.init(undefined, document.querySelectorAll('pre.mermaid'));
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+      
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/katex@0/dist/katex.min.css">
+
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'eK3W25jybCO5jVUrYBBpAPqM-gzGzoHsz',
+      appKey     : 'F4KVyUj9wHI5c80Bhz7O2uhq',
+      placeholder: "说点什么再走吧...",
+      avatar     : 'hide',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>
