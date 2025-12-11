@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"real-zhangzhe.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="URL  paper: https:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;2202.06417 code: https:&#x2F;&#x2F;github.com&#x2F;yxuansu&#x2F;SimCTG&#x2F;tree&#x2F;main&#x2F;contrastive_search_explanation   TL;DR  本文提出一种叫做 Contrastive search 的解码方法，比 top-k &#x2F; top-p 等随机解码方法和 argma">
+<meta property="og:type" content="article">
+<meta property="og:title" content="A Contrastive Framework for Neural Text Generation">
+<meta property="og:url" content="https://real-zhangzhe.github.io/2024/08/08/A-Contrastive-Framework-for-Neural-Text-Generation/index.html">
+<meta property="og:site_name" content="Zhangzhe&#39;s Blog">
+<meta property="og:description" content="URL  paper: https:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;2202.06417 code: https:&#x2F;&#x2F;github.com&#x2F;yxuansu&#x2F;SimCTG&#x2F;tree&#x2F;main&#x2F;contrastive_search_explanation   TL;DR  本文提出一种叫做 Contrastive search 的解码方法，比 top-k &#x2F; top-p 等随机解码方法和 argma">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://s2.loli.net/2024/08/08/DBsgbwNrtCXhHaF.png">
+<meta property="article:published_time" content="2024-08-08T04:38:20.000Z">
+<meta property="article:modified_time" content="2025-12-11T05:48:26.530Z">
+<meta property="article:author" content="Zhangzhe">
+<meta property="article:tag" content="LLM">
+<meta property="article:tag" content="decoding method">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://s2.loli.net/2024/08/08/DBsgbwNrtCXhHaF.png">
+
+<link rel="canonical" href="https://real-zhangzhe.github.io/2024/08/08/A-Contrastive-Framework-for-Neural-Text-Generation/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>A Contrastive Framework for Neural Text Generation | Zhangzhe's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Zhangzhe's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">The projection of my life.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/archives/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/08/08/A-Contrastive-Framework-for-Neural-Text-Generation/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          A Contrastive Framework for Neural Text Generation
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-08-08 12:38:20" itemprop="dateCreated datePublished" datetime="2024-08-08T12:38:20+08:00">2024-08-08</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-12-11 13:48:26" itemprop="dateModified" datetime="2025-12-11T13:48:26+08:00">2025-12-11</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/decoding-method/" itemprop="url" rel="index"><span itemprop="name">decoding method</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2024/08/08/A-Contrastive-Framework-for-Neural-Text-Generation/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2024/08/08/A-Contrastive-Framework-for-Neural-Text-Generation/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2202.06417">https://arxiv.org/pdf/2202.06417</a></li>
+<li>code: <a target="_blank" rel="noopener" href="https://github.com/yxuansu/SimCTG/tree/main/contrastive_search_explanation">https://github.com/yxuansu/SimCTG/tree/main/contrastive_search_explanation</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li>本文提出一种叫做 <code>Contrastive search</code> 的解码方法，比 <code>top-k</code> / <code>top-p</code> 等随机解码方法和 <code>argmax</code> 这种贪心解码方法更优，模型输出内容语意更连贯，模型更不容易退化</li>
+<li><code>Contrastive search</code> 是在 <code>top-k</code> 基础上增加了 <code>degeneration penalty</code>（退化惩罚项），算是 <code>random sampling</code> 类算法的升级版</li>
+<li>但需要将候选的 <code>top-k</code> 输出追加到序列末尾作为输入重新输入到模型中输出 <code>top-k</code> 对应的 <code>hidden state</code>，因此时间复杂度较高</li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<h3 id="总体架构"><a class="markdownIt-Anchor" href="#总体架构"></a> 总体架构</h3>
+<p><img src="https://s2.loli.net/2024/08/08/DBsgbwNrtCXhHaF.png" alt="contrastive_search_1.png" /></p>
+<blockquote>
+<p>其中 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi></mrow><annotation encoding="application/x-tex">\alpha</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathnormal" style="margin-right:0.0037em;">α</span></span></span></span> 是超参数，用来平衡模型预测结果和退化惩罚项<br />
+<code>h</code> 表示 <code>hidden state</code>，用 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>h</mi><mi>v</mi></msub></mrow><annotation encoding="application/x-tex">h_v</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.84444em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">h</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.03588em;">v</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> 和序列中每一个 <code>token</code> 的 <code>hidden state</code> 计算相似度<br />
+由于 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>h</mi><mi>v</mi></msub></mrow><annotation encoding="application/x-tex">h_v</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.84444em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">h</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.03588em;">v</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> 只能在下一次 <code>inference</code> 时产生，所以需要在 <code>decoding</code> 阶段再推理一次，这一步比较麻烦</p>
+</blockquote>
+<h3 id="用一段代码来描述一下解码过程"><a class="markdownIt-Anchor" href="#用一段代码来描述一下解码过程"></a> 用一段代码来描述一下解码过程</h3>
+<ol>
+<li>首先在 <code>t-1</code> 时刻输入 <code>seq_len</code> 长度的序列，输出 <code>vocab_size</code> 长度的 <code>logits</code>，选 <code>top-k</code></li>
+</ol>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># compute the logits in this step</span></span><br><span class="line">prev_hidden_states, logits = model.compute_logits_and_hidden_states(input_ids)</span><br><span class="line">_, seqlen, embed_dim = prev_hidden_states.size()</span><br><span class="line">_, _, vocab_size = logits.size()</span><br><span class="line">logit_for_next_step = logits[:,-<span class="number">1</span>,:]</span><br><span class="line"><span class="keyword">assert</span> logit_for_next_step.size() == torch.Size([<span class="number">1</span>, vocab_size])</span><br><span class="line"><span class="comment"># normalize with the softmax function</span></span><br><span class="line">next_probs = F.softmax(logit_for_next_step, dim = -<span class="number">1</span>)</span><br><span class="line"><span class="keyword">assert</span> next_probs.size() == logit_for_next_step.size()</span><br><span class="line"><span class="comment"># collecte top-k candidate tokens and their logits (model confidence)</span></span><br><span class="line">_, next_top_k_ids = torch.topk(logit_for_next_step, dim = -<span class="number">1</span>, k = beam_width)</span><br><span class="line"><span class="keyword">assert</span> next_top_k_ids.size() == torch.Size([<span class="number">1</span>, beam_width])</span><br><span class="line">        </span><br><span class="line">next_top_k_probs = torch.gather(next_probs, dim = <span class="number">1</span>, index=next_top_k_ids)</span><br><span class="line"><span class="keyword">assert</span> next_top_k_probs.size() == next_top_k_ids.size()</span><br></pre></td></tr></table></figure>
+<ol start="2">
+<li>将 <code>top-k</code> 预测的每一种可能追加到原始序列，并在 <code>batch size</code> 维度 <code>concat</code> 成一个 <code>shape = [beam_width, seq_len + 1, dim]</code> 的输入</li>
+</ol>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># concatenate each candidate token with prefix</span></span><br><span class="line">expanded_context = [input_ids <span class="keyword">for</span> _ <span class="keyword">in</span> <span class="built_in">range</span>(beam_width)]</span><br><span class="line">expanded_context = torch.cat(expanded_context, dim = <span class="number">0</span>)</span><br><span class="line"><span class="keyword">assert</span> expanded_context.size() == torch.Size([beam_width, seqlen])</span><br><span class="line">top_k_ids = top_k_ids.view(beam_width, <span class="number">1</span>)</span><br><span class="line">next_input_ids = torch.cat([expanded_context, top_k_ids], dim = -<span class="number">1</span>)</span><br><span class="line"><span class="keyword">assert</span> next_input_ids.size() == torch.Size([beam_width, seqlen+<span class="number">1</span>])</span><br></pre></td></tr></table></figure>
+<ol start="3">
+<li>将 <code>shape = [beam_width, seq_len + 1, dim]</code> 输入到模型中，计算得到每个 <code>token</code> 的 <code>hidden state</code></li>
+</ol>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># feed these candidates into next round to get their hidden states</span></span><br><span class="line">new_hidden_states, next_logits = model.compute_logits_and_hidden_states(next_input_ids)</span><br><span class="line"><span class="keyword">assert</span> new_hidden_states.size() == torch.Size([beam_width, seqlen+<span class="number">1</span>, embed_dim])</span><br><span class="line">context_hidden = new_hidden_states[:,:seqlen,:]</span><br><span class="line"><span class="keyword">assert</span> context_hidden.size() == torch.Size([beam_width, seqlen, embed_dim])</span><br><span class="line">next_hidden = new_hidden_states[:,seqlen:,:]</span><br><span class="line"><span class="keyword">assert</span> next_hidden.size() == torch.Size([beam_width, <span class="number">1</span>, embed_dim])</span><br></pre></td></tr></table></figure>
+<ol start="4">
+<li>计算每一个 <code>next hidden state</code> 和 <code>context hidden state</code> 之间的相关性，相关性越高，说明重复性越高，惩罚越重，选择此 <code>token</code> 作为 <code>next input id</code> 的可能性越低</li>
+</ol>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">ranking</span>(<span class="params">context_hidden, next_hidden, next_top_k_ids, next_top_k_probs, alpha</span>):</span></span><br><span class="line">    <span class="string">&#x27;&#x27;&#x27;</span></span><br><span class="line"><span class="string">        context_hidden: beam_width x context_len x embed_dim</span></span><br><span class="line"><span class="string">        next_hidden: beam_width x 1 x embed_dim</span></span><br><span class="line"><span class="string">        next_top_k_ids: beam_width x 1</span></span><br><span class="line"><span class="string">    &#x27;&#x27;&#x27;</span></span><br><span class="line">    beam_width, context_len, embed_dim = context_hidden.size()</span><br><span class="line">    <span class="keyword">assert</span> next_hidden.size() == torch.Size([beam_width, <span class="number">1</span>, embed_dim])</span><br><span class="line">    norm_context_hidden = context_hidden / context_hidden.norm(dim=<span class="number">2</span>, keepdim=<span class="literal">True</span>)</span><br><span class="line">    norm_next_hidden = next_hidden / next_hidden.norm(dim=<span class="number">2</span>, keepdim=<span class="literal">True</span>)</span><br><span class="line">    cosine_matrix = torch.matmul(norm_context_hidden, norm_next_hidden.transpose(<span class="number">1</span>,<span class="number">2</span>)).squeeze(-<span class="number">1</span>)</span><br><span class="line">    <span class="keyword">assert</span> cosine_matrix.size() == torch.Size([beam_width, context_len])</span><br><span class="line">    scores, _ = torch.<span class="built_in">max</span>(cosine_matrix, dim = -<span class="number">1</span>)</span><br><span class="line">    <span class="keyword">assert</span> scores.size() == torch.Size([beam_width])</span><br><span class="line">    next_top_k_probs = next_top_k_probs.view(-<span class="number">1</span>)</span><br><span class="line">    scores = (<span class="number">1.0</span> - alpha) * next_top_k_probs - alpha * scores </span><br><span class="line">    _, selected_idx = torch.topk(scores, k = <span class="number">1</span>)</span><br><span class="line">    <span class="keyword">assert</span> selected_idx.size() == torch.Size([<span class="number">1</span>])</span><br><span class="line">    selected_idx = selected_idx.unsqueeze(<span class="number">0</span>)</span><br><span class="line">    <span class="keyword">assert</span> selected_idx.size() == torch.Size([<span class="number">1</span>,<span class="number">1</span>])</span><br><span class="line">    next_id = torch.gather(next_top_k_ids, dim = <span class="number">0</span>, index=selected_idx)</span><br><span class="line">    <span class="keyword">assert</span> next_id.size() == torch.Size([<span class="number">1</span>,<span class="number">1</span>])</span><br><span class="line">    <span class="keyword">return</span> next_id</span><br></pre></td></tr></table></figure>
+<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
+<ul>
+<li>道理上讲得通，但多推理的一次是实实在在的计算代价，总计算量直接翻倍，真的会有大模型选择这种解码方式吗？</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/LLM/" rel="tag"># LLM</a>
+              <a href="/tags/decoding-method/" rel="tag"># decoding method</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2024/08/05/ALiBi-Train-short-test-long-Attention-with-linear-biases-enables-input-length-extrapolation/" rel="prev" title="ALiBi: Train short, test long: Attention with linear biases enables input length extrapolation">
+      <i class="fa fa-chevron-left"></i> ALiBi: Train short, test long: Attention with linear biases enables input length extrapolation
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2024/08/09/Truncation-Sampling-as-Language-Model-Desmoothing/" rel="next" title="Truncation Sampling as Language Model Desmoothing">
+      Truncation Sampling as Language Model Desmoothing <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#url"><span class="nav-number">1.</span> <span class="nav-text"> URL</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#tldr"><span class="nav-number">2.</span> <span class="nav-text"> TL;DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#algorithm"><span class="nav-number">3.</span> <span class="nav-text"> Algorithm</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%80%BB%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="nav-number">3.1.</span> <span class="nav-text"> 总体架构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%94%A8%E4%B8%80%E6%AE%B5%E4%BB%A3%E7%A0%81%E6%9D%A5%E6%8F%8F%E8%BF%B0%E4%B8%80%E4%B8%8B%E8%A7%A3%E7%A0%81%E8%BF%87%E7%A8%8B"><span class="nav-number">3.2.</span> <span class="nav-text"> 用一段代码来描述一下解码过程</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#thought"><span class="nav-number">4.</span> <span class="nav-text"> Thought</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Zhangzhe</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives">
+          <span class="site-state-item-count">173</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">51</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhangzhe</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js', () => {
+    // 初始化 Mermaid 配置
+    mermaid.initialize({
+      theme    : 'dark',  // 设置主题
+      logLevel : 3,  // 设置日志等级
+      flowchart: { curve: 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 },
+      themeVariables: {
+        'fontFamily': 'Microsoft YaHei, Arial, sans-serif',  // 设置中文字体
+      }
+    });
+
+    // 初始化 Mermaid 图表
+    mermaid.init(undefined, document.querySelectorAll('pre.mermaid'));
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+      
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/katex@0/dist/katex.min.css">
+
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'eK3W25jybCO5jVUrYBBpAPqM-gzGzoHsz',
+      appKey     : 'F4KVyUj9wHI5c80Bhz7O2uhq',
+      placeholder: "说点什么再走吧...",
+      avatar     : 'hide',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

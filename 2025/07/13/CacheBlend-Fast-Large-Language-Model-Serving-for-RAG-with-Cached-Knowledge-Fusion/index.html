@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"real-zhangzhe.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="URL  paper: https:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;2405.16444 code: https:&#x2F;&#x2F;github.com&#x2F;LMCache&#x2F;LMCache   TL;DR  本文提出一种新的缓存利用机制 CacheBlend，旨在解决 RAG 系统中知识 KV Cache 的可用性，通过一种稀疏近似的方式平衡速度和准确性。   Algorithm  知识注入的两种常见方式  1.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="CacheBlend: Fast Large Language Model Serving for RAG with Cached Knowledge Fusion">
+<meta property="og:url" content="https://real-zhangzhe.github.io/2025/07/13/CacheBlend-Fast-Large-Language-Model-Serving-for-RAG-with-Cached-Knowledge-Fusion/index.html">
+<meta property="og:site_name" content="Zhangzhe&#39;s Blog">
+<meta property="og:description" content="URL  paper: https:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;2405.16444 code: https:&#x2F;&#x2F;github.com&#x2F;LMCache&#x2F;LMCache   TL;DR  本文提出一种新的缓存利用机制 CacheBlend，旨在解决 RAG 系统中知识 KV Cache 的可用性，通过一种稀疏近似的方式平衡速度和准确性。   Algorithm  知识注入的两种常见方式  1.">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://s2.loli.net/2025/07/13/m6c3r9KLCEgIdJY.png">
+<meta property="og:image" content="https://s2.loli.net/2025/07/13/vai4cwZmEIR1sSJ.png">
+<meta property="og:image" content="https://s2.loli.net/2025/07/13/D1MyroxV3ZhLUlk.png">
+<meta property="og:image" content="https://s2.loli.net/2025/07/13/NbGWP4zluwV8tOm.png">
+<meta property="article:published_time" content="2025-07-13T07:33:34.000Z">
+<meta property="article:modified_time" content="2025-12-11T05:48:26.534Z">
+<meta property="article:author" content="Zhangzhe">
+<meta property="article:tag" content="LLM">
+<meta property="article:tag" content="RAG">
+<meta property="article:tag" content="KV Cache">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://s2.loli.net/2025/07/13/m6c3r9KLCEgIdJY.png">
+
+<link rel="canonical" href="https://real-zhangzhe.github.io/2025/07/13/CacheBlend-Fast-Large-Language-Model-Serving-for-RAG-with-Cached-Knowledge-Fusion/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>CacheBlend: Fast Large Language Model Serving for RAG with Cached Knowledge Fusion | Zhangzhe's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Zhangzhe's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">The projection of my life.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/archives/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2025/07/13/CacheBlend-Fast-Large-Language-Model-Serving-for-RAG-with-Cached-Knowledge-Fusion/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          CacheBlend: Fast Large Language Model Serving for RAG with Cached Knowledge Fusion
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-07-13 15:33:34" itemprop="dateCreated datePublished" datetime="2025-07-13T15:33:34+08:00">2025-07-13</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-12-11 13:48:26" itemprop="dateModified" datetime="2025-12-11T13:48:26+08:00">2025-12-11</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/RAG/" itemprop="url" rel="index"><span itemprop="name">RAG</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2025/07/13/CacheBlend-Fast-Large-Language-Model-Serving-for-RAG-with-Cached-Knowledge-Fusion/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2025/07/13/CacheBlend-Fast-Large-Language-Model-Serving-for-RAG-with-Cached-Knowledge-Fusion/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2405.16444">https://arxiv.org/pdf/2405.16444</a></li>
+<li>code: <a target="_blank" rel="noopener" href="https://github.com/LMCache/LMCache">https://github.com/LMCache/LMCache</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li>本文提出一种新的缓存利用机制 <code>CacheBlend</code>，旨在解决 <code>RAG</code> 系统中知识 <code>KV Cache</code> 的可用性，通过一种稀疏近似的方式平衡速度和准确性。</li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<h3 id="知识注入的两种常见方式"><a class="markdownIt-Anchor" href="#知识注入的两种常见方式"></a> 知识注入的两种常见方式</h3>
+<h4 id="1-微调"><a class="markdownIt-Anchor" href="#1-微调"></a> 1. 微调</h4>
+<ul>
+<li>收集知识库中的文档数据，微调模型，使其能够在生成文本时利用这些知识。</li>
+<li>优点：推理时不会有额外的延迟。</li>
+<li>缺点：
+<ol>
+<li>动态更新困难</li>
+<li>模块化困难（无法要求模型使用哪些知识，不用哪些知识）</li>
+</ol>
+</li>
+</ul>
+<h4 id="2-知识检索"><a class="markdownIt-Anchor" href="#2-知识检索"></a> 2. 知识检索</h4>
+<ul>
+<li>在推理时，检索相关文档并将其作为上下文输入到模型中。</li>
+<li>优点：动态更新知识库，模块化。</li>
+<li>缺点：推理时需要额外的延迟，一是因为检索本身的延迟，二是因为模型需要计算额外的上下文注意力。</li>
+</ul>
+<h3 id="如何同时解决模块化和速度的问题"><a class="markdownIt-Anchor" href="#如何同时解决模块化和速度的问题"></a> 如何同时解决模块化和速度的问题？</h3>
+<ul>
+<li>如果在知识检索技术的基础上，检索系统提前缓存了 <strong>知识库中文档对应的 <code>KV Cache</code></strong>，那么就可以在推理时直接使用这些 <code>KV Cache</code> 无需计算这部分的注意力（只需要检索延迟）。</li>
+</ul>
+<h3 id="这样做有什么问题"><a class="markdownIt-Anchor" href="#这样做有什么问题"></a> 这样做有什么问题？</h3>
+<ul>
+<li>一个很重要的问题是：优于现如今绝大多数 <code>LLM</code> 的 <code>decoder only</code> 架构，缓存的知识库的 <code>KV Cache</code> 必须作为 <code>prefix</code> 注入到模型中，且只能用一个，否则模型无法利用这些知识。</li>
+<li>例如：
+<ul>
+<li>记检索到的文档的 <code>KV Cache</code> 为 <code>A</code>，历史对话信息和用户输入为 <code>B</code></li>
+<li>那么模型的输入应该是 <code>A + B</code>，而不是 <code>B + A</code></li>
+<li>因为 <code>KV Cache</code> 位置 <code>i</code> 的值依赖于 <code>0 ~ i-1</code> 位置的值，如果不作为 <code>prefix</code> 注入，那么模型无法利用这些知识。</li>
+</ul>
+</li>
+</ul>
+<p><img src="https://s2.loli.net/2025/07/13/m6c3r9KLCEgIdJY.png" alt="cacheblend_2.png" /><br />
+<img src="https://s2.loli.net/2025/07/13/vai4cwZmEIR1sSJ.png" alt="cacheblend_3.png" /></p>
+<h3 id="cacheblend-想要解决的问题"><a class="markdownIt-Anchor" href="#cacheblend-想要解决的问题"></a> CacheBlend 想要解决的问题</h3>
+<ul>
+<li><code>CacheBlend</code> 目的就是为了 <strong>解决 <code>RAG</code> 系统中知识 <code>KV Cache</code> 只能作为 <code>prefix</code> 注入的问题</strong></li>
+<li><code>CacheBlend</code> 做不到和完全重新计算数学上等价，只能是近似</li>
+<li>原理本质上讲是平衡，即 <strong>在完全重新计算 <code>KV Cache</code> 和完全使用缓存的 <code>KV Cache</code> 之间进行平衡</strong>，如下图：</li>
+</ul>
+<p><img src="https://s2.loli.net/2025/07/13/D1MyroxV3ZhLUlk.png" alt="cacheblend.png" /></p>
+<h3 id="cacheblend-的解决方案"><a class="markdownIt-Anchor" href="#cacheblend-的解决方案"></a> CacheBlend 的解决方案</h3>
+<p><img src="https://s2.loli.net/2025/07/13/NbGWP4zluwV8tOm.png" alt="cacheblend_4.png" /></p>
+<ul>
+<li><code>CacheBlend</code> 通过 <strong>稀疏近似</strong> 的方式，平衡速度和准确性，具体来说，对非 <code>prefix</code> 的 <code>KV Cache</code>，做：
+<ol>
+<li>第 <code>1</code> 层​​：计算所有 <code>Token</code> 的 <code>KV</code> 偏差，选择 <code>Top 20%</code> 作为候选 <code>HKVD (High-KV-Deviation) Token</code></li>
+<li>​后续层​​：仅对前一层的 <code>HKVD Token</code> 计算偏差，从中选择 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mi>o</mi><mi>p</mi><mtext> </mtext><msub><mi>r</mi><mi>i</mi></msub><mi mathvariant="normal">%</mi><mtext> </mtext><mo stretchy="false">(</mo><msub><mi>r</mi><mi>i</mi></msub><mo>&lt;</mo><msub><mi>r</mi><mrow><mi>i</mi><mo>−</mo><mn>1</mn></mrow></msub><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">Top\ r_i\%\  (r_i &lt; r_{i-1})</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.13889em;">T</span><span class="mord mathnormal">o</span><span class="mord mathnormal">p</span><span class="mspace"> </span><span class="mord"><span class="mord mathnormal" style="margin-right:0.02778em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.31166399999999994em;"><span style="top:-2.5500000000000003em;margin-left:-0.02778em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord">%</span><span class="mspace"> </span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.02778em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.31166399999999994em;"><span style="top:-2.5500000000000003em;margin-left:-0.02778em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">&lt;</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.02778em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.311664em;"><span style="top:-2.5500000000000003em;margin-left:-0.02778em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">i</span><span class="mbin mtight">−</span><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.208331em;"><span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span> 作为当前层 <code>HKVD Token</code></li>
+<li>​​终止​​：最终每层仅更新约 <code>10-15% Token</code>，偏差显著降低</li>
+</ol>
+</li>
+<li>总体上就是用逐层用新的 <code>KV Cache</code> 替换旧的 <code>KV Cache</code>，替换依据是 <code>KV</code> 偏差，偏差越大的 <code>Token</code> 替换的优先级越高。</li>
+</ul>
+<h3 id="cacheblend-的优势"><a class="markdownIt-Anchor" href="#cacheblend-的优势"></a> CacheBlend 的优势</h3>
+<ul>
+<li><strong>质量保障</strong>​​：仅更新 <code>10-15% Token</code> 即可达到 <code>Full KV Recompute</code> 的质量（<code>F1/Rouge-L</code> 偏差 <code>&lt;0.02</code>）</li>
+<li><strong>​​延迟隐藏</strong>​​：<code>KV</code> 重新计算与 <code>KV</code> 缓存加载流水线并行，使额外延迟近乎为零</li>
+<li>​<strong>提速</strong>​​：<code>TTFT (Time To First Token)</code> 降低 <code>2.2 ~ 3.3</code> 倍，吞吐量提升 <code>2.8 ~ 5</code> 倍</li>
+</ul>
+<h2 id="thoughts"><a class="markdownIt-Anchor" href="#thoughts"></a> Thoughts</h2>
+<ul>
+<li>稀疏无处不在</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/LLM/" rel="tag"># LLM</a>
+              <a href="/tags/RAG/" rel="tag"># RAG</a>
+              <a href="/tags/KV-Cache/" rel="tag"># KV Cache</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2025/07/04/Toolformer-Language-Models-Can-Teach-Themselves-to-Use-Tools/" rel="prev" title="Toolformer: Language Models Can Teach Themselves to Use Tools">
+      <i class="fa fa-chevron-left"></i> Toolformer: Language Models Can Teach Themselves to Use Tools
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2025/07/15/Dynamic-Chunking-for-End-to-End-Hierarchical-Sequence-Modeling/" rel="next" title="Dynamic Chunking for End-to-End Hierarchical Sequence Modeling">
+      Dynamic Chunking for End-to-End Hierarchical Sequence Modeling <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#url"><span class="nav-number">1.</span> <span class="nav-text"> URL</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#tldr"><span class="nav-number">2.</span> <span class="nav-text"> TL;DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#algorithm"><span class="nav-number">3.</span> <span class="nav-text"> Algorithm</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%9F%A5%E8%AF%86%E6%B3%A8%E5%85%A5%E7%9A%84%E4%B8%A4%E7%A7%8D%E5%B8%B8%E8%A7%81%E6%96%B9%E5%BC%8F"><span class="nav-number">3.1.</span> <span class="nav-text"> 知识注入的两种常见方式</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#1-%E5%BE%AE%E8%B0%83"><span class="nav-number">3.1.1.</span> <span class="nav-text"> 1. 微调</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-%E7%9F%A5%E8%AF%86%E6%A3%80%E7%B4%A2"><span class="nav-number">3.1.2.</span> <span class="nav-text"> 2. 知识检索</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%A6%82%E4%BD%95%E5%90%8C%E6%97%B6%E8%A7%A3%E5%86%B3%E6%A8%A1%E5%9D%97%E5%8C%96%E5%92%8C%E9%80%9F%E5%BA%A6%E7%9A%84%E9%97%AE%E9%A2%98"><span class="nav-number">3.2.</span> <span class="nav-text"> 如何同时解决模块化和速度的问题？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%BF%99%E6%A0%B7%E5%81%9A%E6%9C%89%E4%BB%80%E4%B9%88%E9%97%AE%E9%A2%98"><span class="nav-number">3.3.</span> <span class="nav-text"> 这样做有什么问题？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#cacheblend-%E6%83%B3%E8%A6%81%E8%A7%A3%E5%86%B3%E7%9A%84%E9%97%AE%E9%A2%98"><span class="nav-number">3.4.</span> <span class="nav-text"> CacheBlend 想要解决的问题</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#cacheblend-%E7%9A%84%E8%A7%A3%E5%86%B3%E6%96%B9%E6%A1%88"><span class="nav-number">3.5.</span> <span class="nav-text"> CacheBlend 的解决方案</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#cacheblend-%E7%9A%84%E4%BC%98%E5%8A%BF"><span class="nav-number">3.6.</span> <span class="nav-text"> CacheBlend 的优势</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#thoughts"><span class="nav-number">4.</span> <span class="nav-text"> Thoughts</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Zhangzhe</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives">
+          <span class="site-state-item-count">173</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">51</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhangzhe</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js', () => {
+    // 初始化 Mermaid 配置
+    mermaid.initialize({
+      theme    : 'dark',  // 设置主题
+      logLevel : 3,  // 设置日志等级
+      flowchart: { curve: 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 },
+      themeVariables: {
+        'fontFamily': 'Microsoft YaHei, Arial, sans-serif',  // 设置中文字体
+      }
+    });
+
+    // 初始化 Mermaid 图表
+    mermaid.init(undefined, document.querySelectorAll('pre.mermaid'));
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+      
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/katex@0/dist/katex.min.css">
+
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'eK3W25jybCO5jVUrYBBpAPqM-gzGzoHsz',
+      appKey     : 'F4KVyUj9wHI5c80Bhz7O2uhq',
+      placeholder: "说点什么再走吧...",
+      avatar     : 'hide',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

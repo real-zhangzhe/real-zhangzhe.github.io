@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"real-zhangzhe.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="URL  paper: https:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;2305.09781 code: https:&#x2F;&#x2F;github.com&#x2F;flexflow&#x2F;FlexFlow&#x2F;   TL;DR  本文利用了 Speculative decoding 思想实现了一个 SpecInfer 大语言模型推理加速系统 和标准 Speculative decoding 使用 seq 组织预测的 token">
+<meta property="og:type" content="article">
+<meta property="og:title" content="SpecInfer: Accelerating Large Language Model Serving with Tree-based Speculative Inference and Verification">
+<meta property="og:url" content="https://real-zhangzhe.github.io/2024/08/15/SpecInfer-Accelerating-Large-Language-Model-Serving-with-Tree-based-Speculative-Inference-and-Verification/index.html">
+<meta property="og:site_name" content="Zhangzhe&#39;s Blog">
+<meta property="og:description" content="URL  paper: https:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;2305.09781 code: https:&#x2F;&#x2F;github.com&#x2F;flexflow&#x2F;FlexFlow&#x2F;   TL;DR  本文利用了 Speculative decoding 思想实现了一个 SpecInfer 大语言模型推理加速系统 和标准 Speculative decoding 使用 seq 组织预测的 token">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://s2.loli.net/2024/08/15/98NPOk4gMia1dIy.png">
+<meta property="og:image" content="https://s2.loli.net/2024/08/15/eW9VJYnQv6bcuMA.png">
+<meta property="og:image" content="https://s2.loli.net/2024/08/16/caHNM5xfVn2ZrPq.png">
+<meta property="og:image" content="https://s2.loli.net/2024/08/19/sOeLxDdgVC3QH4R.png">
+<meta property="og:image" content="https://s2.loli.net/2024/08/19/xTEuNg3K6irh4Rz.png">
+<meta property="article:published_time" content="2024-08-15T04:25:11.000Z">
+<meta property="article:modified_time" content="2025-12-11T05:48:26.538Z">
+<meta property="article:author" content="Zhangzhe">
+<meta property="article:tag" content="LLM">
+<meta property="article:tag" content="Paper Reading">
+<meta property="article:tag" content="Speedup">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://s2.loli.net/2024/08/15/98NPOk4gMia1dIy.png">
+
+<link rel="canonical" href="https://real-zhangzhe.github.io/2024/08/15/SpecInfer-Accelerating-Large-Language-Model-Serving-with-Tree-based-Speculative-Inference-and-Verification/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>SpecInfer: Accelerating Large Language Model Serving with Tree-based Speculative Inference and Verification | Zhangzhe's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Zhangzhe's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">The projection of my life.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/archives/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/08/15/SpecInfer-Accelerating-Large-Language-Model-Serving-with-Tree-based-Speculative-Inference-and-Verification/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          SpecInfer: Accelerating Large Language Model Serving with Tree-based Speculative Inference and Verification
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-08-15 12:25:11" itemprop="dateCreated datePublished" datetime="2024-08-15T12:25:11+08:00">2024-08-15</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-12-11 13:48:26" itemprop="dateModified" datetime="2025-12-11T13:48:26+08:00">2025-12-11</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/LLM/" itemprop="url" rel="index"><span itemprop="name">LLM</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2024/08/15/SpecInfer-Accelerating-Large-Language-Model-Serving-with-Tree-based-Speculative-Inference-and-Verification/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2024/08/15/SpecInfer-Accelerating-Large-Language-Model-Serving-with-Tree-based-Speculative-Inference-and-Verification/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2305.09781">https://arxiv.org/pdf/2305.09781</a></li>
+<li>code: <a target="_blank" rel="noopener" href="https://github.com/flexflow/FlexFlow/">https://github.com/flexflow/FlexFlow/</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li>本文利用了 <code>Speculative decoding</code> 思想实现了一个 <code>SpecInfer</code> 大语言模型推理加速系统</li>
+<li>和标准 <code>Speculative decoding</code> 使用 <code>seq</code> 组织预测的 <code>token</code> 不同，<code>SpecInfer</code> 使用 <code>tree</code> 数据结构组织预测的 <code>token</code></li>
+<li><code>SpecInfer</code> 中的 <code>target</code> 模型可以并行验证整个 <code>token tree</code> 的正确性，而不是 <code>token seq</code>，且可以保证和原模型输出完全一致</li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<h3 id="增量式解码-序列式投机解码-树式投机解码三者对比"><a class="markdownIt-Anchor" href="#增量式解码-序列式投机解码-树式投机解码三者对比"></a> 增量式解码、序列式投机解码、树式投机解码三者对比</h3>
+<p><img src="https://s2.loli.net/2024/08/15/98NPOk4gMia1dIy.png" alt="specinfer_1.png" /></p>
+<blockquote>
+<p>左图表示传统增量式推理 <code>LLM</code> 的解码方式<br />
+右图从上到下依次表示：增量式解码、序列式投机解码、树式投机解码</p>
+</blockquote>
+<h3 id="候选树生成和验证流程"><a class="markdownIt-Anchor" href="#候选树生成和验证流程"></a> 候选树生成和验证流程</h3>
+<p><img src="https://s2.loli.net/2024/08/15/eW9VJYnQv6bcuMA.png" alt="specinfer_2.png" /></p>
+<blockquote>
+<p><code>SSM (small speculative model)</code> 给出候选树<br />
+<code>target model</code> 对候选树进行验证</p>
+</blockquote>
+<h3 id="如何对树式结构并行解码"><a class="markdownIt-Anchor" href="#如何对树式结构并行解码"></a> 如何对树式结构并行解码</h3>
+<p><img src="https://s2.loli.net/2024/08/16/caHNM5xfVn2ZrPq.png" alt="specinfer_3.png" /></p>
+<blockquote>
+<p><strong>注意：这的 “并行” 是指可以一次解码一棵树而不需要将树深度优先搜索得到多组序列然后一一解码</strong></p>
+</blockquote>
+<ol>
+<li>使用 <code>kv cache</code> 对解码过程进行加速是一个常见的方法，但树式结构无法直接使用 <code>kv cache</code>（因为要动态剪枝，如图左侧所示）</li>
+<li>因此本文提出一种新颖的方法使得树式结构可以并行解码，这个方法包括两个改进：
+<ol>
+<li>对树进行 <strong>深度优先搜索</strong>，使得树变成一个序列</li>
+<li>将传统的上三角 <code>attention mask</code> 变成一个 <code>topology-aware mask</code>，即通过 <code>mask</code> 来确定 <code>token</code> 两两之间的可见性（如图右侧所示），这种可见性包含：
+<ol>
+<li>每个 <code>token</code> 看不到之后的 <code>token</code>（矩阵下三角置 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mi mathvariant="normal">∞</mi></mrow><annotation encoding="application/x-tex">-\infty</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.66666em;vertical-align:-0.08333em;"></span><span class="mord">−</span><span class="mord">∞</span></span></span></span>）</li>
+<li>每个 <code>token</code> 看不到不在其拓扑路径上的 <code>token</code></li>
+</ol>
+</li>
+</ol>
+</li>
+</ol>
+<h3 id="总体算法流程"><a class="markdownIt-Anchor" href="#总体算法流程"></a> 总体算法流程</h3>
+<p><img src="https://s2.loli.net/2024/08/19/sOeLxDdgVC3QH4R.png" alt="specinfer_4.png" /></p>
+<ol>
+<li>先用 <code>small speculate model</code> 推理 <code>sequence</code> 得到候选树 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>N</mi></mrow><annotation encoding="application/x-tex">N</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span></span></span></span></li>
+<li>在使用 <code>LLM</code> 树式并行解码 <code>sequence</code> 得到大模型预测结果 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi></mrow><annotation encoding="application/x-tex">O</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord mathnormal" style="margin-right:0.02778em;">O</span></span></span></span></li>
+<li>用贪心算法或随机匹配算法对候选树 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>N</mi></mrow><annotation encoding="application/x-tex">N</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span></span></span></span> 逐个节点验证（接受或拒绝）</li>
+<li>重复直到 <code>&lt;EOS&gt;</code> 出现</li>
+</ol>
+<h3 id="贪心验证算法和随机验证算法"><a class="markdownIt-Anchor" href="#贪心验证算法和随机验证算法"></a> 贪心验证算法和随机验证算法</h3>
+<p><img src="https://s2.loli.net/2024/08/19/xTEuNg3K6irh4Rz.png" alt="specinfer_5.png" /></p>
+<ul>
+<li>这里的两种算法和 <a target="_blank" rel="noopener" href="https://zhangzhe.space/2024/08/14/Fast-Inference-from-Transformers-via-Speculative-Decoding/">https://zhangzhe.space/2024/08/14/Fast-Inference-from-Transformers-via-Speculative-Decoding/</a> 里的流程基本一致，不一样的地方仅仅在于 <code>tree / sequence</code> 两种候选 <code>token</code> 的组织形式</li>
+</ul>
+<h4 id="贪心验证"><a class="markdownIt-Anchor" href="#贪心验证"></a> 贪心验证</h4>
+<ol>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>u</mi></mrow><annotation encoding="application/x-tex">u</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathnormal">u</span></span></span></span> 表示当前节点，从根节点开始广度优先遍历</li>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>p</mi><mi>v</mi></msub><mo>=</mo><mi>u</mi></mrow><annotation encoding="application/x-tex">p_v=u</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.625em;vertical-align:-0.19444em;"></span><span class="mord"><span class="mord mathnormal">p</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.03588em;">v</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathnormal">u</span></span></span></span> 表示 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>v</mi></mrow><annotation encoding="application/x-tex">v</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathnormal" style="margin-right:0.03588em;">v</span></span></span></span> 是 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>u</mi></mrow><annotation encoding="application/x-tex">u</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathnormal">u</span></span></span></span> 的子节点</li>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>t</mi><mi>v</mi></msub><mo>=</mo><mi>O</mi><mo stretchy="false">(</mo><mi>u</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">t_v=O(u)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.76508em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">t</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.03588em;">v</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.02778em;">O</span><span class="mopen">(</span><span class="mord mathnormal">u</span><span class="mclose">)</span></span></span></span> 表示大模型和投机模型预测结果一致</li>
+</ol>
+<h4 id="随机验证"><a class="markdownIt-Anchor" href="#随机验证"></a> 随机验证</h4>
+<ol>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>u</mi></mrow><annotation encoding="application/x-tex">u</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathnormal">u</span></span></span></span> 表示当前节点，从根节点开始广度优先遍历</li>
+<li>当在 <code>[0, 1]</code> 之间随机均匀采样得到的随机数 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>r</mi><mo>&lt;</mo><mfrac><msub><mi>P</mi><mrow><mi>L</mi><mi>L</mi><mi>M</mi></mrow></msub><msub><mi>P</mi><mrow><mi>S</mi><mi>S</mi><mi>M</mi></mrow></msub></mfrac></mrow><annotation encoding="application/x-tex">r \lt \frac{P_{LLM}}{P_{SSM}}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.5782em;vertical-align:-0.0391em;"></span><span class="mord mathnormal" style="margin-right:0.02778em;">r</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">&lt;</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:1.3339409999999998em;vertical-align:-0.44530499999999995em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.8886359999999999em;"><span style="top:-2.6550000000000002em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.13889em;">P</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3448em;"><span style="top:-2.3567071428571427em;margin-left:-0.13889em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.05764em;">S</span><span class="mord mathnormal mtight" style="margin-right:0.05764em;">S</span><span class="mord mathnormal mtight" style="margin-right:0.10903em;">M</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.14329285714285717em;"><span></span></span></span></span></span></span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.410305em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.13889em;">P</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3448em;"><span style="top:-2.3567071428571427em;margin-left:-0.13889em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">L</span><span class="mord mathnormal mtight">L</span><span class="mord mathnormal mtight" style="margin-right:0.10903em;">M</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.14329285714285717em;"><span></span></span></span></span></span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.44530499999999995em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span> 时，接受这个节点，否则拒绝</li>
+</ol>
+<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
+<ul>
+<li>这篇论文站在 <a target="_blank" rel="noopener" href="https://zhangzhe.space/2024/08/14/Fast-Inference-from-Transformers-via-Speculative-Decoding/"><code>speculate decoding</code></a> 的肩膀上，加入了树结构的候选列表，算是 <code>speculate decoding</code> 的超集</li>
+<li><code>topology-aware mask</code> 和 <code>decoder attention mask</code> 结合的方法还是挺巧妙的</li>
+<li>由于是树结构存储候选词，那么多个 <code>SSM</code> 是天然适配的，算是个工程角度很好用的 <code>trick</code></li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/LLM/" rel="tag"># LLM</a>
+              <a href="/tags/Paper-Reading/" rel="tag"># Paper Reading</a>
+              <a href="/tags/Speedup/" rel="tag"># Speedup</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2024/08/14/Fast-Inference-from-Transformers-via-Speculative-Decoding/" rel="prev" title="Fast Inference from Transformers via Speculative Decoding">
+      <i class="fa fa-chevron-left"></i> Fast Inference from Transformers via Speculative Decoding
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2024/08/20/GPipe-Easy-Scaling-with-Micro-Batch-Pipeline-Parallelism/" rel="next" title="GPipe: Easy Scaling with Micro-Batch Pipeline Parallelism">
+      GPipe: Easy Scaling with Micro-Batch Pipeline Parallelism <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#url"><span class="nav-number">1.</span> <span class="nav-text"> URL</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#tldr"><span class="nav-number">2.</span> <span class="nav-text"> TL;DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#algorithm"><span class="nav-number">3.</span> <span class="nav-text"> Algorithm</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%A2%9E%E9%87%8F%E5%BC%8F%E8%A7%A3%E7%A0%81-%E5%BA%8F%E5%88%97%E5%BC%8F%E6%8A%95%E6%9C%BA%E8%A7%A3%E7%A0%81-%E6%A0%91%E5%BC%8F%E6%8A%95%E6%9C%BA%E8%A7%A3%E7%A0%81%E4%B8%89%E8%80%85%E5%AF%B9%E6%AF%94"><span class="nav-number">3.1.</span> <span class="nav-text"> 增量式解码、序列式投机解码、树式投机解码三者对比</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%80%99%E9%80%89%E6%A0%91%E7%94%9F%E6%88%90%E5%92%8C%E9%AA%8C%E8%AF%81%E6%B5%81%E7%A8%8B"><span class="nav-number">3.2.</span> <span class="nav-text"> 候选树生成和验证流程</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%A6%82%E4%BD%95%E5%AF%B9%E6%A0%91%E5%BC%8F%E7%BB%93%E6%9E%84%E5%B9%B6%E8%A1%8C%E8%A7%A3%E7%A0%81"><span class="nav-number">3.3.</span> <span class="nav-text"> 如何对树式结构并行解码</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%80%BB%E4%BD%93%E7%AE%97%E6%B3%95%E6%B5%81%E7%A8%8B"><span class="nav-number">3.4.</span> <span class="nav-text"> 总体算法流程</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%B4%AA%E5%BF%83%E9%AA%8C%E8%AF%81%E7%AE%97%E6%B3%95%E5%92%8C%E9%9A%8F%E6%9C%BA%E9%AA%8C%E8%AF%81%E7%AE%97%E6%B3%95"><span class="nav-number">3.5.</span> <span class="nav-text"> 贪心验证算法和随机验证算法</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%B4%AA%E5%BF%83%E9%AA%8C%E8%AF%81"><span class="nav-number">3.5.1.</span> <span class="nav-text"> 贪心验证</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E9%9A%8F%E6%9C%BA%E9%AA%8C%E8%AF%81"><span class="nav-number">3.5.2.</span> <span class="nav-text"> 随机验证</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#thought"><span class="nav-number">4.</span> <span class="nav-text"> Thought</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Zhangzhe</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives">
+          <span class="site-state-item-count">173</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">51</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhangzhe</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js', () => {
+    // 初始化 Mermaid 配置
+    mermaid.initialize({
+      theme    : 'dark',  // 设置主题
+      logLevel : 3,  // 设置日志等级
+      flowchart: { curve: 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 },
+      themeVariables: {
+        'fontFamily': 'Microsoft YaHei, Arial, sans-serif',  // 设置中文字体
+      }
+    });
+
+    // 初始化 Mermaid 图表
+    mermaid.init(undefined, document.querySelectorAll('pre.mermaid'));
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+      
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/katex@0/dist/katex.min.css">
+
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'eK3W25jybCO5jVUrYBBpAPqM-gzGzoHsz',
+      appKey     : 'F4KVyUj9wHI5c80Bhz7O2uhq',
+      placeholder: "说点什么再走吧...",
+      avatar     : 'hide',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

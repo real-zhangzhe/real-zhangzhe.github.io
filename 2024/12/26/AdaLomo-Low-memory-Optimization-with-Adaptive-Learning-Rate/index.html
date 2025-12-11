@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"real-zhangzhe.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="URL  paper: https:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;2310.10195 code: https:&#x2F;&#x2F;github.com&#x2F;OpenMOSS&#x2F;CoLLiE&#x2F;blob&#x2F;dev&#x2F;collie&#x2F;optim&#x2F;adalomo.py   TL;DR  LOMO 算法只能和 SGD 优化器联合使用，而在大模型微调阶段，SGD 优化器的实际效果通常不如 Adam 算法 本文提出了 AdaLomo">
+<meta property="og:type" content="article">
+<meta property="og:title" content="AdaLomo: Low-memory Optimization with Adaptive Learning Rate">
+<meta property="og:url" content="https://real-zhangzhe.github.io/2024/12/26/AdaLomo-Low-memory-Optimization-with-Adaptive-Learning-Rate/index.html">
+<meta property="og:site_name" content="Zhangzhe&#39;s Blog">
+<meta property="og:description" content="URL  paper: https:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;2310.10195 code: https:&#x2F;&#x2F;github.com&#x2F;OpenMOSS&#x2F;CoLLiE&#x2F;blob&#x2F;dev&#x2F;collie&#x2F;optim&#x2F;adalomo.py   TL;DR  LOMO 算法只能和 SGD 优化器联合使用，而在大模型微调阶段，SGD 优化器的实际效果通常不如 Adam 算法 本文提出了 AdaLomo">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://s2.loli.net/2024/12/26/q59yaKcz4hXi38H.png">
+<meta property="article:published_time" content="2024-12-26T03:29:04.000Z">
+<meta property="article:modified_time" content="2025-12-11T05:48:26.534Z">
+<meta property="article:author" content="Zhangzhe">
+<meta property="article:tag" content="LLM">
+<meta property="article:tag" content="Tuning">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://s2.loli.net/2024/12/26/q59yaKcz4hXi38H.png">
+
+<link rel="canonical" href="https://real-zhangzhe.github.io/2024/12/26/AdaLomo-Low-memory-Optimization-with-Adaptive-Learning-Rate/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>AdaLomo: Low-memory Optimization with Adaptive Learning Rate | Zhangzhe's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Zhangzhe's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">The projection of my life.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/archives/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/12/26/AdaLomo-Low-memory-Optimization-with-Adaptive-Learning-Rate/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          AdaLomo: Low-memory Optimization with Adaptive Learning Rate
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-12-26 11:29:04" itemprop="dateCreated datePublished" datetime="2024-12-26T11:29:04+08:00">2024-12-26</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-12-11 13:48:26" itemprop="dateModified" datetime="2025-12-11T13:48:26+08:00">2025-12-11</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Tuning/" itemprop="url" rel="index"><span itemprop="name">Tuning</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2024/12/26/AdaLomo-Low-memory-Optimization-with-Adaptive-Learning-Rate/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2024/12/26/AdaLomo-Low-memory-Optimization-with-Adaptive-Learning-Rate/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2310.10195">https://arxiv.org/pdf/2310.10195</a></li>
+<li>code: <a target="_blank" rel="noopener" href="https://github.com/OpenMOSS/CoLLiE/blob/dev/collie/optim/adalomo.py">https://github.com/OpenMOSS/CoLLiE/blob/dev/collie/optim/adalomo.py</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2306.09782"><code>LOMO</code></a> 算法只能和 <code>SGD</code> 优化器联合使用，而在大模型微调阶段，<code>SGD</code> 优化器的实际效果通常不如 <code>Adam</code> 算法</li>
+<li>本文提出了 <code>AdaLomo</code> 算法，它将 <code>LOMO</code> 算法和 <code>Adam</code> 算法结合起来，实现了低内存占用的优化器</li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<p><img src="https://s2.loli.net/2024/12/26/q59yaKcz4hXi38H.png" alt="adalomo_algorithm.png" /></p>
+<ul>
+<li><code>AdaLomo</code> 仅仅是将 <code>LOMO</code> 和 <code>Adam</code> 结合起来，代码如下：</li>
+</ul>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br><span class="line">198</span><br><span class="line">199</span><br><span class="line">200</span><br><span class="line">201</span><br><span class="line">202</span><br><span class="line">203</span><br><span class="line">204</span><br><span class="line">205</span><br><span class="line">206</span><br><span class="line">207</span><br><span class="line">208</span><br><span class="line">209</span><br><span class="line">210</span><br><span class="line">211</span><br><span class="line">212</span><br><span class="line">213</span><br><span class="line">214</span><br><span class="line">215</span><br><span class="line">216</span><br><span class="line">217</span><br><span class="line">218</span><br><span class="line">219</span><br><span class="line">220</span><br><span class="line">221</span><br><span class="line">222</span><br><span class="line">223</span><br><span class="line">224</span><br><span class="line">225</span><br><span class="line">226</span><br><span class="line">227</span><br><span class="line">228</span><br><span class="line">229</span><br><span class="line">230</span><br><span class="line">231</span><br><span class="line">232</span><br><span class="line">233</span><br><span class="line">234</span><br><span class="line">235</span><br><span class="line">236</span><br><span class="line">237</span><br><span class="line">238</span><br><span class="line">239</span><br><span class="line">240</span><br><span class="line">241</span><br><span class="line">242</span><br><span class="line">243</span><br><span class="line">244</span><br><span class="line">245</span><br><span class="line">246</span><br><span class="line">247</span><br><span class="line">248</span><br><span class="line">249</span><br><span class="line">250</span><br><span class="line">251</span><br><span class="line">252</span><br><span class="line">253</span><br><span class="line">254</span><br><span class="line">255</span><br><span class="line">256</span><br><span class="line">257</span><br><span class="line">258</span><br><span class="line">259</span><br><span class="line">260</span><br><span class="line">261</span><br><span class="line">262</span><br><span class="line">263</span><br><span class="line">264</span><br><span class="line">265</span><br><span class="line">266</span><br><span class="line">267</span><br><span class="line">268</span><br><span class="line">269</span><br><span class="line">270</span><br><span class="line">271</span><br><span class="line">272</span><br><span class="line">273</span><br><span class="line">274</span><br><span class="line">275</span><br><span class="line">276</span><br><span class="line">277</span><br><span class="line">278</span><br><span class="line">279</span><br><span class="line">280</span><br><span class="line">281</span><br><span class="line">282</span><br><span class="line">283</span><br><span class="line">284</span><br><span class="line">285</span><br><span class="line">286</span><br><span class="line">287</span><br><span class="line">288</span><br><span class="line">289</span><br><span class="line">290</span><br><span class="line">291</span><br><span class="line">292</span><br><span class="line">293</span><br><span class="line">294</span><br><span class="line">295</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> math</span><br><span class="line"><span class="keyword">import</span> torch</span><br><span class="line"><span class="keyword">from</span> torch.optim <span class="keyword">import</span> Optimizer</span><br><span class="line"><span class="keyword">import</span> torch.distributed <span class="keyword">as</span> dist</span><br><span class="line"><span class="keyword">from</span> transformers.integrations.deepspeed <span class="keyword">import</span> is_deepspeed_zero3_enabled</span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">AdaLomo</span>(<span class="params">Optimizer</span>):</span></span><br><span class="line">    <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    一个自定义的优化器类AdaLomo，用于在分布式训练中的梯度更新。</span></span><br><span class="line"><span class="string">    该类实现两个梯度更新函数 :meth:`fuse_update` 和 :meth:`fuse_update_zero3`，分别用于非ZeRO和ZeRO模式下的梯度更新。</span></span><br><span class="line"><span class="string">    :param model: 待优化的模型</span></span><br><span class="line"><span class="string">    :param lr: 学习率，默认值为1e-3</span></span><br><span class="line"><span class="string">    :param eps: 正则化系数。eps[0]防止梯度平方太小，eps[1]用于在根据参数的RMS放缩学习率时防止步长太大</span></span><br><span class="line"><span class="string">    :param clip_threshold: 归一化update矩阵时的阈值</span></span><br><span class="line"><span class="string">    :param decay_rate: 梯度平方移动平均的衰减率</span></span><br><span class="line"><span class="string">    :param clip_grad_norm: 梯度裁剪的范数阈值</span></span><br><span class="line"><span class="string">        .. note::</span></span><br><span class="line"><span class="string">            clip_grad_norm须为正数</span></span><br><span class="line"><span class="string">    :param clip_grad_value: 梯度裁剪的值域阈值</span></span><br><span class="line"><span class="string">    :param weight_decay: 权重衰减系数，默认值为0.0</span></span><br><span class="line"><span class="string">    :param loss_scale: 损失缩放系数，可以用来提高训练精度，但是太大可能会导致nan</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params"></span></span></span><br><span class="line"><span class="params"><span class="function">        self,</span></span></span><br><span class="line"><span class="params"><span class="function">        model,</span></span></span><br><span class="line"><span class="params"><span class="function">        lr=<span class="number">1e-3</span>,</span></span></span><br><span class="line"><span class="params"><span class="function">        loss_scale=<span class="number">2</span> ** <span class="number">10</span>,</span></span></span><br><span class="line"><span class="params"><span class="function">        eps=(<span class="params"><span class="number">1e-30</span>, <span class="number">1e-3</span></span>),</span></span></span><br><span class="line"><span class="params"><span class="function">        clip_threshold=<span class="number">1.0</span>,</span></span></span><br><span class="line"><span class="params"><span class="function">        decay_rate=-<span class="number">0.8</span>,</span></span></span><br><span class="line"><span class="params"><span class="function">        clip_grad_norm=<span class="literal">None</span>,</span></span></span><br><span class="line"><span class="params"><span class="function">        clip_grad_value=<span class="literal">None</span>,</span></span></span><br><span class="line"><span class="params"><span class="function">        weight_decay=<span class="number">0.0</span>,</span></span></span><br><span class="line"><span class="params"><span class="function">    </span>):</span></span><br><span class="line">        self.model = model</span><br><span class="line">        self.lr = lr</span><br><span class="line">        self.clip_grad_norm = clip_grad_norm</span><br><span class="line">        self.clip_grad_value = clip_grad_value</span><br><span class="line">        self.weight_decay = weight_decay</span><br><span class="line">        self.loss_scale = loss_scale</span><br><span class="line">        <span class="keyword">if</span> self.weight_decay &gt; <span class="number">0.0</span>:</span><br><span class="line">            self.do_weight_decay = <span class="literal">True</span></span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            self.do_weight_decay = <span class="literal">False</span></span><br><span class="line">        self.eps = eps</span><br><span class="line">        self.step_num = <span class="number">0</span></span><br><span class="line">        self.decay_rate = decay_rate</span><br><span class="line">        self.clip_threshold = clip_threshold</span><br><span class="line">        <span class="comment"># for grad norm</span></span><br><span class="line">        <span class="keyword">if</span> self.clip_grad_norm <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span> <span class="keyword">and</span> self.clip_grad_norm &lt;= <span class="number">0</span>:</span><br><span class="line">            <span class="keyword">raise</span> ValueError(</span><br><span class="line">                <span class="string">f&quot;clip_grad_norm should be positive, got <span class="subst">&#123;self.clip_grad_norm&#125;</span>.&quot;</span></span><br><span class="line">            )</span><br><span class="line">        self.gather_norm = <span class="literal">False</span></span><br><span class="line">        self.grad_norms = []</span><br><span class="line">        self.clip_coef = <span class="literal">None</span></span><br><span class="line">        <span class="comment"># check if zero3 is enabled</span></span><br><span class="line">        self.zero3_enabled = is_deepspeed_zero3_enabled()</span><br><span class="line">        <span class="keyword">if</span> self.zero3_enabled:  <span class="comment"># zero3 is enabled</span></span><br><span class="line">            self.grad_func = self.fuse_update_zero3()</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            self.grad_func = self.fuse_update()</span><br><span class="line">        self.exp_avg_sq = &#123;&#125;</span><br><span class="line">        self.exp_avg_sq_row = &#123;&#125;</span><br><span class="line">        self.exp_avg_sq_col = &#123;&#125;</span><br><span class="line">        <span class="comment"># register hook function, which will be called through the backward process</span></span><br><span class="line">        <span class="keyword">for</span> n, p <span class="keyword">in</span> self.model.named_parameters():</span><br><span class="line">            <span class="keyword">if</span> self.zero3_enabled:</span><br><span class="line">                <span class="keyword">if</span> <span class="built_in">len</span>(p.ds_shape) == <span class="number">1</span>:</span><br><span class="line">                    self.exp_avg_sq[n] = torch.zeros(</span><br><span class="line">                        p.ds_shape[<span class="number">0</span>], dtype=torch.float32</span><br><span class="line">                    ).cuda()</span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    self.exp_avg_sq_row[n] = torch.zeros(</span><br><span class="line">                        p.ds_shape[<span class="number">0</span>], dtype=torch.float32</span><br><span class="line">                    ).cuda()</span><br><span class="line">                    self.exp_avg_sq_col[n] = torch.zeros(</span><br><span class="line">                        p.ds_shape[<span class="number">1</span>], dtype=torch.float32</span><br><span class="line">                    ).cuda()</span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                <span class="keyword">if</span> <span class="built_in">len</span>(p.data.shape) == <span class="number">1</span>:</span><br><span class="line">                    self.exp_avg_sq[n] = torch.zeros(</span><br><span class="line">                        p.data.shape[<span class="number">0</span>], dtype=torch.float32</span><br><span class="line">                    ).cuda()</span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    self.exp_avg_sq_row[n] = torch.zeros(</span><br><span class="line">                        p.data.shape[<span class="number">0</span>], dtype=torch.float32</span><br><span class="line">                    ).cuda()</span><br><span class="line">                    self.exp_avg_sq_col[n] = torch.zeros(</span><br><span class="line">                        p.data.shape[<span class="number">1</span>], dtype=torch.float32</span><br><span class="line">                    ).cuda()</span><br><span class="line">            <span class="keyword">if</span> p.requires_grad:</span><br><span class="line">                p.register_hook(self.grad_func)</span><br><span class="line">        defaults = <span class="built_in">dict</span>(</span><br><span class="line">            lr=lr,</span><br><span class="line">            eps=eps,</span><br><span class="line">            weight_decay=weight_decay,</span><br><span class="line">            clip_grad_norm=clip_grad_norm,</span><br><span class="line">            clip_grad_value=clip_grad_value,</span><br><span class="line">        )</span><br><span class="line">        <span class="built_in">super</span>(AdaLomo, self).__init__(self.model.parameters(), defaults)</span><br><span class="line"><span class="meta">    @staticmethod</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">_approx_sq_grad</span>(<span class="params">exp_avg_sq_row, exp_avg_sq_col</span>):</span></span><br><span class="line">        <span class="comment"># copy from fairseq&#x27;s adafactor implementation:</span></span><br><span class="line">        <span class="comment"># https://github.com/huggingface/transformers/blob/8395f14de6068012787d83989c3627c3df6a252b/src/transformers/optimization.py#L505</span></span><br><span class="line">        r_factor = (</span><br><span class="line">            (exp_avg_sq_row / exp_avg_sq_row.mean(dim=-<span class="number">1</span>, keepdim=<span class="literal">True</span>))</span><br><span class="line">            .rsqrt_()</span><br><span class="line">            .unsqueeze(-<span class="number">1</span>)</span><br><span class="line">        )</span><br><span class="line">        c_factor = exp_avg_sq_col.unsqueeze(-<span class="number">2</span>).rsqrt()</span><br><span class="line">        <span class="keyword">return</span> torch.mul(r_factor, c_factor)</span><br><span class="line"><span class="meta">    @staticmethod</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">_rms</span>(<span class="params">tensor</span>):</span></span><br><span class="line">        <span class="keyword">return</span> tensor.norm(<span class="number">2</span>) / (tensor.numel() ** <span class="number">0.5</span>)</span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">fuse_update</span>(<span class="params">self</span>):</span></span><br><span class="line">        <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">        在非ZeRO模式下更新模型参数的梯度。</span></span><br><span class="line"><span class="string">        :return: func，一个闭包函数，用于更新模型参数的梯度</span></span><br><span class="line"><span class="string">        &quot;&quot;&quot;</span></span><br><span class="line">        <span class="function"><span class="keyword">def</span> <span class="title">func</span>(<span class="params">x</span>):</span></span><br><span class="line">            <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">            闭包函数，用于更新模型参数的梯度。</span></span><br><span class="line"><span class="string">            &quot;&quot;&quot;</span></span><br><span class="line">            <span class="keyword">with</span> torch.no_grad():</span><br><span class="line">                <span class="keyword">for</span> n, p <span class="keyword">in</span> self.model.named_parameters():</span><br><span class="line">                    <span class="keyword">if</span> p.requires_grad <span class="keyword">and</span> p.grad <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span>:</span><br><span class="line">                        grad_fp32 = p.grad.to(torch.float32)</span><br><span class="line">                        p.grad = <span class="literal">None</span></span><br><span class="line">                        <span class="keyword">if</span> self.loss_scale:</span><br><span class="line">                            grad_fp32.div_(self.loss_scale)</span><br><span class="line">                        <span class="keyword">if</span> self.gather_norm:</span><br><span class="line">                            <span class="comment"># we adopt two backward pass for gradient norm computation and parameter update, respectively.</span></span><br><span class="line">                            self.grad_norms.append(torch.norm(grad_fp32, <span class="number">2.0</span>))</span><br><span class="line">                        <span class="keyword">else</span>:</span><br><span class="line">                            <span class="comment"># grad clip or norm</span></span><br><span class="line">                            <span class="keyword">if</span> (</span><br><span class="line">                                self.clip_grad_value <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span></span><br><span class="line">                                <span class="keyword">and</span> self.clip_grad_value &gt; <span class="number">0</span></span><br><span class="line">                            ):</span><br><span class="line">                                <span class="comment"># Clipping gradients by their value</span></span><br><span class="line">                                grad_fp32.clamp_(</span><br><span class="line">                                    <span class="built_in">min</span>=-self.clip_grad_value, <span class="built_in">max</span>=self.clip_grad_value</span><br><span class="line">                                )</span><br><span class="line">                            <span class="keyword">if</span> (</span><br><span class="line">                                self.clip_grad_norm <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span></span><br><span class="line">                                <span class="keyword">and</span> self.clip_grad_norm &gt; <span class="number">0</span></span><br><span class="line">                                <span class="keyword">and</span> self.clip_coef <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span></span><br><span class="line">                            ):</span><br><span class="line">                                <span class="comment"># Normalize the gradient according to its norm (computed in another pass)</span></span><br><span class="line">                                grad_fp32.mul_(self.clip_coef)</span><br><span class="line">                            beta2t = <span class="number">1.0</span> - math.<span class="built_in">pow</span>(self.step_num, self.decay_rate)</span><br><span class="line">                            update = (grad_fp32 ** <span class="number">2</span>) + self.eps[<span class="number">0</span>]</span><br><span class="line">                            <span class="keyword">if</span> <span class="built_in">len</span>(p.data.shape) &gt; <span class="number">1</span>:</span><br><span class="line">                                self.exp_avg_sq_row[n].mul_(beta2t).add_(</span><br><span class="line">                                    update.mean(dim=-<span class="number">1</span>), alpha=<span class="number">1.0</span> - beta2t</span><br><span class="line">                                )</span><br><span class="line">                                self.exp_avg_sq_col[n].mul_(beta2t).add_(</span><br><span class="line">                                    update.mean(dim=-<span class="number">2</span>), alpha=<span class="number">1.0</span> - beta2t</span><br><span class="line">                                )</span><br><span class="line">                                update = self._approx_sq_grad(</span><br><span class="line">                                    self.exp_avg_sq_row[n], self.exp_avg_sq_col[n]</span><br><span class="line">                                )</span><br><span class="line">                                update.mul_(grad_fp32)</span><br><span class="line">                            <span class="keyword">else</span>:</span><br><span class="line">                                self.exp_avg_sq[n].mul_(beta2t).add_(</span><br><span class="line">                                    update, alpha=<span class="number">1.0</span> - beta2t</span><br><span class="line">                                )</span><br><span class="line">                                update = self.exp_avg_sq[n].rsqrt().mul_(grad_fp32)</span><br><span class="line">                            update.div_(</span><br><span class="line">                                (self._rms(update) / self.clip_threshold).clamp_(</span><br><span class="line">                                    <span class="built_in">min</span>=<span class="number">1.0</span></span><br><span class="line">                                )</span><br><span class="line">                            )</span><br><span class="line">                            p_fp32 = p.data.to(torch.float32)</span><br><span class="line">                            p_rms = torch.norm(p_fp32, <span class="number">2.0</span>) / math.sqrt(p.numel())</span><br><span class="line">                            lr = self.lr</span><br><span class="line">                            param_scale = <span class="built_in">max</span>(self.eps[<span class="number">1</span>], p_rms)</span><br><span class="line">                            lr = lr * param_scale</span><br><span class="line">                            <span class="keyword">if</span> self.do_weight_decay:</span><br><span class="line">                                p_fp32.mul_(<span class="number">1.0</span> - lr * self.weight_decay)</span><br><span class="line">                            p_fp32.add_(update, alpha=-lr)</span><br><span class="line">                            p.data.copy_(p_fp32)</span><br><span class="line">            <span class="keyword">return</span> x</span><br><span class="line">        <span class="keyword">return</span> func</span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">fuse_update_zero3</span>(<span class="params">self</span>):</span></span><br><span class="line">        <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">        在ZeRO模式下更新模型参数的梯度。</span></span><br><span class="line"><span class="string">        :return: func，一个闭包函数，用于更新模型参数的梯度。</span></span><br><span class="line"><span class="string">        &quot;&quot;&quot;</span></span><br><span class="line">        <span class="function"><span class="keyword">def</span> <span class="title">func</span>(<span class="params">x</span>):</span></span><br><span class="line">            <span class="keyword">with</span> torch.no_grad():</span><br><span class="line">                <span class="keyword">for</span> n, p <span class="keyword">in</span> self.model.named_parameters():</span><br><span class="line">                    <span class="keyword">if</span> p.grad <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span>:</span><br><span class="line">                        torch.distributed.all_reduce(</span><br><span class="line">                            p.grad, op=torch.distributed.ReduceOp.AVG, async_op=<span class="literal">False</span></span><br><span class="line">                        )</span><br><span class="line">                        grad_fp32 = p.grad.to(torch.float32)</span><br><span class="line">                        p.grad = <span class="literal">None</span></span><br><span class="line">                        <span class="keyword">if</span> self.loss_scale:</span><br><span class="line">                            grad_fp32.div_(self.loss_scale)</span><br><span class="line">                        <span class="keyword">if</span> self.gather_norm:</span><br><span class="line">                            <span class="comment"># we adopt two backward pass for gradient norm computation and parameter update, respectively.</span></span><br><span class="line">                            self.grad_norms.append(torch.norm(grad_fp32, <span class="number">2.0</span>))</span><br><span class="line">                        <span class="keyword">else</span>:  <span class="comment"># update param</span></span><br><span class="line">                            partition_size = p.ds_tensor.numel()</span><br><span class="line">                            start = partition_size * self.dp_rank</span><br><span class="line">                            end = <span class="built_in">min</span>(start + partition_size, grad_fp32.numel())</span><br><span class="line">                            <span class="keyword">if</span> self.clip_grad_value <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span>:</span><br><span class="line">                                <span class="comment"># Clipping gradients by their value</span></span><br><span class="line">                                grad_fp32.clamp_(</span><br><span class="line">                                    <span class="built_in">min</span>=-self.clip_grad_value, <span class="built_in">max</span>=self.clip_grad_value</span><br><span class="line">                                )</span><br><span class="line">                            <span class="keyword">if</span> (</span><br><span class="line">                                self.clip_grad_norm <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span></span><br><span class="line">                                <span class="keyword">and</span> self.clip_grad_norm &gt; <span class="number">0</span></span><br><span class="line">                                <span class="keyword">and</span> self.clip_coef <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span></span><br><span class="line">                            ):</span><br><span class="line">                                <span class="comment"># Normalize the gradient according to its norm (computed in another pass)</span></span><br><span class="line">                                grad_fp32.mul_(self.clip_coef)</span><br><span class="line">                            beta2t = <span class="number">1.0</span> - math.<span class="built_in">pow</span>(self.step_num, self.decay_rate)</span><br><span class="line">                            update = (grad_fp32 ** <span class="number">2</span>) + self.eps[<span class="number">0</span>]  <span class="comment"># 改成addcmul_</span></span><br><span class="line">                            <span class="keyword">if</span> <span class="built_in">len</span>(p.ds_shape) &gt; <span class="number">1</span>:</span><br><span class="line">                                self.exp_avg_sq_row[n].mul_(beta2t).add_(</span><br><span class="line">                                    update.mean(dim=-<span class="number">1</span>), alpha=<span class="number">1.0</span> - beta2t</span><br><span class="line">                                )</span><br><span class="line">                                self.exp_avg_sq_col[n].mul_(beta2t).add_(</span><br><span class="line">                                    update.mean(dim=-<span class="number">2</span>), alpha=<span class="number">1.0</span> - beta2t</span><br><span class="line">                                )</span><br><span class="line">                                update = self._approx_sq_grad(</span><br><span class="line">                                    self.exp_avg_sq_row[n], self.exp_avg_sq_col[n]</span><br><span class="line">                                )</span><br><span class="line">                                update.mul_(grad_fp32)</span><br><span class="line">                            <span class="keyword">else</span>:</span><br><span class="line">                                self.exp_avg_sq[n].mul_(beta2t).add_(</span><br><span class="line">                                    update, alpha=<span class="number">1.0</span> - beta2t</span><br><span class="line">                                )</span><br><span class="line">                                update = self.exp_avg_sq[n].rsqrt().mul_(grad_fp32)</span><br><span class="line">                            update.div_(</span><br><span class="line">                                (self._rms(update) / self.clip_threshold).clamp_(</span><br><span class="line">                                    <span class="built_in">min</span>=<span class="number">1.0</span></span><br><span class="line">                                )</span><br><span class="line">                            )</span><br><span class="line">                            one_dim_update = update.view(-<span class="number">1</span>)</span><br><span class="line">                            partitioned_update = one_dim_update.narrow(</span><br><span class="line">                                <span class="number">0</span>, start, end - start</span><br><span class="line">                            )</span><br><span class="line">                            param_fp32 = p.ds_tensor.to(torch.float32)</span><br><span class="line">                            partitioned_p = param_fp32.narrow(<span class="number">0</span>, <span class="number">0</span>, end - start)</span><br><span class="line">                            p_rms = torch.norm(partitioned_p, <span class="number">2.0</span>) ** <span class="number">2</span></span><br><span class="line">                            dist.all_reduce(p_rms, op=torch.distributed.ReduceOp.SUM)</span><br><span class="line">                            p_rms = (p_rms / p.ds_numel).sqrt()</span><br><span class="line">                            lr = self.lr</span><br><span class="line">                            param_scale = <span class="built_in">max</span>(self.eps[<span class="number">1</span>], p_rms)</span><br><span class="line">                            lr = lr * param_scale</span><br><span class="line">                            <span class="keyword">if</span> self.do_weight_decay:</span><br><span class="line">                                partitioned_p.mul_(<span class="number">1.0</span> - lr * self.weight_decay)</span><br><span class="line">                            partitioned_p.add_(partitioned_update, alpha=-lr)</span><br><span class="line">                            p.ds_tensor[: end - start] = partitioned_p</span><br><span class="line">            <span class="keyword">return</span> x</span><br><span class="line">        <span class="keyword">return</span> func</span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">fused_backward</span>(<span class="params">self, loss, lr</span>):</span></span><br><span class="line">        <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">        执行一步反向传播并更新模型的梯度。</span></span><br><span class="line"><span class="string">        :param loss: 模型的loss值</span></span><br><span class="line"><span class="string">        :param lr: 学习率</span></span><br><span class="line"><span class="string">        &quot;&quot;&quot;</span></span><br><span class="line">        self.lr = lr</span><br><span class="line">        <span class="keyword">if</span> self.loss_scale:</span><br><span class="line">            loss = loss * self.loss_scale</span><br><span class="line">        self.step_num += <span class="number">1</span></span><br><span class="line">        loss.backward()</span><br><span class="line">        <span class="comment"># update the last parameter since the last parameter in the computaiton graph is not ready when calling hook functions</span></span><br><span class="line">        <span class="comment"># the argument of grad_func is just a placeholder, and it can be anything.</span></span><br><span class="line">        self.grad_func(<span class="number">0</span>)</span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">grad_norm</span>(<span class="params">self, loss</span>):</span></span><br><span class="line">        <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">        计算梯度的范数。</span></span><br><span class="line"><span class="string">        :param loss: 模型的loss值</span></span><br><span class="line"><span class="string">        &quot;&quot;&quot;</span></span><br><span class="line">        self.gather_norm = <span class="literal">True</span></span><br><span class="line">        self.grad_norms = []</span><br><span class="line">        <span class="keyword">if</span> self.loss_scale:</span><br><span class="line">            loss = loss * self.loss_scale</span><br><span class="line">        loss.backward(retain_graph=<span class="literal">True</span>)</span><br><span class="line">        <span class="comment"># update the last parameter since the last parameter in the computaiton graph is not ready when calling hook functions</span></span><br><span class="line">        <span class="comment"># the argument of grad_func is just a placeholder, and it can be anything.</span></span><br><span class="line">        self.grad_func(<span class="number">0</span>)</span><br><span class="line">        <span class="keyword">with</span> torch.no_grad():</span><br><span class="line">            <span class="comment"># The norm is computed over all gradients together, as if they were</span></span><br><span class="line">            <span class="comment"># concatenated into a single vector. Gradients are modified in-place.</span></span><br><span class="line">            self.grad_norms = torch.stack(self.grad_norms)</span><br><span class="line">            total_norm = torch.norm(self.grad_norms, <span class="number">2.0</span>)</span><br><span class="line">            self.clip_coef = <span class="built_in">float</span>(self.clip_grad_norm) / (total_norm + <span class="number">1e-6</span>)</span><br><span class="line">            self.clip_coef = torch.clamp(self.clip_coef, <span class="built_in">max</span>=<span class="number">1.0</span>)</span><br><span class="line">        self.gather_norm = <span class="literal">False</span></span><br></pre></td></tr></table></figure>
+<h2 id="thoughts"><a class="markdownIt-Anchor" href="#thoughts"></a> Thoughts</h2>
+<ul>
+<li><code>LOMO</code> 只能用 <code>SGD</code> 优化器这一点限制了它的使用场景，因此 <code>AdaLomo</code> 则将 <code>LOMO</code> 和 <code>Adam</code> 结合起来，可以适应主流大模型的微调场景</li>
+<li>但 <code>AdaLomo</code> 需要存储 <code>Adam</code> 的一阶和二阶动量，这又带来了额外的内存开销，感觉和 <code>LOMO</code> 的初衷有些违背</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/LLM/" rel="tag"># LLM</a>
+              <a href="/tags/Tuning/" rel="tag"># Tuning</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2024/12/26/LOMO-Full-Parameter-Fine-tuning-for-Large-Language-Models-with-Limited-Resources/" rel="prev" title="LOMO:Full Parameter Fine-tuning for Large Language Models with Limited Resources">
+      <i class="fa fa-chevron-left"></i> LOMO:Full Parameter Fine-tuning for Large Language Models with Limited Resources
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2024/12/27/DeepSeek-V2-A-Strong-Economical-and-Efficient-Mixture-of-Experts-Language-Model/" rel="next" title="DeepSeek-V2: A Strong, Economical, and Efficient Mixture-of-Experts Language Model">
+      DeepSeek-V2: A Strong, Economical, and Efficient Mixture-of-Experts Language Model <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#url"><span class="nav-number">1.</span> <span class="nav-text"> URL</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#tldr"><span class="nav-number">2.</span> <span class="nav-text"> TL;DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#algorithm"><span class="nav-number">3.</span> <span class="nav-text"> Algorithm</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#thoughts"><span class="nav-number">4.</span> <span class="nav-text"> Thoughts</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Zhangzhe</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives">
+          <span class="site-state-item-count">173</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">51</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhangzhe</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js', () => {
+    // 初始化 Mermaid 配置
+    mermaid.initialize({
+      theme    : 'dark',  // 设置主题
+      logLevel : 3,  // 设置日志等级
+      flowchart: { curve: 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 },
+      themeVariables: {
+        'fontFamily': 'Microsoft YaHei, Arial, sans-serif',  // 设置中文字体
+      }
+    });
+
+    // 初始化 Mermaid 图表
+    mermaid.init(undefined, document.querySelectorAll('pre.mermaid'));
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+      
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/katex@0/dist/katex.min.css">
+
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'eK3W25jybCO5jVUrYBBpAPqM-gzGzoHsz',
+      appKey     : 'F4KVyUj9wHI5c80Bhz7O2uhq',
+      placeholder: "说点什么再走吧...",
+      avatar     : 'hide',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

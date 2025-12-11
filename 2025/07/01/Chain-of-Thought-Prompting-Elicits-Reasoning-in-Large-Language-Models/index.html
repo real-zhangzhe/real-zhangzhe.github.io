@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"real-zhangzhe.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="URL  paper: https:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;2201.11903   TL;DR  本文是 Google Research 团队发表的一篇论文，这篇论文是在已开源的 非推理 模型上，不做微调，而是通过 Chain-of-Thought Prompting 的方式来引导模型进行推理，取得了很好的效果。 具体来说，就是在输入 prompt 中加入少量的 输入-思维链-输出 三">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Chain-of-Thought Prompting Elicits Reasoning in Large Language Models">
+<meta property="og:url" content="https://real-zhangzhe.github.io/2025/07/01/Chain-of-Thought-Prompting-Elicits-Reasoning-in-Large-Language-Models/index.html">
+<meta property="og:site_name" content="Zhangzhe&#39;s Blog">
+<meta property="og:description" content="URL  paper: https:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;2201.11903   TL;DR  本文是 Google Research 团队发表的一篇论文，这篇论文是在已开源的 非推理 模型上，不做微调，而是通过 Chain-of-Thought Prompting 的方式来引导模型进行推理，取得了很好的效果。 具体来说，就是在输入 prompt 中加入少量的 输入-思维链-输出 三">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2025-07-01T03:16:29.000Z">
+<meta property="article:modified_time" content="2025-12-11T05:48:26.534Z">
+<meta property="article:author" content="Zhangzhe">
+<meta property="article:tag" content="LLM">
+<meta property="article:tag" content="Resoning">
+<meta property="article:tag" content="CoT">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://real-zhangzhe.github.io/2025/07/01/Chain-of-Thought-Prompting-Elicits-Reasoning-in-Large-Language-Models/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>Chain-of-Thought Prompting Elicits Reasoning in Large Language Models | Zhangzhe's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Zhangzhe's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">The projection of my life.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/archives/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2025/07/01/Chain-of-Thought-Prompting-Elicits-Reasoning-in-Large-Language-Models/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Chain-of-Thought Prompting Elicits Reasoning in Large Language Models
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-07-01 11:16:29" itemprop="dateCreated datePublished" datetime="2025-07-01T11:16:29+08:00">2025-07-01</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-12-11 13:48:26" itemprop="dateModified" datetime="2025-12-11T13:48:26+08:00">2025-12-11</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/LLM/" itemprop="url" rel="index"><span itemprop="name">LLM</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2025/07/01/Chain-of-Thought-Prompting-Elicits-Reasoning-in-Large-Language-Models/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2025/07/01/Chain-of-Thought-Prompting-Elicits-Reasoning-in-Large-Language-Models/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2201.11903">https://arxiv.org/pdf/2201.11903</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li>本文是 <code>Google Research</code> 团队发表的一篇论文，这篇论文是在已开源的 <strong>非推理</strong> 模型上，不做微调，而是通过 <code>Chain-of-Thought Prompting</code> 的方式来引导模型进行推理，取得了很好的效果。</li>
+<li>具体来说，就是在输入 <code>prompt</code> 中加入少量的 <strong>输入-思维链-输出</strong> 三元组示例，引导模型生成中间推理步骤，最终给出答案。</li>
+<li>在算术、常识和符号推理等任务上，<code>Chain-of-Thought Prompting</code> 的效果都非常好，比直接给出答案的效果好很多。</li>
+<li><code>Chain-of-Thought Prompting</code> 是在模型规模达到一定程度（<code>&gt;= 100B</code>）后，才涌现出的能力，小模型没有这个能力。</li>
+</ul>
+<h2 id="论文详情"><a class="markdownIt-Anchor" href="#论文详情"></a> 论文详情</h2>
+<h3 id="1-核心方法思维链提示chain-of-thought-prompting"><a class="markdownIt-Anchor" href="#1-核心方法思维链提示chain-of-thought-prompting"></a> 1. 核心方法：思维链提示（Chain-of-Thought Prompting）</h3>
+<ul>
+<li>论文提出一种简单方法：在提示（<code>prompt</code>）中提供 <strong>输入-思维链-输出</strong> 的三元组示例，引导大型语言模型生成一系列中间推理步骤（称为 “思维链”），再得出最终答案。</li>
+<li>思维链类似于人类逐步推理的过程（例如，解决数学题时先分解步骤：“先计算A，再计算B，最后得出答案”）。</li>
+</ul>
+<h3 id="2-关键优势"><a class="markdownIt-Anchor" href="#2-关键优势"></a> 2. 关键优势</h3>
+<ul>
+<li>提升复杂推理能力：在算术（如数学题 <code>GSM8K</code>）、常识（如 <code>CSQA</code>）和符号推理（如字母拼接游戏）任务上，思维链提示显著优于标准提示（<code>standard prompting</code>）。</li>
+<li>在 <code>GSM8K</code> 数学题基准上，<code>PaLM 540B</code> 模型使用思维链提示后，准确率从 <code>17.9%</code> 提升至 <code>56.9%</code>，甚至超过微调的 <code>GPT-3</code> 模型。</li>
+<li>在常识推理任务（如 <code>StrategyQA</code>）上，准确率从 <code>68.6%</code> 提升至 <code>77.8%</code>。</li>
+<li>模型规模涌现特性：思维链推理是大型模型（约 <code>100B</code> 参数以上）的 “涌现能力” —— <strong>小模型无法生成逻辑思维链</strong>，但足够大的模型（如 <code>GPT-3 175B</code>、<code>PaLM 540B</code>）能自然学习此模式。</li>
+<li>无需微调：仅需在提示中添加少量示例（如 <code>8</code> 个），即可激发模型能力，无需额外训练或数据标注。</li>
+<li>可解释性与泛化性：思维链提供透明推理路径，便于调试；且适用于多种任务（数学、常识、符号等），甚至能泛化到更长序列。</li>
+</ul>
+<h3 id="3-实验验证"><a class="markdownIt-Anchor" href="#3-实验验证"></a> 3. 实验验证</h3>
+<ul>
+<li>任务覆盖：
+<ul>
+<li>算术推理：在 <code>GSM8K</code>、<code>SVAMP</code> 等数据集上，思维链提示将性能提升高达 <code>39%</code>（<code>PaLM 540B</code>）。</li>
+<li>常识推理：在 <code>StrategyQA</code>、<code>Date Understanding</code> 等任务上，模型表现接近或超越人类水平。</li>
+<li>符号推理：在硬币翻转（<code>coin flip</code>）和字母拼接（<code>last letter concatenation</code>）任务中，模型能处理未见过的长序列。</li>
+</ul>
+</li>
+<li>鲁棒性：不同注释者编写的思维链示例均有效，且对示例顺序、数量变化不敏感。</li>
+</ul>
+<h3 id="4-局限性与启示"><a class="markdownIt-Anchor" href="#4-局限性与启示"></a> 4. 局限性与启示</h3>
+<ul>
+<li>模型规模依赖：思维链仅在大型模型（<code>≥100B</code> 参数）中有效，小模型生成逻辑混乱。</li>
+<li>潜在错误：生成的推理路径可能不准确（如算术计算错误或语义误解），需外部验证（如添加计算器）。</li>
+<li>应用意义：该方法拓展了提示技术的边界，证明大型模型能通过自然语言示例学习复杂推理，减少对标注数据的依赖。</li>
+</ul>
+<h3 id="论文核心贡献"><a class="markdownIt-Anchor" href="#论文核心贡献"></a> 论文核心贡献</h3>
+<ul>
+<li>思维链提示是一种低成本、高效的方法，通过模拟人类逐步推理过程，释放大型语言模型在复杂任务上的潜力。论文强调，这是 “模型规模涌现” 的典型例子——推理能力随模型增大而自然出现，为未来 <code>AI</code> 推理研究提供了新方向。</li>
+</ul>
+<h2 id="thoughts"><a class="markdownIt-Anchor" href="#thoughts"></a> Thoughts</h2>
+<ul>
+<li>一定要注意，这篇论文讨论的对象 <strong>不是 Reasoning 模型</strong>（这个论文出来的时候还没有 <code>Reasoning</code> 模型的概念），而是普通的 <code>LLM</code> 模型。</li>
+<li>本质是一种通过 <code>prompt</code> 引导模型通过增加推理计算预算的方式，来提升模型的推理能力的方法。</li>
+<li>依托于 <code>LLM</code> 恐怖的指令遵循和上下文学习能力。</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/LLM/" rel="tag"># LLM</a>
+              <a href="/tags/Resoning/" rel="tag"># Resoning</a>
+              <a href="/tags/CoT/" rel="tag"># CoT</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2025/05/28/Large-Language-Diffusion-Models/" rel="prev" title="Large Language Diffusion Models">
+      <i class="fa fa-chevron-left"></i> Large Language Diffusion Models
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2025/07/04/ReAct-Synergizing-Reasoning-and-Acting-in-Language-Models/" rel="next" title="ReAct: Synergizing Reasoning and Acting in Language Models">
+      ReAct: Synergizing Reasoning and Acting in Language Models <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#url"><span class="nav-number">1.</span> <span class="nav-text"> URL</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#tldr"><span class="nav-number">2.</span> <span class="nav-text"> TL;DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%AE%BA%E6%96%87%E8%AF%A6%E6%83%85"><span class="nav-number">3.</span> <span class="nav-text"> 论文详情</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-%E6%A0%B8%E5%BF%83%E6%96%B9%E6%B3%95%E6%80%9D%E7%BB%B4%E9%93%BE%E6%8F%90%E7%A4%BAchain-of-thought-prompting"><span class="nav-number">3.1.</span> <span class="nav-text"> 1. 核心方法：思维链提示（Chain-of-Thought Prompting）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-%E5%85%B3%E9%94%AE%E4%BC%98%E5%8A%BF"><span class="nav-number">3.2.</span> <span class="nav-text"> 2. 关键优势</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-%E5%AE%9E%E9%AA%8C%E9%AA%8C%E8%AF%81"><span class="nav-number">3.3.</span> <span class="nav-text"> 3. 实验验证</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-%E5%B1%80%E9%99%90%E6%80%A7%E4%B8%8E%E5%90%AF%E7%A4%BA"><span class="nav-number">3.4.</span> <span class="nav-text"> 4. 局限性与启示</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%AE%BA%E6%96%87%E6%A0%B8%E5%BF%83%E8%B4%A1%E7%8C%AE"><span class="nav-number">3.5.</span> <span class="nav-text"> 论文核心贡献</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#thoughts"><span class="nav-number">4.</span> <span class="nav-text"> Thoughts</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Zhangzhe</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives">
+          <span class="site-state-item-count">173</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">51</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhangzhe</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js', () => {
+    // 初始化 Mermaid 配置
+    mermaid.initialize({
+      theme    : 'dark',  // 设置主题
+      logLevel : 3,  // 设置日志等级
+      flowchart: { curve: 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 },
+      themeVariables: {
+        'fontFamily': 'Microsoft YaHei, Arial, sans-serif',  // 设置中文字体
+      }
+    });
+
+    // 初始化 Mermaid 图表
+    mermaid.init(undefined, document.querySelectorAll('pre.mermaid'));
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+      
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/katex@0/dist/katex.min.css">
+
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'eK3W25jybCO5jVUrYBBpAPqM-gzGzoHsz',
+      appKey     : 'F4KVyUj9wHI5c80Bhz7O2uhq',
+      placeholder: "说点什么再走吧...",
+      avatar     : 'hide',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

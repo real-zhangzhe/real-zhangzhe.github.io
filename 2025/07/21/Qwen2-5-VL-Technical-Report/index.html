@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"real-zhangzhe.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="URL  paper: https:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;2502.13923 code: https:&#x2F;&#x2F;github.com&#x2F;QwenLM&#x2F;Qwen2.5-VL   TL;DR  Qwen2.5-VL 是 Qwen 团队推出的一个多模态大模型，在 Qwen2.5 的基础上，增加了视觉模态的支持，输入支持 text 和 image 和 video 的混合输入，输出为 text   A">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Qwen2.5-VL Technical Report">
+<meta property="og:url" content="https://real-zhangzhe.github.io/2025/07/21/Qwen2-5-VL-Technical-Report/index.html">
+<meta property="og:site_name" content="Zhangzhe&#39;s Blog">
+<meta property="og:description" content="URL  paper: https:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;2502.13923 code: https:&#x2F;&#x2F;github.com&#x2F;QwenLM&#x2F;Qwen2.5-VL   TL;DR  Qwen2.5-VL 是 Qwen 团队推出的一个多模态大模型，在 Qwen2.5 的基础上，增加了视觉模态的支持，输入支持 text 和 image 和 video 的混合输入，输出为 text   A">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://s2.loli.net/2025/07/21/BYQy9KAc4oCdSJX.png">
+<meta property="og:image" content="https://s2.loli.net/2025/07/21/2tXRI65vpe9wcUH.png">
+<meta property="article:published_time" content="2025-07-21T02:47:30.000Z">
+<meta property="article:modified_time" content="2025-12-11T05:48:26.538Z">
+<meta property="article:author" content="Zhangzhe">
+<meta property="article:tag" content="VLM">
+<meta property="article:tag" content="Qwen2.5">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://s2.loli.net/2025/07/21/BYQy9KAc4oCdSJX.png">
+
+<link rel="canonical" href="https://real-zhangzhe.github.io/2025/07/21/Qwen2-5-VL-Technical-Report/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>Qwen2.5-VL Technical Report | Zhangzhe's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Zhangzhe's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">The projection of my life.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/archives/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2025/07/21/Qwen2-5-VL-Technical-Report/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Qwen2.5-VL Technical Report
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-07-21 10:47:30" itemprop="dateCreated datePublished" datetime="2025-07-21T10:47:30+08:00">2025-07-21</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-12-11 13:48:26" itemprop="dateModified" datetime="2025-12-11T13:48:26+08:00">2025-12-11</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/VLM/" itemprop="url" rel="index"><span itemprop="name">VLM</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2025/07/21/Qwen2-5-VL-Technical-Report/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2025/07/21/Qwen2-5-VL-Technical-Report/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2502.13923">https://arxiv.org/pdf/2502.13923</a></li>
+<li>code: <a target="_blank" rel="noopener" href="https://github.com/QwenLM/Qwen2.5-VL">https://github.com/QwenLM/Qwen2.5-VL</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li><code>Qwen2.5-VL</code> 是 <code>Qwen</code> 团队推出的一个多模态大模型，在 <code>Qwen2.5</code> 的基础上，增加了视觉模态的支持，输入支持 <code>text</code> 和 <code>image</code> 和 <code>video</code> 的混合输入，输出为 <code>text</code></li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<p><img src="https://s2.loli.net/2025/07/21/BYQy9KAc4oCdSJX.png" alt="qwen2.5-vl.png" /></p>
+<h3 id="模型架构"><a class="markdownIt-Anchor" href="#模型架构"></a> 模型架构</h3>
+<ul>
+<li>视觉编码器（<code>Vision Encoder</code>）：基于重新设计的 <code>Vision Transformer</code>（<code>ViT</code>），处理原生分辨率的图像和视频输入</li>
+<li>语言模型（<code>Large Language Model</code>，<code>LLM</code>）：基于 <code>Qwen2.5</code> <code>LLM</code>，负责文本理解和生成，初始化时预训练权重被微调以支持多模态任务</li>
+<li>视觉-语言合并器（<code>Vision-Language Merger</code>）：一个 <code>MLP-based</code> 模块，压缩视觉特征以匹配文本嵌入维度，减少计算开销</li>
+</ul>
+<h3 id="三阶段训练"><a class="markdownIt-Anchor" href="#三阶段训练"></a> 三阶段训练</h3>
+<h4 id="第一阶段"><a class="markdownIt-Anchor" href="#第一阶段"></a> 第一阶段</h4>
+<ul>
+<li>随机初始化 <code>Vision Encoder</code> 开始训练</li>
+<li>使用的 <code>(text, image)</code> 数据如下：
+<ul>
+<li><code>Image captions</code>：图像和对应的文本描述</li>
+<li><code>Visual knowledge</code>: 涵盖名人、地标、动植物等识别数据，帮助模型积累视觉常识</li>
+<li><code>OCR</code> 数据：从图像中提取的文本信息</li>
+</ul>
+</li>
+<li>用了 <code>CLIP</code> 作为优化目标，对齐 <code>ViT</code> 和 <code>Qwen2.5</code> 的 <code>text</code> 模态</li>
+<li><code>token</code> 长度为 <code>8k</code>，数据规模为 <code>1.5T tokens</code></li>
+</ul>
+<h4 id="第二阶段"><a class="markdownIt-Anchor" href="#第二阶段"></a> 第二阶段</h4>
+<ul>
+<li><code>ViT</code> 和 <code>Qwen2.5</code> 的联合预训练</li>
+<li><code>token</code> 长度为 <code>8k</code>，数据规模为 <code>2T tokens</code></li>
+</ul>
+<h4 id="第三阶段"><a class="markdownIt-Anchor" href="#第三阶段"></a> 第三阶段</h4>
+<ul>
+<li>长上下文优化，目标是视频/文档序列理解</li>
+<li><code>token</code> 长度为 <code>32k</code>，数据规模为 <code>0.6T tokens</code></li>
+</ul>
+<h3 id="关键技术解析"><a class="markdownIt-Anchor" href="#关键技术解析"></a> 关键技术解析</h3>
+<h4 id="1-动态-vit-架构"><a class="markdownIt-Anchor" href="#1-动态-vit-架构"></a> 1. 动态 <code>ViT</code> 架构</h4>
+<ul>
+<li>输入尺寸自适应：图像按 <code>14×14</code> 分块，尺寸调整为 <code>28</code> 的倍数</li>
+<li>窗口注意力：<code>32</code> 层中仅 <code>4</code> 层用全局注意力，其余用 <code>112×112</code> 窗口注意力（计算复杂度从 <code>O(n²)</code> 降至 <code>O(n)</code>）</li>
+<li>位置编码：<code>2D</code> 旋转位置嵌入（<code>RoPE</code>）保留空间关系</li>
+</ul>
+<h4 id="2-多模态动态处理"><a class="markdownIt-Anchor" href="#2-多模态动态处理"></a> 2. 多模态动态处理</h4>
+<ul>
+<li>空间维度：
+<ul>
+<li>原生分辨率坐标：直接使用图像实际尺寸表示物体位置（非相对坐标）</li>
+<li>支持 <code>JSON/XML</code> 格式输出，兼容开放词汇检测（<code>10,000+</code> 类别）</li>
+</ul>
+</li>
+<li>时间维度：
+<ul>
+<li>动态帧率采样：适应不同速度的视频内容</li>
+<li>绝对时间对齐：<code>RoPE</code> 时间 <code>ID</code> 与时间戳直接绑定，理解事件节奏（图1机制）</li>
+</ul>
+</li>
+</ul>
+<h4 id="3-多模态位置编码mrope"><a class="markdownIt-Anchor" href="#3-多模态位置编码mrope"></a> 3. 多模态位置编码（<code>MRoPE</code>）​</h4>
+<ul>
+<li>三维分解：时间、高度、宽度独立位置 <code>ID</code></li>
+<li>视频处理：时间 <code>ID</code> 按帧递增，空间 <code>ID</code> 与静态图像一致</li>
+<li>升级点：时间 <code>ID</code> 关联绝对时间戳，解决 <code>Qwen2-VL</code> 的时序理解局限</li>
+</ul>
+<h3 id="性能"><a class="markdownIt-Anchor" href="#性能"></a> 性能</h3>
+<ul>
+<li>共有 <code>3B / 7B / 72B</code> 三个尺寸<br />
+<img src="https://s2.loli.net/2025/07/21/2tXRI65vpe9wcUH.png" alt="qwen2.5-vl_2.png" /></li>
+</ul>
+<h2 id="thoughts"><a class="markdownIt-Anchor" href="#thoughts"></a> Thoughts</h2>
+<ul>
+<li><code>VLM</code> 将视觉信息融入语言模态，重点还是 <code>LM</code></li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/VLM/" rel="tag"># VLM</a>
+              <a href="/tags/Qwen2-5/" rel="tag"># Qwen2.5</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2025/07/15/Dynamic-Chunking-for-End-to-End-Hierarchical-Sequence-Modeling/" rel="prev" title="Dynamic Chunking for End-to-End Hierarchical Sequence Modeling">
+      <i class="fa fa-chevron-left"></i> Dynamic Chunking for End-to-End Hierarchical Sequence Modeling
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2025/07/24/%E7%94%A8-langchain-%E5%AE%9E%E7%8E%B0-RAG-%E7%9A%84-demo/" rel="next" title="用 langchain 实现 RAG 的 demo">
+      用 langchain 实现 RAG 的 demo <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#url"><span class="nav-number">1.</span> <span class="nav-text"> URL</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#tldr"><span class="nav-number">2.</span> <span class="nav-text"> TL;DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#algorithm"><span class="nav-number">3.</span> <span class="nav-text"> Algorithm</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%A8%A1%E5%9E%8B%E6%9E%B6%E6%9E%84"><span class="nav-number">3.1.</span> <span class="nav-text"> 模型架构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B8%89%E9%98%B6%E6%AE%B5%E8%AE%AD%E7%BB%83"><span class="nav-number">3.2.</span> <span class="nav-text"> 三阶段训练</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5"><span class="nav-number">3.2.1.</span> <span class="nav-text"> 第一阶段</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5"><span class="nav-number">3.2.2.</span> <span class="nav-text"> 第二阶段</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5"><span class="nav-number">3.2.3.</span> <span class="nav-text"> 第三阶段</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%85%B3%E9%94%AE%E6%8A%80%E6%9C%AF%E8%A7%A3%E6%9E%90"><span class="nav-number">3.3.</span> <span class="nav-text"> 关键技术解析</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#1-%E5%8A%A8%E6%80%81-vit-%E6%9E%B6%E6%9E%84"><span class="nav-number">3.3.1.</span> <span class="nav-text"> 1. 动态 ViT 架构</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-%E5%A4%9A%E6%A8%A1%E6%80%81%E5%8A%A8%E6%80%81%E5%A4%84%E7%90%86"><span class="nav-number">3.3.2.</span> <span class="nav-text"> 2. 多模态动态处理</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-%E5%A4%9A%E6%A8%A1%E6%80%81%E4%BD%8D%E7%BD%AE%E7%BC%96%E7%A0%81mrope"><span class="nav-number">3.3.3.</span> <span class="nav-text"> 3. 多模态位置编码（MRoPE）​</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%80%A7%E8%83%BD"><span class="nav-number">3.4.</span> <span class="nav-text"> 性能</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#thoughts"><span class="nav-number">4.</span> <span class="nav-text"> Thoughts</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Zhangzhe</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives">
+          <span class="site-state-item-count">173</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">51</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhangzhe</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js', () => {
+    // 初始化 Mermaid 配置
+    mermaid.initialize({
+      theme    : 'dark',  // 设置主题
+      logLevel : 3,  // 设置日志等级
+      flowchart: { curve: 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 },
+      themeVariables: {
+        'fontFamily': 'Microsoft YaHei, Arial, sans-serif',  // 设置中文字体
+      }
+    });
+
+    // 初始化 Mermaid 图表
+    mermaid.init(undefined, document.querySelectorAll('pre.mermaid'));
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+      
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/katex@0/dist/katex.min.css">
+
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'eK3W25jybCO5jVUrYBBpAPqM-gzGzoHsz',
+      appKey     : 'F4KVyUj9wHI5c80Bhz7O2uhq',
+      placeholder: "说点什么再走吧...",
+      avatar     : 'hide',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

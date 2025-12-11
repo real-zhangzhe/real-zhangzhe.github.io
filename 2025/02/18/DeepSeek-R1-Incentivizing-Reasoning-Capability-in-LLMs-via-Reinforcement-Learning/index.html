@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"real-zhangzhe.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="URL  paper: https:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;2501.12948 code: https:&#x2F;&#x2F;github.com&#x2F;deepseek-ai&#x2F;DeepSeek-R1   TL;DR  本文提出了三个模型和其对应的训练方法，目的是提高大模型的 CoT 推理能力，三个模型分别是：  DeepSeek-R1-Zero：由 DeepSeek V3 base 直接通过 RL 训练得到">
+<meta property="og:type" content="article">
+<meta property="og:title" content="DeepSeek-R1: Incentivizing Reasoning Capability in LLMs via Reinforcement Learning">
+<meta property="og:url" content="https://real-zhangzhe.github.io/2025/02/18/DeepSeek-R1-Incentivizing-Reasoning-Capability-in-LLMs-via-Reinforcement-Learning/index.html">
+<meta property="og:site_name" content="Zhangzhe&#39;s Blog">
+<meta property="og:description" content="URL  paper: https:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;2501.12948 code: https:&#x2F;&#x2F;github.com&#x2F;deepseek-ai&#x2F;DeepSeek-R1   TL;DR  本文提出了三个模型和其对应的训练方法，目的是提高大模型的 CoT 推理能力，三个模型分别是：  DeepSeek-R1-Zero：由 DeepSeek V3 base 直接通过 RL 训练得到">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://s2.loli.net/2025/02/20/3lZt9Y7RPhiaKW6.jpg">
+<meta property="og:image" content="https://s2.loli.net/2025/02/20/PzZcEaqSpBvW5D4.png">
+<meta property="og:image" content="https://s2.loli.net/2025/02/20/XExDYc9MbfkvJ76.png">
+<meta property="og:image" content="https://s2.loli.net/2025/02/20/vkXcx7wr9TPK3NM.png">
+<meta property="article:published_time" content="2025-02-18T05:41:31.000Z">
+<meta property="article:modified_time" content="2025-12-11T05:48:26.534Z">
+<meta property="article:author" content="Zhangzhe">
+<meta property="article:tag" content="LLM">
+<meta property="article:tag" content="MoE">
+<meta property="article:tag" content="Reasoning">
+<meta property="article:tag" content="RL">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://s2.loli.net/2025/02/20/3lZt9Y7RPhiaKW6.jpg">
+
+<link rel="canonical" href="https://real-zhangzhe.github.io/2025/02/18/DeepSeek-R1-Incentivizing-Reasoning-Capability-in-LLMs-via-Reinforcement-Learning/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>DeepSeek-R1: Incentivizing Reasoning Capability in LLMs via Reinforcement Learning | Zhangzhe's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Zhangzhe's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">The projection of my life.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/archives/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2025/02/18/DeepSeek-R1-Incentivizing-Reasoning-Capability-in-LLMs-via-Reinforcement-Learning/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          DeepSeek-R1: Incentivizing Reasoning Capability in LLMs via Reinforcement Learning
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-02-18 13:41:31" itemprop="dateCreated datePublished" datetime="2025-02-18T13:41:31+08:00">2025-02-18</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-12-11 13:48:26" itemprop="dateModified" datetime="2025-12-11T13:48:26+08:00">2025-12-11</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/LLM/" itemprop="url" rel="index"><span itemprop="name">LLM</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2025/02/18/DeepSeek-R1-Incentivizing-Reasoning-Capability-in-LLMs-via-Reinforcement-Learning/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2025/02/18/DeepSeek-R1-Incentivizing-Reasoning-Capability-in-LLMs-via-Reinforcement-Learning/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2501.12948">https://arxiv.org/pdf/2501.12948</a></li>
+<li>code: <a target="_blank" rel="noopener" href="https://github.com/deepseek-ai/DeepSeek-R1">https://github.com/deepseek-ai/DeepSeek-R1</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li>本文提出了三个模型和其对应的训练方法，目的是提高大模型的 <code>CoT</code> 推理能力，三个模型分别是：
+<ul>
+<li><code>DeepSeek-R1-Zero</code>：由 <code>DeepSeek V3 base</code> 直接通过 <code>RL</code> 训练得到（<code>DeepSeek V3 base</code> 是 <code>DeepSeek V3</code> 只经过 <code>pretrain</code> 的版本，即 <code>DeepSeek V3 = DeepSeek V3 base + post-train</code> ）</li>
+<li><code>DeepSeek-R1</code>：由 <code>DeepSeek V3 base</code> 在合成的高质量 <code>CoT</code> 数据集上 <code>SFT + RL</code> 训练得到，效果优于 <code>DeepSeek-R1-Zero</code></li>
+<li><code>Distill model</code>：用相同的合成高质量 <code>CoT</code> 数据训练的开源模型（参数量小且非 <code>MoE</code>）</li>
+</ul>
+</li>
+<li>其中训练方法是本文讲述的重点，<code>DeepSeek R1</code> 中的 <code>R</code> 表示 <code>Reasoning</code>（推导）</li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<h3 id="总体流程"><a class="markdownIt-Anchor" href="#总体流程"></a> 总体流程</h3>
+<p><img src="https://s2.loli.net/2025/02/20/3lZt9Y7RPhiaKW6.jpg" alt="deepseek_r1.jpg" /></p>
+<h3 id="benchmark"><a class="markdownIt-Anchor" href="#benchmark"></a> Benchmark</h3>
+<p><img src="https://s2.loli.net/2025/02/20/PzZcEaqSpBvW5D4.png" alt="deepseek.png" /></p>
+<h3 id="deepseek-r1-zero"><a class="markdownIt-Anchor" href="#deepseek-r1-zero"></a> DeepSeek-R1-Zero</h3>
+<ul>
+<li><code>DeepSeek-R1-Zero</code> 是用 <code>DeepSeek v3 base (pre-train)</code> 直接通过 <code>RL</code> 训练得到的，不经过 <code>SFT</code></li>
+<li>用了以下的 <code>Template</code> 让模型生成 <code>CoT</code> 推理结果：<br />
+<img src="https://s2.loli.net/2025/02/20/XExDYc9MbfkvJ76.png" alt="deepseekr1zero.png" /></li>
+<li>奖励建模分成两个部分：
+<ul>
+<li><code>Accuracy rewards</code>: 用于评估模型生成的 <code>CoT</code> 推理结果的准确性</li>
+<li><code>Format rewards</code>: 用于评估模型生成的 <code>CoT</code> 推理结果的格式是否符合上述 <code>prompt</code> 要求的 <code>CoT</code> 的格式</li>
+</ul>
+</li>
+<li>且 <code>RL</code> 过程不使用 <code>NN reward model</code>，而是使用了 <code>Rule base reward</code></li>
+<li><code>RL</code> 过程中使用了 <code>GRPO</code> 算法</li>
+<li><code>DeepSeek-R1-Zero</code> 仅仅用上述简单的 <code>CoT</code> 性能提升流程，即可大幅提高 <code>benchmark</code> 上的指标（相比于 <code>DeepSeek v3</code>），但仍然存在一些问题，例如可读性差和语言混合</li>
+</ul>
+<h3 id="deepseek-r1"><a class="markdownIt-Anchor" href="#deepseek-r1"></a> DeepSeek-R1</h3>
+<ul>
+<li><code>DeepSeek-R1</code> 用了更复杂的数据处理流程和训练流程，主要分成四个阶段（流程图上的四个 <code>stage</code>）：
+<ul>
+<li><strong>冷启动</strong>：用数千个来自于 <code>DeepSeek-R1-Zero</code> 输出且经过人工处理的 <code>CoT</code> 数据，对 <code>DeepSeek V3 base</code> 进行 <code>SFT</code></li>
+<li><strong>面向推导的强化学习</strong>：用编码、数学、科学和逻辑推理等推理密集型任务数据，对冷启动微调后的模型进行 <code>RL</code> 训练，同时引入了语言一致性和可读性的奖励</li>
+<li><strong>拒绝采样和监督微调</strong>：用上一个 <code>stage</code> 得到的模型生成更广泛领域的推导 <code>CoT</code> 数据 <code>600K</code> 条，用 <code>DeepSeek V3</code> 模型推理部分非推导数据（例如：写作、翻译等）得到潜在的思维链数据 <code>200K</code> 条，用这 <code>800K</code> 条数据对 <strong><code>DeepSeek V3 base</code></strong> 进行 <code>SFT</code></li>
+<li><strong>所有场景的强化学习</strong>：用了和 <code>DeepSeek V3</code> 中使用的 <code>RL</code> 相同的 <code>pipeline</code>，数据和 <code>DeepSeek-R1-Zero</code> 中的 <code>RL</code> 数据相同，对上一个 <code>stage</code> 得到的模型进行 <code>RL</code> 训练</li>
+</ul>
+</li>
+<li>综上所述，<strong><code>DeepSeek-R1</code> 最重要的是 <code>800K</code> 包含 <code>CoT</code> 的 <code>SFT</code> 数据</strong></li>
+</ul>
+<h3 id="distill-model"><a class="markdownIt-Anchor" href="#distill-model"></a> Distill model</h3>
+<ul>
+<li>由于 <code>DeepSeek R1</code> 使用了 <code>DeepSeek V3</code> 相同的模型结构，因此包含 <code>671B</code> 参数，每个 <code>token</code> 激活 <code>34B</code> 参数，因此这个模型非常大，不适合部署</li>
+<li>为了解决这个问题，本文提出了 <code>Distill model</code>，用开源的较小参数量的稠密模型（非 <code>MoE</code> 模型）在 <strong><code>800K</code> 包含 <code>CoT</code> 的 <code>SFT</code> 数据</strong> 进行 <strong><code>SFT</code></strong> 微调</li>
+<li>主要蒸馏了 <code>Qwen</code> 和 <code>llama</code> 模型，且<strong>完全不做 <code>RL</code></strong>，即可大幅提高原模型在 <code>Benchmark</code> 上的指标<br />
+<img src="https://s2.loli.net/2025/02/20/vkXcx7wr9TPK3NM.png" alt="distill.png" /></li>
+</ul>
+<h2 id="thoughts"><a class="markdownIt-Anchor" href="#thoughts"></a> Thoughts</h2>
+<ul>
+<li>需要重点关注本论文提到的 <code>CoT</code> 数据合成方式，这是 <code>DeepSeek R1</code> 的核心</li>
+<li>能从本文中可以看出 <strong>数据重要性远大于模型</strong> 和 <strong><code>Post-train</code> 只包含一次 <code>SFT</code> 和 一次 <code>RL</code></strong>，比如论文中 <code>stage 1</code> 模型会大胆抛弃 <code>DeepSeek R1 Zero</code> 模型，而是退回到了 <code>DeepSeek V3 base</code> 模型，只用了 <code>Zero</code> 生成数据；<code>stage 3</code> 模型会大胆抛弃之前 <code>stage</code> 的模型，而是退回到了 <code>DeepSeek V3 base</code> 模型，只用了 <code>stage 2</code> 模型生成数据</li>
+<li>合成数据是最重要的，合成高质量的数据是 <code>DeepSeek R1</code> 成功的关键，甚至可以说如果 <code>DeepSeek</code> 开源了 <code>80K</code> 条合成数据，那么 <code>CoT</code> 领域的研究将会有一个新的起点</li>
+</ul>
+<h2 id="reference"><a class="markdownIt-Anchor" href="#reference"></a> Reference</h2>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/22103896675">https://zhuanlan.zhihu.com/p/22103896675</a></li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/LLM/" rel="tag"># LLM</a>
+              <a href="/tags/MoE/" rel="tag"># MoE</a>
+              <a href="/tags/Reasoning/" rel="tag"># Reasoning</a>
+              <a href="/tags/RL/" rel="tag"># RL</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2025/02/02/DeepSeek-V3-Technical-Report/" rel="prev" title="DeepSeek-V3 Technical Report">
+      <i class="fa fa-chevron-left"></i> DeepSeek-V3 Technical Report
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2025/02/20/Native-Sparse-Attention-Hardware-Aligned-and-Natively-Trainable-Sparse-Attention/" rel="next" title="Native Sparse Attention: Hardware-Aligned and Natively Trainable Sparse Attention">
+      Native Sparse Attention: Hardware-Aligned and Natively Trainable Sparse Attention <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#url"><span class="nav-number">1.</span> <span class="nav-text"> URL</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#tldr"><span class="nav-number">2.</span> <span class="nav-text"> TL;DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#algorithm"><span class="nav-number">3.</span> <span class="nav-text"> Algorithm</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%80%BB%E4%BD%93%E6%B5%81%E7%A8%8B"><span class="nav-number">3.1.</span> <span class="nav-text"> 总体流程</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#benchmark"><span class="nav-number">3.2.</span> <span class="nav-text"> Benchmark</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#deepseek-r1-zero"><span class="nav-number">3.3.</span> <span class="nav-text"> DeepSeek-R1-Zero</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#deepseek-r1"><span class="nav-number">3.4.</span> <span class="nav-text"> DeepSeek-R1</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#distill-model"><span class="nav-number">3.5.</span> <span class="nav-text"> Distill model</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#thoughts"><span class="nav-number">4.</span> <span class="nav-text"> Thoughts</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#reference"><span class="nav-number">5.</span> <span class="nav-text"> Reference</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Zhangzhe</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives">
+          <span class="site-state-item-count">173</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">51</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhangzhe</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js', () => {
+    // 初始化 Mermaid 配置
+    mermaid.initialize({
+      theme    : 'dark',  // 设置主题
+      logLevel : 3,  // 设置日志等级
+      flowchart: { curve: 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 },
+      themeVariables: {
+        'fontFamily': 'Microsoft YaHei, Arial, sans-serif',  // 设置中文字体
+      }
+    });
+
+    // 初始化 Mermaid 图表
+    mermaid.init(undefined, document.querySelectorAll('pre.mermaid'));
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+      
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/katex@0/dist/katex.min.css">
+
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'eK3W25jybCO5jVUrYBBpAPqM-gzGzoHsz',
+      appKey     : 'F4KVyUj9wHI5c80Bhz7O2uhq',
+      placeholder: "说点什么再走吧...",
+      avatar     : 'hide',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

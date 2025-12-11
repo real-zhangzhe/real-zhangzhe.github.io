@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"real-zhangzhe.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="URL  paper: https:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;2506.21619 code: https:&#x2F;&#x2F;github.com&#x2F;index-tts&#x2F;index-tts demo: https:&#x2F;&#x2F;index-tts.github.io&#x2F;index-tts2.github.io   TL;DR  IndexTTS2 是 BiliBili 提出的一种 TTS 模型，有如下几个特点：  情">
+<meta property="og:type" content="article">
+<meta property="og:title" content="IndexTTS2: A Breakthrough in Emotionally Expressive and Duration-Controlled Auto-Regressive Zero-Shot Text-to-Speech">
+<meta property="og:url" content="https://real-zhangzhe.github.io/2025/09/24/IndexTTS2-A-Breakthrough-in-Emotionally-Expressive-and-Duration-Controlled-Auto-Regressive-Zero-Shot-Text-to-Speech/index.html">
+<meta property="og:site_name" content="Zhangzhe&#39;s Blog">
+<meta property="og:description" content="URL  paper: https:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;2506.21619 code: https:&#x2F;&#x2F;github.com&#x2F;index-tts&#x2F;index-tts demo: https:&#x2F;&#x2F;index-tts.github.io&#x2F;index-tts2.github.io   TL;DR  IndexTTS2 是 BiliBili 提出的一种 TTS 模型，有如下几个特点：  情">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://s2.loli.net/2025/10/08/IOEtzhljA3BkP4q.png">
+<meta property="og:image" content="https://s2.loli.net/2025/10/08/An4bjB7RWSVxrmw.png">
+<meta property="og:image" content="https://s2.loli.net/2025/10/08/BVyDCqNMn8p6odG.png">
+<meta property="article:published_time" content="2025-09-24T14:46:52.000Z">
+<meta property="article:modified_time" content="2025-12-11T05:48:26.538Z">
+<meta property="article:author" content="Zhangzhe">
+<meta property="article:tag" content="LLM">
+<meta property="article:tag" content="TTS">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://s2.loli.net/2025/10/08/IOEtzhljA3BkP4q.png">
+
+<link rel="canonical" href="https://real-zhangzhe.github.io/2025/09/24/IndexTTS2-A-Breakthrough-in-Emotionally-Expressive-and-Duration-Controlled-Auto-Regressive-Zero-Shot-Text-to-Speech/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>IndexTTS2: A Breakthrough in Emotionally Expressive and Duration-Controlled Auto-Regressive Zero-Shot Text-to-Speech | Zhangzhe's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Zhangzhe's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">The projection of my life.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/archives/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2025/09/24/IndexTTS2-A-Breakthrough-in-Emotionally-Expressive-and-Duration-Controlled-Auto-Regressive-Zero-Shot-Text-to-Speech/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          IndexTTS2: A Breakthrough in Emotionally Expressive and Duration-Controlled Auto-Regressive Zero-Shot Text-to-Speech
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-09-24 22:46:52" itemprop="dateCreated datePublished" datetime="2025-09-24T22:46:52+08:00">2025-09-24</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-12-11 13:48:26" itemprop="dateModified" datetime="2025-12-11T13:48:26+08:00">2025-12-11</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/TTS/" itemprop="url" rel="index"><span itemprop="name">TTS</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2025/09/24/IndexTTS2-A-Breakthrough-in-Emotionally-Expressive-and-Duration-Controlled-Auto-Regressive-Zero-Shot-Text-to-Speech/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2025/09/24/IndexTTS2-A-Breakthrough-in-Emotionally-Expressive-and-Duration-Controlled-Auto-Regressive-Zero-Shot-Text-to-Speech/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2506.21619">https://arxiv.org/pdf/2506.21619</a></li>
+<li>code: <a target="_blank" rel="noopener" href="https://github.com/index-tts/index-tts">https://github.com/index-tts/index-tts</a></li>
+<li>demo: <a target="_blank" rel="noopener" href="https://index-tts.github.io/index-tts2.github.io">https://index-tts.github.io/index-tts2.github.io</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li><code>IndexTTS2</code> 是 <code>BiliBili</code> 提出的一种 <code>TTS</code> 模型，有如下几个特点：
+<ul>
+<li><strong>情感表达</strong>：能够生成具有特定情感的语音，如快乐、悲伤、愤怒等。</li>
+<li><strong>时长控制</strong>：可以通过输入一个数字来精确控制生成语音的时长。</li>
+<li><strong>零样本学习</strong>：无需针对特定说话人进行训练，能够适应新的说话人（常见的 <code>TTS</code> 只提供少量的说话人音色供选择，<code>IndexTTS2</code> 可以适配任何给定样本的音色）。</li>
+<li><strong>自回归生成</strong>：通过逐步生成语音帧，提升了语音的自然度和连贯性。</li>
+</ul>
+</li>
+<li><code>IndexTTS2</code> 的输入：
+<ul>
+<li>源文本 (<code>Source Text</code>)：需要转换为语音的文字。</li>
+<li>音色提示 (<code>Timbre Prompt</code>)：一小段目标说话人的音频，用于提取“音色”特征，决定了合成语音“像谁”。</li>
+<li>风格提示 (<code>Style Prompt</code>)：一小段带有特定情感的音频，用于提取“情感”特征，决定了合成语音的“情绪”。</li>
+<li>语音 Token 数量 (<code>Speech Token Num</code>)（可选）：一个数字，用于精确控制生成语音的时长。</li>
+</ul>
+</li>
+<li><code>IndexTTS2</code> 的输出：目标语音 (<code>Target Speech</code>)：最终合成的音频波形文件。</li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<h3 id="0-基础知识"><a class="markdownIt-Anchor" href="#0-基础知识"></a> 0. 基础知识</h3>
+<h4 id="01-语音的表示方法"><a class="markdownIt-Anchor" href="#01-语音的表示方法"></a> 0.1 语音的表示方法</h4>
+<ul>
+<li><strong>连续表示：声音的物理基础</strong>
+<ul>
+<li><strong>数字波形</strong>：数字波形（<code>Digital Waveform</code>）是语音最直接、最基础的表示形式。它是通过对连续的模拟声波进行“采样”（<code>Sampling</code>）得到的。采样过程以固定的时间间隔（由采样率决定，如 <code>16000 Hz</code> 或 <code>24000 Hz</code>）测量声波的振幅，从而将连续的信号转换为一个离散的数值序列。这个序列在时间维度上描绘了声音振幅的变化，因此也被称为声音的时域（<code>time domain</code>）表示。</li>
+<li><strong>梅尔频谱图</strong>：为了解决波形表示的难题，研究者们借鉴了人类听觉系统的特性，提出了一种更高效、更符合感知的表示方法——梅尔频谱图（<code>Mel-Spectrogram</code>）。它是一种时频（<code>time-frequency</code>）表示，描绘了语音信号的能量如何随时间和频率变化。其生成过程大致如下：
+<ul>
+<li><strong>分帧与加窗</strong>：将长段的音频波形切分成许多短暂的、有重叠的“帧”（<code>frame</code>），并对每一帧应用一个窗函数。</li>
+<li><strong>傅里叶变换</strong>：对每一帧进行短时傅里叶变换（<code>STFT</code>），得到其频谱，即能量在不同频率上的分布。</li>
+<li><strong>梅尔尺度映射</strong>：将频谱的频率轴从线性的赫兹（<code>Hz</code>）尺度，映射到梅尔（<code>Mel</code>）尺度。梅尔尺度是一种非线性尺度，它模拟了人耳对频率的感知特性——人耳对低频声音的变化比对高频声音的变化更敏感。</li>
+<li><strong>能量取对数</strong>：最后，通常会对能量值取对数，使其更符合人类对音量大小的感知。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>离散表示：现代语音模型的通用语言</strong>
+<ul>
+<li>随着自监督学习（<code>Self-Supervised Learning, SSL</code>）的兴起，语音表示领域迎来了第二次、也是更深刻的一次抽象革命：将连续的语音特征离散化为一系列符号，即“语音令牌”（<code>Speech Tokens</code>）。</li>
+<li>离散化，或称之为令牌化（<code>Tokenization</code>），是指将连续的高维语音特征向量，映射到一个有限的、离散的符号集合（称为“码本”或“<code>codebook</code>”）中的过程。这个过程通常通过矢量量化（<code>Vector Quantization, VQ</code>）技术实现，例如使用 <code>k-means</code> 聚类算法，将海量语音特征向量聚类成有限个簇，每个簇的中心点就成为了码本中的一个符号（或称为令牌）。</li>
+<li>语义令牌（<code>Semantic Tokens</code>）：这类令牌旨在捕捉语音的语言学内容，即“说了什么”。它们通常是从大规模自监督学习模型（如<code>HuBERT, WavLM</code>）的中间层特征中提取并聚类得到的。这些 <code>SSL</code> 模型在训练时被要求完成与语音内容相关的任务（如掩码预测），因此其学到的特征富含语义信息，并且在很大程度上与说话人的音色、韵律、口音等无关。</li>
+<li>声学令牌（<code>Acoustic Tokens</code>）：这类令牌旨在捕捉语音的声学属性，即“听起来怎么样”，包括音色、韵律、音高等信息。它们通常由神经音频编解码器（<code>Neural Audio Codec</code>，如 <code>EnCodec</code>）学习得到。这类模型的训练目标是能够从令牌中高质量地重建原始音频波形，因此令牌必须编码足够丰富的声学细节。</li>
+</ul>
+</li>
+</ul>
+<h4 id="02-现代-tts-模型的架构"><a class="markdownIt-Anchor" href="#02-现代-tts-模型的架构"></a> 0.2 现代 TTS 模型的架构</h4>
+<ul>
+<li><strong>端到端流派</strong>：输入为文本，输出为波形，中间不做监督。
+<ul>
+<li>代表模型为 <code>Char2Wav</code></li>
+<li>缺点：因为原始音频波形的时间分辨率极高（例如，每秒 <code>24000</code> 个采样点），直接建模非常困难。因此难度高、效果差。</li>
+</ul>
+</li>
+<li><strong>两阶段流派</strong>：
+<ul>
+<li>将模型拆分成两个阶段：
+<ul>
+<li>一个声学模型（如 <code>Tacotron 2</code>），负责将文本转换为梅尔频谱图这种低维度的声学表示。</li>
+<li>一个神经声码器（如 <code>WaveNet, WaveGlow</code>），负责将梅尔频谱图高质量地转换为最终的音频波形。</li>
+</ul>
+</li>
+<li>缺点：如果想在声学模型中加入更多的控制条件（如情感、时长等），会使得声学模型的输入变得非常复杂，难以训练。</li>
+</ul>
+</li>
+<li><strong>三阶段流派</strong>：
+<ul>
+<li>在二阶段的基础上，将声学模型继续拆分成两个子模块：
+<ul>
+<li>如文本到语义（<code>Text-to-Semantic, T2S</code>）</li>
+<li>语义表示到声学表示（如语义令牌到梅尔频谱图，<code>Semantic-to-Mel, S2M</code>）</li>
+</ul>
+</li>
+<li>这种三阶段的设计，方便在语义之外加入更多的控制条件（如音色、情感、时长等），并且每个子模块的任务相对单一，易于训练。</li>
+</ul>
+</li>
+</ul>
+<h3 id="1-indextts2-的架构"><a class="markdownIt-Anchor" href="#1-indextts2-的架构"></a> 1. IndexTTS2 的架构</h3>
+<p><img src="https://s2.loli.net/2025/10/08/IOEtzhljA3BkP4q.png" alt="indextts2_1.png" /></p>
+<ul>
+<li>主要由三部分组成：
+<ul>
+<li><code>Text-to-Semantic</code> (<code>T2S</code>)：
+<ul>
+<li>输入：
+<ul>
+<li>文本（待合成的文字）</li>
+<li><code>Timbre Prompt</code>（说话人参考音频）</li>
+<li><code>Style Prompt</code>（情感参考音频）</li>
+<li>可选的 <code>Duration</code> 控制（语义 <code>token</code> 序列长度）</li>
+</ul>
+</li>
+<li>输出
+<ul>
+<li>语义 <code>token</code>（<code>semantic tokens</code>）</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><code>Semantic-to-Mel</code> (<code>S2M</code>)：一个基于 <code>flow-matching</code> 的非自回归模型
+<ul>
+<li>输入：
+<ul>
+<li>语义 <code>token</code>（<code>semantic tokens</code>）</li>
+<li>说话人提示 (音色，<code>timbre prompt</code>)</li>
+</ul>
+</li>
+<li>输出：<code>Mel</code> 频谱图</li>
+</ul>
+</li>
+<li><code>Vocoder</code> (<code>BigVGANv2</code>)：把 <code>Mel</code> 频谱解码成最终的音频波形</li>
+</ul>
+</li>
+</ul>
+<h3 id="2-text-to-semantic-详解"><a class="markdownIt-Anchor" href="#2-text-to-semantic-详解"></a> 2. <code>Text-to-Semantic</code> 详解</h3>
+<p><img src="https://s2.loli.net/2025/10/08/An4bjB7RWSVxrmw.png" alt="indextts2_2.png" /></p>
+<ul>
+<li>这个模块是模型的核心，采用自回归的 <code>Transformer</code> 架构，负责将文本和其他条件信息转换为中间的语义表征（<code>Semantic Tokens</code>）。</li>
+<li>输入:
+<ul>
+<li>文本序列 (<code>Text</code>): 经过分词器处理后的文本嵌入 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>E</mi><mrow><mi>t</mi><mi>e</mi><mi>x</mi><mi>t</mi></mrow></msub></mrow><annotation encoding="application/x-tex">E_{text}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.05764em;">E</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2805559999999999em;"><span style="top:-2.5500000000000003em;margin-left:-0.05764em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">t</span><span class="mord mathnormal mtight">e</span><span class="mord mathnormal mtight">x</span><span class="mord mathnormal mtight">t</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span></li>
+<li>说话人音色提示 (<code>Timbre Prompt</code>): 一段音频，通过预训练的 Speaker Perceiver Conditioner 提取为说话人特征向量 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>c</mi></mrow><annotation encoding="application/x-tex">c</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathnormal">c</span></span></span></span>。</li>
+<li>情感风格提示 (<code>Style Prompt</code>): 一段音频，通过 <code>Emotion Perceiver Conditioner</code> 提取为情感嵌入 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>e</mi></mrow><annotation encoding="application/x-tex">e</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathnormal">e</span></span></span></span>。</li>
+<li>时长控制信号 (<code>Speech Token Num</code>): 一个可选的数字，指定希望生成的语义令牌数量，被转换为时长嵌入 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi></mrow><annotation encoding="application/x-tex">p</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.625em;vertical-align:-0.19444em;"></span><span class="mord mathnormal">p</span></span></span></span>。如果不指定，则用于自由生成。</li>
+</ul>
+</li>
+<li>输出：
+<ul>
+<li>语义令牌序列 (<code>Semantic Tokens</code>): 模型预测出的语义令牌序列。</li>
+<li><code>GPT</code> 隐层状态 (<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>H</mi><mrow><mi>G</mi><mi>P</mi><mi>T</mi></mrow></msub></mrow><annotation encoding="application/x-tex">H_{GPT}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.08125em;">H</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.32833099999999993em;"><span style="top:-2.5500000000000003em;margin-left:-0.08125em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">G</span><span class="mord mathnormal mtight" style="margin-right:0.13889em;">P</span><span class="mord mathnormal mtight" style="margin-right:0.13889em;">T</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span>): <code>T2S</code> 模块最后一个 <code>Transformer</code> 层的输出，包含了丰富的文本和上下文信息，会作为增强特征送入后续的 <code>S2M</code> 模块。</li>
+</ul>
+</li>
+<li>监督信号：基准语音 (<code>Ground-Truth Speech</code>)。将基准语音通过语义编码器 (<code>Semantic Codec</code>) 转换成真实的语义令牌序列 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>E</mi><mrow><mi>s</mi><mi>e</mi><mi>m</mi></mrow></msub></mrow><annotation encoding="application/x-tex">E_{sem}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.05764em;">E</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:-0.05764em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">s</span><span class="mord mathnormal mtight">e</span><span class="mord mathnormal mtight">m</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span></li>
+<li>损失函数：交叉熵损失</li>
+<li>技巧：使用 <code>GRL + speaker classifier</code>，对抗训练，避免 <code>style</code> 携带 <code>timbre</code> 信息</li>
+</ul>
+<h3 id="3-semantic-to-mel-详解"><a class="markdownIt-Anchor" href="#3-semantic-to-mel-详解"></a> 3. <code>Semantic-to-Mel</code> 详解</h3>
+<p><img src="https://s2.loli.net/2025/10/08/BVyDCqNMn8p6odG.png" alt="indextts2_3.png" /></p>
+<ul>
+<li>该模块基于流匹配 (<code>Flow Matching</code>) 的非自回归框架，负责将 <code>T2S</code> 生成的语义令牌序列合成为梅尔频谱图。</li>
+<li>输入:
+<ul>
+<li>语义令牌 (<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>Q</mi><mrow><mi>s</mi><mi>e</mi><mi>m</mi></mrow></msub></mrow><annotation encoding="application/x-tex">Q_{sem}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8777699999999999em;vertical-align:-0.19444em;"></span><span class="mord"><span class="mord mathnormal">Q</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">s</span><span class="mord mathnormal mtight">e</span><span class="mord mathnormal mtight">m</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span>): 来自 <code>T2S</code> 模块的输出。</li>
+<li><code>GPT</code> 隐层状态 (<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>H</mi><mrow><mi>G</mi><mi>P</mi><mi>T</mi></mrow></msub></mrow><annotation encoding="application/x-tex">H_{GPT}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.08125em;">H</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.32833099999999993em;"><span style="top:-2.5500000000000003em;margin-left:-0.08125em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">G</span><span class="mord mathnormal mtight" style="margin-right:0.13889em;">P</span><span class="mord mathnormal mtight" style="margin-right:0.13889em;">T</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span>): 来自 <code>T2S</code> 模块的输出，用于增强语义信息。这两者会通过一个 <code>MLP</code> 以 <code>50%</code> 的概率进行随机融合，形成最终的语义表征 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>Q</mi><mrow><mi>f</mi><mi>i</mi><mi>n</mi></mrow></msub></mrow><annotation encoding="application/x-tex">Q_{fin}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.969438em;vertical-align:-0.286108em;"></span><span class="mord"><span class="mord mathnormal">Q</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361079999999999em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.10764em;">f</span><span class="mord mathnormal mtight">i</span><span class="mord mathnormal mtight">n</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span></span></span></span>。</li>
+<li>说话人嵌入 (<code>Speaker Embedding</code>): 从音色提示音频中提取的说话人特征，以保证音色的一致性。</li>
+<li>提示梅尔频谱 (<code>Prompt Mel-spectrograms</code>): 训练时，输入音频会被随机切分为提示段和目标段，提示段的梅尔频谱作为参考。</li>
+</ul>
+</li>
+<li>输出：目标梅尔频谱图 (<code>Target Mel Spectrogram</code>)</li>
+<li>训练方式：模型学习一个常微分方程 (<code>ODE</code>)，将高斯噪声映射到目标梅尔频谱。训练时，目标段的真实梅尔频谱被完全加噪，模型需要学习去噪并重建它。</li>
+<li>监督信号：目标段的真实梅尔频谱图 (<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mrow><mi>t</mi><mi>a</mi><mi>r</mi></mrow></msub></mrow><annotation encoding="application/x-tex">y_{tar}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.625em;vertical-align:-0.19444em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.03588em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2805559999999999em;"><span style="top:-2.5500000000000003em;margin-left:-0.03588em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">t</span><span class="mord mathnormal mtight">a</span><span class="mord mathnormal mtight" style="margin-right:0.02778em;">r</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span>)</li>
+<li>损失函数：<code>L1 loss</code></li>
+</ul>
+<h3 id="4-vocoder-详解"><a class="markdownIt-Anchor" href="#4-vocoder-详解"></a> 4. <code>Vocoder</code> 详解</h3>
+<ul>
+<li>输入：
+<ul>
+<li>由 <code>S2M</code> 模块生成的梅尔频谱图 (<code>Mel Spectrogram</code>)。</li>
+</ul>
+</li>
+<li>输出:
+<ul>
+<li>最终的音频波形 (<code>Audio Waveform</code>)。</li>
+</ul>
+</li>
+<li>直接使用了训练好的 <code>BigVGANv2</code> 模型</li>
+</ul>
+<h2 id="thoughts"><a class="markdownIt-Anchor" href="#thoughts"></a> Thoughts</h2>
+<ul>
+<li><code>TTS</code> 是个很有趣的领域，直觉上看流媒体平台上有大量的语音数据，应该很容易训练一个 <code>TTS</code> 模型，但实际上似乎并不是很容易。</li>
+<li>用 <code>GRL</code> 来去除 <code>style</code> 中的 <code>timbre</code> 信息是个不错的想法。</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/LLM/" rel="tag"># LLM</a>
+              <a href="/tags/TTS/" rel="tag"># TTS</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2025/09/19/Qwen3-Next%EF%BC%9A%E8%BF%88%E5%90%91%E6%9B%B4%E6%9E%81%E8%87%B4%E7%9A%84%E8%AE%AD%E7%BB%83%E6%8E%A8%E7%90%86%E6%80%A7%E4%BB%B7%E6%AF%94/" rel="prev" title="Qwen3-Next：迈向更极致的训练推理性价比">
+      <i class="fa fa-chevron-left"></i> Qwen3-Next：迈向更极致的训练推理性价比
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2025/10/08/Unsupervised-Domain-Adaptation-by-Backpropagation/" rel="next" title="Unsupervised Domain Adaptation by Backpropagation">
+      Unsupervised Domain Adaptation by Backpropagation <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#url"><span class="nav-number">1.</span> <span class="nav-text"> URL</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#tldr"><span class="nav-number">2.</span> <span class="nav-text"> TL;DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#algorithm"><span class="nav-number">3.</span> <span class="nav-text"> Algorithm</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#0-%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86"><span class="nav-number">3.1.</span> <span class="nav-text"> 0. 基础知识</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#01-%E8%AF%AD%E9%9F%B3%E7%9A%84%E8%A1%A8%E7%A4%BA%E6%96%B9%E6%B3%95"><span class="nav-number">3.1.1.</span> <span class="nav-text"> 0.1 语音的表示方法</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#02-%E7%8E%B0%E4%BB%A3-tts-%E6%A8%A1%E5%9E%8B%E7%9A%84%E6%9E%B6%E6%9E%84"><span class="nav-number">3.1.2.</span> <span class="nav-text"> 0.2 现代 TTS 模型的架构</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-indextts2-%E7%9A%84%E6%9E%B6%E6%9E%84"><span class="nav-number">3.2.</span> <span class="nav-text"> 1. IndexTTS2 的架构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-text-to-semantic-%E8%AF%A6%E8%A7%A3"><span class="nav-number">3.3.</span> <span class="nav-text"> 2. Text-to-Semantic 详解</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-semantic-to-mel-%E8%AF%A6%E8%A7%A3"><span class="nav-number">3.4.</span> <span class="nav-text"> 3. Semantic-to-Mel 详解</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-vocoder-%E8%AF%A6%E8%A7%A3"><span class="nav-number">3.5.</span> <span class="nav-text"> 4. Vocoder 详解</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#thoughts"><span class="nav-number">4.</span> <span class="nav-text"> Thoughts</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Zhangzhe</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives">
+          <span class="site-state-item-count">173</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">51</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhangzhe</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js', () => {
+    // 初始化 Mermaid 配置
+    mermaid.initialize({
+      theme    : 'dark',  // 设置主题
+      logLevel : 3,  // 设置日志等级
+      flowchart: { curve: 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 },
+      themeVariables: {
+        'fontFamily': 'Microsoft YaHei, Arial, sans-serif',  // 设置中文字体
+      }
+    });
+
+    // 初始化 Mermaid 图表
+    mermaid.init(undefined, document.querySelectorAll('pre.mermaid'));
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+      
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/katex@0/dist/katex.min.css">
+
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'eK3W25jybCO5jVUrYBBpAPqM-gzGzoHsz',
+      appKey     : 'F4KVyUj9wHI5c80Bhz7O2uhq',
+      placeholder: "说点什么再走吧...",
+      avatar     : 'hide',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"real-zhangzhe.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="URL  code: https:&#x2F;&#x2F;gymnasium.farama.org&#x2F;tutorials&#x2F;training_agents&#x2F;blackjack_tutorial&#x2F; doc: https:&#x2F;&#x2F;gymnasium.farama.org&#x2F;environments&#x2F;toy_text&#x2F;blackjack&#x2F;   TL;DR  本文通过一个简单的例子介绍了如何用 Q Learning 算法训练一个 A">
+<meta property="og:type" content="article">
+<meta property="og:title" content="强化学习(2)——用Q Learning算法训练Agent玩Blackjack">
+<meta property="og:url" content="https://real-zhangzhe.github.io/2024/11/08/%E5%BC%BA%E5%8C%96%E5%AD%A6%E4%B9%A0-2-%E2%80%94%E2%80%94%E7%94%A8Q-Learning%E7%AE%97%E6%B3%95%E8%AE%AD%E7%BB%83Agent%E7%8E%A9Blackjack/index.html">
+<meta property="og:site_name" content="Zhangzhe&#39;s Blog">
+<meta property="og:description" content="URL  code: https:&#x2F;&#x2F;gymnasium.farama.org&#x2F;tutorials&#x2F;training_agents&#x2F;blackjack_tutorial&#x2F; doc: https:&#x2F;&#x2F;gymnasium.farama.org&#x2F;environments&#x2F;toy_text&#x2F;blackjack&#x2F;   TL;DR  本文通过一个简单的例子介绍了如何用 Q Learning 算法训练一个 A">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://s2.loli.net/2024/11/13/gMencLGwhSklpO3.jpg">
+<meta property="og:image" content="https://s2.loli.net/2024/11/11/2qQnCB3hGVWJZkf.png">
+<meta property="og:image" content="https://s2.loli.net/2024/11/11/QCWrH1cUBtyJDTM.png">
+<meta property="og:image" content="https://s2.loli.net/2024/11/11/XdkFyWTnjw9cr4M.png">
+<meta property="article:published_time" content="2024-11-08T05:04:37.000Z">
+<meta property="article:modified_time" content="2025-12-11T05:48:26.542Z">
+<meta property="article:author" content="Zhangzhe">
+<meta property="article:tag" content="Reinforcement Learning">
+<meta property="article:tag" content="Q Learning">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://s2.loli.net/2024/11/13/gMencLGwhSklpO3.jpg">
+
+<link rel="canonical" href="https://real-zhangzhe.github.io/2024/11/08/%E5%BC%BA%E5%8C%96%E5%AD%A6%E4%B9%A0-2-%E2%80%94%E2%80%94%E7%94%A8Q-Learning%E7%AE%97%E6%B3%95%E8%AE%AD%E7%BB%83Agent%E7%8E%A9Blackjack/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>强化学习(2)——用Q Learning算法训练Agent玩Blackjack | Zhangzhe's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Zhangzhe's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">The projection of my life.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/archives/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/11/08/%E5%BC%BA%E5%8C%96%E5%AD%A6%E4%B9%A0-2-%E2%80%94%E2%80%94%E7%94%A8Q-Learning%E7%AE%97%E6%B3%95%E8%AE%AD%E7%BB%83Agent%E7%8E%A9Blackjack/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          强化学习(2)——用Q Learning算法训练Agent玩Blackjack
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-11-08 13:04:37" itemprop="dateCreated datePublished" datetime="2024-11-08T13:04:37+08:00">2024-11-08</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-12-11 13:48:26" itemprop="dateModified" datetime="2025-12-11T13:48:26+08:00">2025-12-11</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Reinforcement-Learning/" itemprop="url" rel="index"><span itemprop="name">Reinforcement Learning</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2024/11/08/%E5%BC%BA%E5%8C%96%E5%AD%A6%E4%B9%A0-2-%E2%80%94%E2%80%94%E7%94%A8Q-Learning%E7%AE%97%E6%B3%95%E8%AE%AD%E7%BB%83Agent%E7%8E%A9Blackjack/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2024/11/08/%E5%BC%BA%E5%8C%96%E5%AD%A6%E4%B9%A0-2-%E2%80%94%E2%80%94%E7%94%A8Q-Learning%E7%AE%97%E6%B3%95%E8%AE%AD%E7%BB%83Agent%E7%8E%A9Blackjack/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>code: <a target="_blank" rel="noopener" href="https://gymnasium.farama.org/tutorials/training_agents/blackjack_tutorial/">https://gymnasium.farama.org/tutorials/training_agents/blackjack_tutorial/</a></li>
+<li>doc: <a target="_blank" rel="noopener" href="https://gymnasium.farama.org/environments/toy_text/blackjack/">https://gymnasium.farama.org/environments/toy_text/blackjack/</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li>本文通过一个简单的例子介绍了如何用 <code>Q Learning</code> 算法训练一个 <code>Agent</code> 玩 <code>Blackjack</code> 游戏，环境是 <code>OpenAI Gym</code> 提供的 <code>Blackjack-v0</code></li>
+<li><code>Q Learning</code> 算法是一种用于有限离散状态和动作环境下的强化学习算法，通过基于贝尔曼方程的更新策略，不断更新 <code>Q Table</code> 来学习最优策略，最终实现 <code>Agent</code> 的自动决策</li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<p><img src="https://s2.loli.net/2024/11/13/gMencLGwhSklpO3.jpg" alt="q_learning_algo.jpeg" /></p>
+<blockquote>
+<p><code>Q Learning</code> 算法</p>
+</blockquote>
+<h3 id="1-环境介绍"><a class="markdownIt-Anchor" href="#1-环境介绍"></a> 1. 环境介绍</h3>
+<ol>
+<li><code>Blackjack</code> 游戏规则</li>
+</ol>
+<pre class="mermaid">graph TD
+    A[开始] --> B[给玩家发两张牌，给庄家发两张牌，一张明牌，一张暗牌]
+    
+    B --> H{玩家是否有21点?}
+    H -->|是| I[玩家有自然牌，检查庄家]
+    H -->|否| N{玩家选择是否继续要牌?}
+    
+    I --> K{庄家是否也有自然牌?}
+    K -->|是| L[平局]
+    K -->|否| M[玩家胜利]
+    
+    N -->|要牌| O[发一张牌给玩家]
+    N -->|停牌| P[玩家停牌，轮到庄家]
+    
+    O --> Q{玩家是否爆掉（超过21点）?}
+    Q -->|是| R[玩家爆掉，庄家胜利]
+    Q -->|否| N
+    P --> S{庄家是否点数≥17?}
+    S -->|是| T[庄家停牌]
+    S -->|否| U[庄家要牌]
+    
+    U --> V{庄家是否爆掉?}
+    V -->|是| M[玩家胜利]
+    V -->|否| S
+    
+    T --> X{比较玩家和庄家的点数}
+    X -->|玩家点数更大| M[玩家胜利]
+    X -->|庄家点数更大| Z[庄家胜利]
+    X -->|点数相同| L[平局]
+    R --> AA[游戏结束]
+    Z --> AA
+    L --> AA
+    M --> AA</pre>
+<ol start="2">
+<li><code>Blackjack</code> 环境定义：
+<ul>
+<li><code>Observation space</code>: <code>Tuple(Discrete(32), Discrete(11), Discrete(2))</code>，用一个三元组表示当前状态，分别是：
+<ul>
+<li>玩家的点数</li>
+<li>庄家的明牌点数</li>
+<li>玩家是否有 <code>Ace</code></li>
+</ul>
+</li>
+<li><code>Action space</code>: <code>Discrete(2)</code>
+<ul>
+<li><code>0</code> 表示 <code>stick</code> (停牌)</li>
+<li><code>1</code> 表示 <code>hit</code> (要牌)</li>
+</ul>
+</li>
+<li><code>Reward</code>: <code>+1</code> 表示玩家胜利，<code>-1</code> 表示庄家胜利，<code>0</code> 表示平局</li>
+<li><code>Starting state</code>:
+<ul>
+<li>玩家牌之和为 <code>4 - 21</code> 之间</li>
+<li>庄家明牌为 <code>1 - 10</code> 之间</li>
+<li>玩家是否有 <code>Ace</code> 为 <code>0</code> 或 <code>1</code></li>
+</ul>
+</li>
+<li><code>Episode End</code>:
+<ul>
+<li>玩家停牌</li>
+<li>玩家爆牌</li>
+</ul>
+</li>
+</ul>
+</li>
+</ol>
+<h3 id="2-q-learning-算法"><a class="markdownIt-Anchor" href="#2-q-learning-算法"></a> 2. <code>Q Learning</code> 算法</h3>
+<hr />
+<table>
+<thead>
+<tr>
+<th style="text-align:center">特性</th>
+<th style="text-align:center">V 函数 (状态价值函数)</th>
+<th style="text-align:center">Q 函数 (状态-动作价值函数)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center">定义</td>
+<td style="text-align:center">评估状态 <code>s</code> 的价值，即在状态 <code>s</code> 开始，按照策略 <code>π</code> 执行的期望累积奖励</td>
+<td style="text-align:center">评估状态 <code>s</code> 和动作 <code>a</code> 的价值，即在状态 <code>s</code> 选择动作 <code>a</code>，然后按照策略 <code>π</code> 执行的期望累积奖励</td>
+</tr>
+<tr>
+<td style="text-align:center">输入</td>
+<td style="text-align:center">状态 <code>s</code></td>
+<td style="text-align:center">状态 <code>s</code> 和动作 <code>a</code></td>
+</tr>
+<tr>
+<td style="text-align:center">输出</td>
+<td style="text-align:center">状态的价值，即期望的回报</td>
+<td style="text-align:center">状态-动作对的价值，即从状态 <code>s</code> 执行动作 <code>a</code> 后的期望回报</td>
+</tr>
+<tr>
+<td style="text-align:center">更新方式</td>
+<td style="text-align:center"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>V</mi><mo stretchy="false">(</mo><mi>s</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">V(s)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.22222em;">V</span><span class="mopen">(</span><span class="mord mathnormal">s</span><span class="mclose">)</span></span></span></span> 通过 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Q</mi><mo stretchy="false">(</mo><mi>s</mi><mo separator="true">,</mo><mi>a</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">Q(s,a)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">Q</span><span class="mopen">(</span><span class="mord mathnormal">s</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal">a</span><span class="mclose">)</span></span></span></span> 来更新，通常用贝尔曼方程</td>
+<td style="text-align:center"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Q</mi><mo stretchy="false">(</mo><mi>s</mi><mo separator="true">,</mo><mi>a</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">Q(s,a)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">Q</span><span class="mopen">(</span><span class="mord mathnormal">s</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal">a</span><span class="mclose">)</span></span></span></span> 直接通过贝尔曼方程更新，通常用于 <code>Q-learning</code> 或 <code>DQN</code></td>
+</tr>
+<tr>
+<td style="text-align:center">公式</td>
+<td style="text-align:center"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>V</mi><mi>π</mi></msup><mo stretchy="false">(</mo><mi>s</mi><mo stretchy="false">)</mo><mo>=</mo><mi mathvariant="double-struck">E</mi><mo stretchy="false">[</mo><msubsup><mo>∑</mo><mrow><mi>t</mi><mo>=</mo><mn>0</mn></mrow><mi mathvariant="normal">∞</mi></msubsup><msup><mi>γ</mi><mi>t</mi></msup><msub><mi>r</mi><mi>t</mi></msub><mi mathvariant="normal">∣</mi><msub><mi>s</mi><mn>0</mn></msub><mo>=</mo><mi>s</mi><mo separator="true">,</mo><mi>π</mi><mo stretchy="false">]</mo></mrow><annotation encoding="application/x-tex">V^\pi(s)=\mathbb E[\sum_{t=0}^{\infty}\gamma^tr_t|s_0=s,\pi]</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.22222em;">V</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.664392em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.03588em;">π</span></span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal">s</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:1.104002em;vertical-align:-0.29971000000000003em;"></span><span class="mord mathbb">E</span><span class="mopen">[</span><span class="mop"><span class="mop op-symbol small-op" style="position:relative;top:-0.0000050000000000050004em;">∑</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.804292em;"><span style="top:-2.40029em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">t</span><span class="mrel mtight">=</span><span class="mord mtight">0</span></span></span></span><span style="top:-3.2029em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">∞</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.29971000000000003em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.05556em;">γ</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.7935559999999999em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span></span></span></span></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.02778em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2805559999999999em;"><span style="top:-2.5500000000000003em;margin-left:-0.02778em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord">∣</span><span class="mord"><span class="mord mathnormal">s</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.30110799999999993em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">0</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">s</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal" style="margin-right:0.03588em;">π</span><span class="mclose">]</span></span></span></span></td>
+<td style="text-align:center"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>Q</mi><mi>π</mi></msup><mo stretchy="false">(</mo><mi>s</mi><mo separator="true">,</mo><mi>a</mi><mo stretchy="false">)</mo><mo>=</mo><mi mathvariant="double-struck">E</mi><mo stretchy="false">[</mo><msubsup><mo>∑</mo><mrow><mi>t</mi><mo>=</mo><mn>0</mn></mrow><mi mathvariant="normal">∞</mi></msubsup><msup><mi>γ</mi><mi>t</mi></msup><msub><mi>r</mi><mi>t</mi></msub><mi mathvariant="normal">∣</mi><msub><mi>s</mi><mn>0</mn></msub><mo>=</mo><mi>s</mi><mo separator="true">,</mo><msub><mi>a</mi><mn>0</mn></msub><mo>=</mo><mi>a</mi><mo separator="true">,</mo><mi>π</mi><mo stretchy="false">]</mo></mrow><annotation encoding="application/x-tex">Q^\pi(s,a)=\mathbb E[\sum_{t=0}^{\infty}\gamma^tr_t|s_0=s,a_0=a,\pi]</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathnormal">Q</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.664392em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.03588em;">π</span></span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal">s</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal">a</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:1.104002em;vertical-align:-0.29971000000000003em;"></span><span class="mord mathbb">E</span><span class="mopen">[</span><span class="mop"><span class="mop op-symbol small-op" style="position:relative;top:-0.0000050000000000050004em;">∑</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.804292em;"><span style="top:-2.40029em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">t</span><span class="mrel mtight">=</span><span class="mord mtight">0</span></span></span></span><span style="top:-3.2029em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">∞</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.29971000000000003em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.05556em;">γ</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.7935559999999999em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span></span></span></span></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.02778em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2805559999999999em;"><span style="top:-2.5500000000000003em;margin-left:-0.02778em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord">∣</span><span class="mord"><span class="mord mathnormal">s</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.30110799999999993em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">0</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:0.625em;vertical-align:-0.19444em;"></span><span class="mord mathnormal">s</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathnormal">a</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.30110799999999993em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">0</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">a</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal" style="margin-right:0.03588em;">π</span><span class="mclose">]</span></span></span></span></td>
+</tr>
+<tr>
+<td style="text-align:center">主要用途</td>
+<td style="text-align:center">用于评估某一状态的好坏，特别适合评估策略</td>
+<td style="text-align:center">用于评估某一状态下选择特定动作的好坏，通常用于 <code>Q-learning</code> 等算法</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<ol>
+<li><code>Q Learning</code> 算法是一种 <code>Off-Policy</code> 的强化学习算法，通过不断更新 <code>Q Table</code> 来学习最优策略</li>
+<li><code>Q Table</code> 是一个 <code>State-Action</code> 表，用于存储每个状态下每个动作的 <code>Q Value</code>，因此 <code>Q Table</code> 的大小是 <code>Observation space length</code> * <code>Action space length</code></li>
+<li><code>Q Value</code> 的更新公式：</li>
+</ol>
+<p class='katex-block'><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mi>Q</mi><mo stretchy="false">(</mo><mi>s</mi><mo separator="true">,</mo><mi>a</mi><mo stretchy="false">)</mo><mo>=</mo><mi>Q</mi><mo stretchy="false">(</mo><mi>s</mi><mo separator="true">,</mo><mi>a</mi><mo stretchy="false">)</mo><mo>+</mo><mi>α</mi><mo>⋅</mo><mo stretchy="false">(</mo><mi>r</mi><mo>+</mo><mi>γ</mi><mo>⋅</mo><munder><mo><mi>max</mi><mo>⁡</mo></mo><msup><mi>a</mi><mo mathvariant="normal" lspace="0em" rspace="0em">′</mo></msup></munder><mi>Q</mi><mo stretchy="false">(</mo><msup><mi>s</mi><mo mathvariant="normal" lspace="0em" rspace="0em">′</mo></msup><mo separator="true">,</mo><msup><mi>a</mi><mo mathvariant="normal" lspace="0em" rspace="0em">′</mo></msup><mo stretchy="false">)</mo><mo>−</mo><mi>Q</mi><mo stretchy="false">(</mo><mi>s</mi><mo separator="true">,</mo><mi>a</mi><mo stretchy="false">)</mo><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">Q(s, a) = Q(s, a) + \alpha \cdot (r + \gamma \cdot \max_{a&#x27;} Q(s&#x27;, a&#x27;) - Q(s, a))
+</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">Q</span><span class="mopen">(</span><span class="mord mathnormal">s</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal">a</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">Q</span><span class="mopen">(</span><span class="mord mathnormal">s</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal">a</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.44445em;vertical-align:0em;"></span><span class="mord mathnormal" style="margin-right:0.0037em;">α</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">⋅</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.02778em;">r</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.63889em;vertical-align:-0.19444em;"></span><span class="mord mathnormal" style="margin-right:0.05556em;">γ</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">⋅</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:1.5458720000000001em;vertical-align:-0.7439800000000001em;"></span><span class="mop op-limits"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.43055999999999983em;"><span style="top:-2.35602em;margin-left:0em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathnormal mtight">a</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6828285714285715em;"><span style="top:-2.786em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mtight">′</span></span></span></span></span></span></span></span></span></span></span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span><span class="mop">max</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.7439800000000001em;"><span></span></span></span></span></span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal">Q</span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">s</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.801892em;"><span style="top:-3.113em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">′</span></span></span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathnormal">a</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.801892em;"><span style="top:-3.113em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">′</span></span></span></span></span></span></span></span></span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">Q</span><span class="mopen">(</span><span class="mord mathnormal">s</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal">a</span><span class="mclose">)</span><span class="mclose">)</span></span></span></span></span></p>
+<ul>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Q</mi><mo stretchy="false">(</mo><mi>s</mi><mo separator="true">,</mo><mi>a</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">Q(s, a)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">Q</span><span class="mopen">(</span><span class="mord mathnormal">s</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal">a</span><span class="mclose">)</span></span></span></span> 是当前状态 <code>s</code> 下采取动作 <code>a</code> 的 <code>Q Value</code></li>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi></mrow><annotation encoding="application/x-tex">\alpha</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathnormal" style="margin-right:0.0037em;">α</span></span></span></span> 是学习率</li>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>r</mi></mrow><annotation encoding="application/x-tex">r</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathnormal" style="margin-right:0.02778em;">r</span></span></span></span> 是当前状态下采取动作 <code>a</code> 后的奖励</li>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>γ</mi></mrow><annotation encoding="application/x-tex">\gamma</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.625em;vertical-align:-0.19444em;"></span><span class="mord mathnormal" style="margin-right:0.05556em;">γ</span></span></span></span> 是折扣因子，用于平衡当前奖励和未来奖励，越大表示越重视未来奖励，越小表示越重视当前奖励</li>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mo><mi>max</mi><mo>⁡</mo></mo><msup><mi>a</mi><mo mathvariant="normal" lspace="0em" rspace="0em">′</mo></msup></msub><mi>Q</mi><mo stretchy="false">(</mo><msup><mi>s</mi><mo mathvariant="normal" lspace="0em" rspace="0em">′</mo></msup><mo separator="true">,</mo><msup><mi>a</mi><mo mathvariant="normal" lspace="0em" rspace="0em">′</mo></msup><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\max_{a&#x27;} Q(s&#x27;, a&#x27;)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.001892em;vertical-align:-0.25em;"></span><span class="mop"><span class="mop">max</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.32797999999999994em;"><span style="top:-2.5500000000000003em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathnormal mtight">a</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6828285714285715em;"><span style="top:-2.786em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mtight">′</span></span></span></span></span></span></span></span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal">Q</span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">s</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.751892em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">′</span></span></span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathnormal">a</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.751892em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">′</span></span></span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span> 是下一个状态 <code>s'</code> 下所有动作中最大的 <code>Q Value</code></li>
+</ul>
+<h3 id="3-使用-q-learning-算法训练-agent-玩-blackjack"><a class="markdownIt-Anchor" href="#3-使用-q-learning-算法训练-agent-玩-blackjack"></a> 3. 使用 <code>Q Learning</code> 算法训练 <code>Agent</code> 玩 <code>Blackjack</code></h3>
+<p>实现代码如下：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> collections <span class="keyword">import</span> defaultdict</span><br><span class="line"><span class="keyword">import</span> matplotlib.pyplot <span class="keyword">as</span> plt</span><br><span class="line"><span class="keyword">import</span> numpy <span class="keyword">as</span> np</span><br><span class="line"><span class="keyword">import</span> seaborn <span class="keyword">as</span> sns</span><br><span class="line"><span class="keyword">from</span> matplotlib.patches <span class="keyword">import</span> Patch</span><br><span class="line"><span class="keyword">from</span> tqdm <span class="keyword">import</span> tqdm</span><br><span class="line"><span class="keyword">from</span> typing <span class="keyword">import</span> <span class="type">Tuple</span></span><br><span class="line"><span class="keyword">import</span> gymnasium <span class="keyword">as</span> gym</span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">BlackjackAgent</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params"></span></span></span><br><span class="line"><span class="params"><span class="function">        self,</span></span></span><br><span class="line"><span class="params"><span class="function">        env,</span></span></span><br><span class="line"><span class="params"><span class="function">        learning_rate: <span class="built_in">float</span>,</span></span></span><br><span class="line"><span class="params"><span class="function">        initial_epsilon: <span class="built_in">float</span>,</span></span></span><br><span class="line"><span class="params"><span class="function">        epsilon_decay: <span class="built_in">float</span>,</span></span></span><br><span class="line"><span class="params"><span class="function">        final_epsilon: <span class="built_in">float</span>,</span></span></span><br><span class="line"><span class="params"><span class="function">        discount_factor: <span class="built_in">float</span> = <span class="number">0.95</span>,</span></span></span><br><span class="line"><span class="params"><span class="function">    </span>):</span></span><br><span class="line">        <span class="string">&quot;&quot;&quot;Initialize a Reinforcement Learning agent with an empty dictionary</span></span><br><span class="line"><span class="string">        of state-action values (q_values), a learning rate and an epsilon.</span></span><br><span class="line"><span class="string">        Args:</span></span><br><span class="line"><span class="string">            learning_rate: The learning rate</span></span><br><span class="line"><span class="string">            initial_epsilon: The initial epsilon value</span></span><br><span class="line"><span class="string">            epsilon_decay: The decay for epsilon</span></span><br><span class="line"><span class="string">            final_epsilon: The final epsilon value</span></span><br><span class="line"><span class="string">            discount_factor: The discount factor for computing the Q-value</span></span><br><span class="line"><span class="string">        &quot;&quot;&quot;</span></span><br><span class="line">        self.q_values = defaultdict(<span class="keyword">lambda</span>: np.zeros(env.action_space.n))</span><br><span class="line">        self.lr = learning_rate</span><br><span class="line">        self.discount_factor = discount_factor</span><br><span class="line">        self.epsilon = initial_epsilon</span><br><span class="line">        self.epsilon_decay = epsilon_decay</span><br><span class="line">        self.final_epsilon = final_epsilon</span><br><span class="line">        self.training_error = []</span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">get_action</span>(<span class="params">self, env, obs: <span class="type">Tuple</span>[<span class="built_in">int</span>, <span class="built_in">int</span>, <span class="built_in">bool</span>]</span>) -&gt; <span class="built_in">int</span>:</span></span><br><span class="line">        <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">        Returns the best action with probability (1 - epsilon)</span></span><br><span class="line"><span class="string">        otherwise a random action with probability epsilon to ensure exploration.</span></span><br><span class="line"><span class="string">        &quot;&quot;&quot;</span></span><br><span class="line">        <span class="comment"># with probability epsilon return a random action to explore the environment</span></span><br><span class="line">        <span class="keyword">if</span> np.random.random() &lt; self.epsilon:</span><br><span class="line">            <span class="keyword">return</span> env.action_space.sample()</span><br><span class="line">        <span class="comment"># with probability (1 - epsilon) act greedily (exploit)</span></span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            <span class="keyword">return</span> <span class="built_in">int</span>(np.argmax(self.q_values[obs]))</span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">update</span>(<span class="params"></span></span></span><br><span class="line"><span class="params"><span class="function">        self,</span></span></span><br><span class="line"><span class="params"><span class="function">        obs: <span class="type">Tuple</span>[<span class="built_in">int</span>, <span class="built_in">int</span>, <span class="built_in">bool</span>],</span></span></span><br><span class="line"><span class="params"><span class="function">        action: <span class="built_in">int</span>,</span></span></span><br><span class="line"><span class="params"><span class="function">        reward: <span class="built_in">float</span>,</span></span></span><br><span class="line"><span class="params"><span class="function">        terminated: <span class="built_in">bool</span>,</span></span></span><br><span class="line"><span class="params"><span class="function">        next_obs: <span class="type">Tuple</span>[<span class="built_in">int</span>, <span class="built_in">int</span>, <span class="built_in">bool</span>],</span></span></span><br><span class="line"><span class="params"><span class="function">    </span>):</span></span><br><span class="line">        <span class="string">&quot;&quot;&quot;Updates the Q-value of an action.&quot;&quot;&quot;</span></span><br><span class="line">        future_q_value = (<span class="keyword">not</span> terminated) * np.<span class="built_in">max</span>(self.q_values[next_obs])</span><br><span class="line">        temporal_difference = (</span><br><span class="line">            reward + self.discount_factor * future_q_value - self.q_values[obs][action]</span><br><span class="line">        )</span><br><span class="line">        self.q_values[obs][action] = (</span><br><span class="line">            self.q_values[obs][action] + self.lr * temporal_difference</span><br><span class="line">        )</span><br><span class="line">        self.training_error.append(temporal_difference)</span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">decay_epsilon</span>(<span class="params">self</span>):</span></span><br><span class="line">        self.epsilon = <span class="built_in">max</span>(self.final_epsilon, self.epsilon - self.epsilon_decay)</span><br><span class="line">env = gym.make(<span class="string">&quot;Blackjack-v1&quot;</span>, sab=<span class="literal">True</span>)</span><br><span class="line"><span class="comment"># hyperparameters</span></span><br><span class="line">learning_rate = <span class="number">0.01</span></span><br><span class="line">n_episodes = <span class="number">100_000</span></span><br><span class="line">start_epsilon = <span class="number">1.0</span></span><br><span class="line">epsilon_decay = start_epsilon / (n_episodes / <span class="number">2</span>)  <span class="comment"># reduce the exploration over time</span></span><br><span class="line">final_epsilon = <span class="number">0.1</span></span><br><span class="line">agent = BlackjackAgent(</span><br><span class="line">    env=env,</span><br><span class="line">    learning_rate=learning_rate,</span><br><span class="line">    initial_epsilon=start_epsilon,</span><br><span class="line">    epsilon_decay=epsilon_decay,</span><br><span class="line">    final_epsilon=final_epsilon,</span><br><span class="line">)</span><br><span class="line">env = gym.wrappers.RecordEpisodeStatistics(env, buffer_length=n_episodes)</span><br><span class="line"><span class="keyword">for</span> episode <span class="keyword">in</span> tqdm(<span class="built_in">range</span>(n_episodes)):</span><br><span class="line">    obs, info = env.reset()</span><br><span class="line">    done = <span class="literal">False</span></span><br><span class="line">    <span class="comment"># play one episode</span></span><br><span class="line">    <span class="keyword">while</span> <span class="keyword">not</span> done:</span><br><span class="line">        action = agent.get_action(env, obs)</span><br><span class="line">        next_obs, reward, terminated, truncated, info = env.step(action)</span><br><span class="line">        <span class="comment"># update the agent</span></span><br><span class="line">        agent.update(obs, action, reward, terminated, next_obs)</span><br><span class="line">        <span class="comment"># update if the environment is done and the current obs</span></span><br><span class="line">        done = terminated <span class="keyword">or</span> truncated</span><br><span class="line">        obs = next_obs</span><br><span class="line">    agent.decay_epsilon()</span><br></pre></td></tr></table></figure>
+<ol>
+<li>代码中定义了一个 <code>BlackjackAgent</code> 类，用于实现 <code>Q Learning</code> 算法</li>
+<li>初始化：
+<ol>
+<li>初始化 <code>Q Table</code> 为一个空的字典，<code>Q Value</code> 为 <code>0</code></li>
+<li>学习率为 <code>0.01</code></li>
+<li>折扣因子为 <code>0.95</code></li>
+<li>初始 <code>epsilon</code> 为 <code>1.0</code>，随着训练逐渐减小为 <code>0.1</code></li>
+</ol>
+</li>
+<li><code>get_action</code> 方法用于根据当前状态选择动作，以 <code>epsilon</code> 的概率选择随机动作，以 <code>1 - epsilon</code> 的概率选择最优动作</li>
+<li><code>update</code> 方法用于更新 <code>Q Value</code>，根据 <code>Q Learning</code> 公式更新 <code>Q Value</code></li>
+</ol>
+<h3 id="4-训练结果"><a class="markdownIt-Anchor" href="#4-训练结果"></a> 4. 训练结果</h3>
+<p><img src="https://s2.loli.net/2024/11/11/2qQnCB3hGVWJZkf.png" alt="q_learning.png" /><br />
+<img src="https://s2.loli.net/2024/11/11/QCWrH1cUBtyJDTM.png" alt="q_learning_1.png" /><br />
+<img src="https://s2.loli.net/2024/11/11/XdkFyWTnjw9cr4M.png" alt="q_learning_2.png" /></p>
+<h2 id="thoughts"><a class="markdownIt-Anchor" href="#thoughts"></a> Thoughts</h2>
+<ul>
+<li><code>Q Learning</code> 算法的关键是更新 <code>Q Table</code> 的过程，原理是贝尔曼方程：<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Q</mi><mo stretchy="false">(</mo><mi>s</mi><mo separator="true">,</mo><mi>a</mi><mo stretchy="false">)</mo><mo>=</mo><mi mathvariant="double-struck">E</mi><mo stretchy="false">[</mo><msub><mi>R</mi><mrow><mi>t</mi><mo>+</mo><mn>1</mn></mrow></msub><mo>+</mo><mi>γ</mi><mtext> </mtext><mi>m</mi><mi>a</mi><msub><mi>x</mi><msup><mi>a</mi><mo mathvariant="normal" lspace="0em" rspace="0em">′</mo></msup></msub><mi>Q</mi><mo stretchy="false">(</mo><msub><mi>s</mi><mrow><mi>t</mi><mo>+</mo><mn>1</mn></mrow></msub><mo separator="true">,</mo><msup><mi>a</mi><mo mathvariant="normal" lspace="0em" rspace="0em">′</mo></msup><mo stretchy="false">)</mo><mi mathvariant="normal">∣</mi><msub><mi>S</mi><mi>t</mi></msub><mo>=</mo><mi>s</mi><mo separator="true">,</mo><msub><mi>A</mi><mi>t</mi></msub><mo>=</mo><mi>a</mi><mo stretchy="false">]</mo></mrow><annotation encoding="application/x-tex">Q(s,a)=\mathbb E[R_{t+1}+\gamma\  max_{a&#x27;}Q(s_{t+1},a&#x27;)|S_t=s,A_t=a]</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">Q</span><span class="mopen">(</span><span class="mord mathnormal">s</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal">a</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathbb">E</span><span class="mopen">[</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.00773em;">R</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.301108em;"><span style="top:-2.5500000000000003em;margin-left:-0.00773em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">t</span><span class="mbin mtight">+</span><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.208331em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:1.001892em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.05556em;">γ</span><span class="mspace"> </span><span class="mord mathnormal">m</span><span class="mord mathnormal">a</span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.32797999999999994em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathnormal mtight">a</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6828285714285715em;"><span style="top:-2.786em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mtight">′</span></span></span></span></span></span></span></span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord mathnormal">Q</span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">s</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.301108em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">t</span><span class="mbin mtight">+</span><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.208331em;"><span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathnormal">a</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.751892em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">′</span></span></span></span></span></span></span></span></span><span class="mclose">)</span><span class="mord">∣</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.05764em;">S</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2805559999999999em;"><span style="top:-2.5500000000000003em;margin-left:-0.05764em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:0.8777699999999999em;vertical-align:-0.19444em;"></span><span class="mord mathnormal">s</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathnormal">A</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2805559999999999em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">a</span><span class="mclose">]</span></span></span></span>，表示当前状态下采取动作 <code>a</code> 的 <code>Q Value</code> 等于即时奖励加上折扣后未来（下一个时间步）状态的最大 <code>Q Value</code></li>
+<li>对于 <code>State Space</code> 和 <code>Action Space</code> 比较大的问题，<code>Q Learning</code> 算法的 <code>Q Table</code> 可能会非常庞大，因此需要使用 <code>Deep Q Learning</code> 算法，用神经网络来近似 <code>Q Value</code>，以减少存储空间，也就是 <code>DQN</code> 算法</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Reinforcement-Learning/" rel="tag"># Reinforcement Learning</a>
+              <a href="/tags/Q-Learning/" rel="tag"># Q Learning</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2024/11/06/%E5%BC%BA%E5%8C%96%E5%AD%A6%E4%B9%A0-1-%E2%80%94%E2%80%94%E7%94%A8REINFORCE%E7%AE%97%E6%B3%95%E8%AE%AD%E7%BB%83Agent%E7%8E%A9%E5%80%92%E7%AB%8B%E6%91%86%E6%B8%B8%E6%88%8F/" rel="prev" title="强化学习(1)——用REINFORCE算法训练Agent玩倒立摆游戏">
+      <i class="fa fa-chevron-left"></i> 强化学习(1)——用REINFORCE算法训练Agent玩倒立摆游戏
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2024/11/11/%E5%BC%BA%E5%8C%96%E5%AD%A6%E4%B9%A0-3-%E2%80%94%E2%80%94%E5%BC%BA%E5%8C%96%E5%AD%A6%E4%B9%A0%E7%AE%97%E6%B3%95%E5%88%86%E7%B1%BB/" rel="next" title="强化学习(3)——强化学习算法分类">
+      强化学习(3)——强化学习算法分类 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#url"><span class="nav-number">1.</span> <span class="nav-text"> URL</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#tldr"><span class="nav-number">2.</span> <span class="nav-text"> TL;DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#algorithm"><span class="nav-number">3.</span> <span class="nav-text"> Algorithm</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-%E7%8E%AF%E5%A2%83%E4%BB%8B%E7%BB%8D"><span class="nav-number">3.1.</span> <span class="nav-text"> 1. 环境介绍</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-q-learning-%E7%AE%97%E6%B3%95"><span class="nav-number">3.2.</span> <span class="nav-text"> 2. Q Learning 算法</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-%E4%BD%BF%E7%94%A8-q-learning-%E7%AE%97%E6%B3%95%E8%AE%AD%E7%BB%83-agent-%E7%8E%A9-blackjack"><span class="nav-number">3.3.</span> <span class="nav-text"> 3. 使用 Q Learning 算法训练 Agent 玩 Blackjack</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-%E8%AE%AD%E7%BB%83%E7%BB%93%E6%9E%9C"><span class="nav-number">3.4.</span> <span class="nav-text"> 4. 训练结果</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#thoughts"><span class="nav-number">4.</span> <span class="nav-text"> Thoughts</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Zhangzhe</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives">
+          <span class="site-state-item-count">173</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">51</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhangzhe</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js', () => {
+    // 初始化 Mermaid 配置
+    mermaid.initialize({
+      theme    : 'dark',  // 设置主题
+      logLevel : 3,  // 设置日志等级
+      flowchart: { curve: 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 },
+      themeVariables: {
+        'fontFamily': 'Microsoft YaHei, Arial, sans-serif',  // 设置中文字体
+      }
+    });
+
+    // 初始化 Mermaid 图表
+    mermaid.init(undefined, document.querySelectorAll('pre.mermaid'));
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+      
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/katex@0/dist/katex.min.css">
+
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'eK3W25jybCO5jVUrYBBpAPqM-gzGzoHsz',
+      appKey     : 'F4KVyUj9wHI5c80Bhz7O2uhq',
+      placeholder: "说点什么再走吧...",
+      avatar     : 'hide',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

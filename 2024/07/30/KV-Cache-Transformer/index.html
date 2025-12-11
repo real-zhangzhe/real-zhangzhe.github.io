@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"real-zhangzhe.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="URL  paper: kv cache 是一种生成式大模型加速的方法，没有原创的论文，比较早的提到这项技术的论文是：《Efficient Scaling Transformer Inference》 code: https:&#x2F;&#x2F;github.com&#x2F;huggingface&#x2F;transformers&#x2F;blob&#x2F;f0bc49e7f61f74f055c47ad40e6010f57eed0b0b&#x2F;sr">
+<meta property="og:type" content="article">
+<meta property="og:title" content="KV Cache Transformer">
+<meta property="og:url" content="https://real-zhangzhe.github.io/2024/07/30/KV-Cache-Transformer/index.html">
+<meta property="og:site_name" content="Zhangzhe&#39;s Blog">
+<meta property="og:description" content="URL  paper: kv cache 是一种生成式大模型加速的方法，没有原创的论文，比较早的提到这项技术的论文是：《Efficient Scaling Transformer Inference》 code: https:&#x2F;&#x2F;github.com&#x2F;huggingface&#x2F;transformers&#x2F;blob&#x2F;f0bc49e7f61f74f055c47ad40e6010f57eed0b0b&#x2F;sr">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2024-07-30T04:23:17.000Z">
+<meta property="article:modified_time" content="2025-12-11T05:48:26.538Z">
+<meta property="article:author" content="Zhangzhe">
+<meta property="article:tag" content="Paper Reading">
+<meta property="article:tag" content="Transformer">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://real-zhangzhe.github.io/2024/07/30/KV-Cache-Transformer/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>KV Cache Transformer | Zhangzhe's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Zhangzhe's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">The projection of my life.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/archives/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/07/30/KV-Cache-Transformer/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          KV Cache Transformer
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-07-30 12:23:17" itemprop="dateCreated datePublished" datetime="2024-07-30T12:23:17+08:00">2024-07-30</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-12-11 13:48:26" itemprop="dateModified" datetime="2025-12-11T13:48:26+08:00">2025-12-11</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Transformer/" itemprop="url" rel="index"><span itemprop="name">Transformer</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2024/07/30/KV-Cache-Transformer/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2024/07/30/KV-Cache-Transformer/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <code>kv cache</code> 是一种生成式大模型加速的方法，没有原创的论文，比较早的提到这项技术的论文是：<a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2211.05102">《Efficient Scaling Transformer Inference》</a></li>
+<li>code: <a target="_blank" rel="noopener" href="https://github.com/huggingface/transformers/blob/f0bc49e7f61f74f055c47ad40e6010f57eed0b0b/src/transformers/models/gpt2/modeling_gpt2.py#L290">https://github.com/huggingface/transformers/blob/f0bc49e7f61f74f055c47ad40e6010f57eed0b0b/src/transformers/models/gpt2/modeling_gpt2.py#L290</a> <code>transformers repo</code> 中的 <code>GPT2</code> 模型代码中包含 <code>use_cache</code> 和 <code>layer_past</code> 就是 <code>kv cache</code> 的实现接口</li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li><code>GPT like</code> 大语言模型目前在生成式大模型领域占了主导地位，这些模型每一次推理只得到一个 <code>token</code>，下一次推理会将得到的 <code>token</code> 放到上一次输入 <code>token</code> 序列的末尾作为新输入，直到达到 <code>max_seq_length</code> 或输出的 <code>token</code> 表示 <code>end of sequence</code></li>
+<li>这种 <code>GPT like</code> 的生成机制意味着每次推理需要将之前所有 <code>token</code> 再重复算一次，序列长度越长，计算量越大，耗时越长</li>
+<li><code>KV Cache</code> 通过缓存上一次推理过程中每一层 <code>transformer</code> 的 <code>key / value</code>，将推理的时间复杂度从 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="script">O</mi><mo stretchy="false">(</mo><msup><mi>n</mi><mn>2</mn></msup><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\mathcal{O}(n^2)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.064108em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathcal" style="margin-right:0.02778em;">O</span></span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">n</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141079999999999em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span> 降低到了 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="script">O</mi><mo stretchy="false">(</mo><mi>n</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\mathcal{O}(n)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathcal" style="margin-right:0.02778em;">O</span></span><span class="mopen">(</span><span class="mord mathnormal">n</span><span class="mclose">)</span></span></span></span>，且计算结果完全等价</li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<ul>
+<li>可以在本时间步使用上一个时间步缓存的 <code>key / value</code> 的必要理论依据是：
+<ol>
+<li>每个时间步输入的 <code>token</code> 序列除最后一个 <code>token</code> 之外都和上一个时间步输入相同</li>
+<li><code>attention mask</code> 是下三角矩阵</li>
+<li>对 <code>attention score</code> 矩阵做 <code>softmax</code> 是逐行的而不是全局的或逐列的</li>
+<li>除 <code>self-attention</code> 操作之外，<code>GPT like LLM</code> 的其他层（<code>layer norm</code>, <code>gelu</code>, <code>FFN</code> 等）对 <code>seq_len</code> 维度来说都是 <code>element-wise</code> 的，且在推理阶段是静态的</li>
+</ol>
+</li>
+<li>以上四个理论依据在 <code>GPT like</code> 模型中都满足，下面解释四个条件为什么是必不可少的：
+<ol>
+<li>如果上面第一个条件不满足，那么每次推理都是新的内容，缓存将毫无意义</li>
+<li>下三角矩阵和逐行做 <code>softmax</code> 是必不可少的，随着 <code>token</code> 长度加一，每一层的 <code>attention score</code> 矩阵都会在最右和最下分别加一列和一行，由于下三角的存在，除最后一行外，其他每一行的值都不会改变（新加的一列不参与计算），而且逐行做，新加的一列也不影响其他行</li>
+<li><code>self-attention</code> 是 <code>GPT like LLM</code> 中唯一一个在 <code>token feature</code> 间做信息融合的算子，其他算子都是在 <code>token feature</code> 内做且都是静态操作，所以随着序列长度变长，之前的序列特征都是静态的</li>
+</ol>
+</li>
+</ul>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> torch</span><br><span class="line"><span class="keyword">import</span> torch.nn <span class="keyword">as</span> nn</span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">SelfAttention</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, dim, layer_idx</span>):</span></span><br><span class="line">        <span class="built_in">super</span>(SelfAttention, self).__init__()</span><br><span class="line">        self.dim = dim</span><br><span class="line">        self.layer_idx = layer_idx</span><br><span class="line">        self.query = nn.Linear(dim, dim)</span><br><span class="line">        self.key = nn.Linear(dim, dim)</span><br><span class="line">        self.value = nn.Linear(dim, dim)</span><br><span class="line">        self.softmax = nn.Softmax(dim=-<span class="number">1</span>)  <span class="comment"># 重点是这里，逐行进行 softmax，而不是全局</span></span><br><span class="line">        self.dropout = nn.Dropout(<span class="number">0.1</span>)</span><br><span class="line">        self.layer_norm = nn.LayerNorm(dim)</span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">self, x, attn_mask=<span class="literal">None</span></span>):</span></span><br><span class="line">        q = self.query(x)</span><br><span class="line">        k = self.key(x)</span><br><span class="line">        v = self.value(x)</span><br><span class="line">        scores = torch.matmul(q, k.transpose(-<span class="number">2</span>, -<span class="number">1</span>))</span><br><span class="line">        scores = scores / torch.sqrt(torch.tensor(self.dim).<span class="built_in">float</span>())</span><br><span class="line">        <span class="keyword">if</span> attn_mask <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span>:</span><br><span class="line">            scores = scores.masked_fill(attn_mask == <span class="number">0</span>, <span class="built_in">float</span>(<span class="string">&quot;-inf&quot;</span>))</span><br><span class="line">        attention_weights = self.softmax(scores)</span><br><span class="line">        attention_weights = self.dropout(attention_weights)</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;layer_idx:&quot;</span>, self.layer_idx)</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;q.sum(-1) =&quot;</span>, q.squeeze().<span class="built_in">abs</span>().<span class="built_in">sum</span>(-<span class="number">1</span>).tolist())</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;k.sum(-1) =&quot;</span>, k.squeeze().<span class="built_in">abs</span>().<span class="built_in">sum</span>(-<span class="number">1</span>).tolist())</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;v.sum(-1) =&quot;</span>, v.squeeze().<span class="built_in">abs</span>().<span class="built_in">sum</span>(-<span class="number">1</span>).tolist())</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;attention_weights =\n&quot;</span>, attention_weights.squeeze())</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;#&quot;</span> * <span class="number">100</span>)</span><br><span class="line">        output = torch.matmul(attention_weights, v)</span><br><span class="line">        output = self.layer_norm(output + x)</span><br><span class="line">        <span class="keyword">return</span> output</span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">GPTModel</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, dim, num_layers</span>):</span></span><br><span class="line">        <span class="built_in">super</span>(GPTModel, self).__init__()</span><br><span class="line">        self.dim = dim</span><br><span class="line">        self.num_layers = num_layers</span><br><span class="line">        self.attentions = nn.ModuleList(</span><br><span class="line">            [SelfAttention(dim, i) <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(num_layers)]</span><br><span class="line">        )</span><br><span class="line">        self.linear1 = nn.Linear(dim, dim)</span><br><span class="line">        self.linear2 = nn.Linear(dim, dim)</span><br><span class="line">        self.dropout = nn.Dropout(<span class="number">0.1</span>)</span><br><span class="line">        self.layer_norm = nn.LayerNorm(dim)</span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">self, x, attn_mask=<span class="literal">None</span></span>):</span></span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(self.num_layers):</span><br><span class="line">            x = x + self.attentions[i](x, attn_mask=attn_mask)</span><br><span class="line">            x = self.layer_norm(x)</span><br><span class="line">            x = x + self.linear2(self.dropout(torch.relu(self.linear1(x))))</span><br><span class="line">            x = self.layer_norm(x)</span><br><span class="line">        <span class="keyword">return</span> x</span><br><span class="line"><span class="comment"># Example usage</span></span><br><span class="line">model = GPTModel(dim=<span class="number">64</span>, num_layers=<span class="number">2</span>)</span><br><span class="line">model.<span class="built_in">eval</span>()</span><br><span class="line">input_data = torch.randn(</span><br><span class="line">    <span class="number">1</span>, <span class="number">3</span>, <span class="number">64</span></span><br><span class="line">)  <span class="comment"># Example input data with shape (batch_size, sequence_length, dim)</span></span><br><span class="line">attn_mask = torch.tril(torch.ones(<span class="number">3</span>, <span class="number">3</span>))  <span class="comment"># Lower triangular attention mask</span></span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;time step 1:&quot;</span>)</span><br><span class="line">output = model(input_data, attn_mask=attn_mask)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;\n\ntime step 2:&quot;</span>)</span><br><span class="line">input_data = torch.cat((input_data, torch.randn(<span class="number">1</span>, <span class="number">1</span>, <span class="number">64</span>)), <span class="number">1</span>)</span><br><span class="line">attn_mask = torch.tril(torch.ones(<span class="number">4</span>, <span class="number">4</span>))  <span class="comment"># Lower triangular attention mask</span></span><br><span class="line">output = model(input_data, attn_mask=attn_mask)</span><br><span class="line"><span class="comment"># 输出结果：</span></span><br><span class="line"><span class="comment"># time step 1:</span></span><br><span class="line"><span class="comment"># layer_idx: 0</span></span><br><span class="line"><span class="comment"># q.sum(-1) = [31.20478057861328, 34.04328536987305, 33.6611328125]</span></span><br><span class="line"><span class="comment"># k.sum(-1) = [31.446550369262695, 29.15508460998535, 29.265644073486328]</span></span><br><span class="line"><span class="comment"># v.sum(-1) = [30.789640426635742, 33.80058670043945, 32.4859619140625]</span></span><br><span class="line"><span class="comment"># attention_weights =</span></span><br><span class="line"><span class="comment">#  tensor([[1.0000, 0.0000, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.6760, 0.3240, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.2452, 0.4188, 0.3360]], grad_fn=&lt;SqueezeBackward0&gt;)</span></span><br><span class="line"><span class="comment"># ####################################################################################################</span></span><br><span class="line"><span class="comment"># layer_idx: 1</span></span><br><span class="line"><span class="comment"># q.sum(-1) = [30.214162826538086, 34.45262145996094, 26.357181549072266]</span></span><br><span class="line"><span class="comment"># k.sum(-1) = [29.88446617126465, 31.186325073242188, 31.727235794067383]</span></span><br><span class="line"><span class="comment"># v.sum(-1) = [23.99290657043457, 35.66062545776367, 33.28850173950195]</span></span><br><span class="line"><span class="comment"># attention_weights =</span></span><br><span class="line"><span class="comment">#  tensor([[1.0000, 0.0000, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.3310, 0.6690, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.4525, 0.3270, 0.2204]], grad_fn=&lt;SqueezeBackward0&gt;)</span></span><br><span class="line"><span class="comment"># ####################################################################################################</span></span><br><span class="line"><span class="comment"># time step 2:</span></span><br><span class="line"><span class="comment"># layer_idx: 0</span></span><br><span class="line"><span class="comment"># q.sum(-1) = [31.20478057861328, 34.04328536987305, 33.6611328125, 27.077472686767578]</span></span><br><span class="line"><span class="comment"># k.sum(-1) = [31.446550369262695, 29.15508460998535, 29.265644073486328, 27.211992263793945]</span></span><br><span class="line"><span class="comment"># v.sum(-1) = [30.789640426635742, 33.80058670043945, 32.4859619140625, 29.695066452026367]</span></span><br><span class="line"><span class="comment"># attention_weights =</span></span><br><span class="line"><span class="comment">#  tensor([[1.0000, 0.0000, 0.0000, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.6760, 0.3240, 0.0000, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.2452, 0.4188, 0.3360, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.1818, 0.2616, 0.2813, 0.2752]], grad_fn=&lt;SqueezeBackward0&gt;)</span></span><br><span class="line"><span class="comment"># ####################################################################################################</span></span><br><span class="line"><span class="comment"># layer_idx: 1</span></span><br><span class="line"><span class="comment"># q.sum(-1) = [30.214162826538086, 34.45262145996094, 26.357181549072266, 29.209003448486328]</span></span><br><span class="line"><span class="comment"># k.sum(-1) = [29.88446617126465, 31.186325073242188, 31.727235794067383, 26.988731384277344]</span></span><br><span class="line"><span class="comment"># v.sum(-1) = [23.99290657043457, 35.66062545776367, 33.28850173950195, 27.92920684814453]</span></span><br><span class="line"><span class="comment"># attention_weights =</span></span><br><span class="line"><span class="comment">#  tensor([[1.0000, 0.0000, 0.0000, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.3310, 0.6690, 0.0000, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.4525, 0.3270, 0.2204, 0.0000],</span></span><br><span class="line"><span class="comment">#         [0.2740, 0.0698, 0.4069, 0.2492]], grad_fn=&lt;SqueezeBackward0&gt;)</span></span><br><span class="line"><span class="comment"># ####################################################################################################</span></span><br></pre></td></tr></table></figure>
+<blockquote>
+<p>可以看到随着时间步的推移，每一层的 <code>x / q / k / v / attention weight</code> 的前 <code>n-1</code> 个 <code>token feature</code> 都和上一个时间步相同，因此可以缓存</p>
+</blockquote>
+<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
+<ul>
+<li>由于在 <code>t</code> 时间步，需要计算 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>Q</mi><mi>t</mi></msup></mrow><annotation encoding="application/x-tex">Q^t</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.9879959999999999em;vertical-align:-0.19444em;"></span><span class="mord"><span class="mord mathnormal">Q</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.7935559999999999em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span></span></span></span></span></span></span></span> 和 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>K</mi><mrow><mn>0</mn><mo separator="true">,</mo><mn>1</mn><mo separator="true">,</mo><mi mathvariant="normal">.</mi><mi mathvariant="normal">.</mi><mi mathvariant="normal">.</mi><mo separator="true">,</mo><mi>t</mi></mrow></msup><mo separator="true">,</mo><mtext> </mtext><msup><mi>V</mi><mrow><mn>0</mn><mo separator="true">,</mo><mn>1</mn><mo separator="true">,</mo><mi mathvariant="normal">.</mi><mi mathvariant="normal">.</mi><mi mathvariant="normal">.</mi><mo separator="true">,</mo><mi>t</mi></mrow></msup></mrow><annotation encoding="application/x-tex">K^{0,1,...,t},\ V^{0,1,...,t}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.008548em;vertical-align:-0.19444em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.07153em;">K</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141079999999999em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">0</span><span class="mpunct mtight">,</span><span class="mord mtight">1</span><span class="mpunct mtight">,</span><span class="mord mtight">.</span><span class="mord mtight">.</span><span class="mord mtight">.</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight">t</span></span></span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace"> </span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.22222em;">V</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141079999999999em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">0</span><span class="mpunct mtight">,</span><span class="mord mtight">1</span><span class="mpunct mtight">,</span><span class="mord mtight">.</span><span class="mord mtight">.</span><span class="mord mtight">.</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight">t</span></span></span></span></span></span></span></span></span></span></span></span> 之间的内积，所以需要换成 <code>key / value</code> 的缓存，而不是 <code>query</code> 的缓存</li>
+<li><code>paged attention</code> 是通过类似内存分页管理的方式管理 <code>kv cache</code> 的一种方法，动态分配显存，速度更快，支持更高 <code>batch</code></li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Paper-Reading/" rel="tag"># Paper Reading</a>
+              <a href="/tags/Transformer/" rel="tag"># Transformer</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2024/07/18/FlashAttention-2-Faster-Attention-with-Better-Parallelism-and-Work-Partitioning/" rel="prev" title="FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning">
+      <i class="fa fa-chevron-left"></i> FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2024/08/05/ALiBi-Train-short-test-long-Attention-with-linear-biases-enables-input-length-extrapolation/" rel="next" title="ALiBi: Train short, test long: Attention with linear biases enables input length extrapolation">
+      ALiBi: Train short, test long: Attention with linear biases enables input length extrapolation <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#url"><span class="nav-number">1.</span> <span class="nav-text"> URL</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#tldr"><span class="nav-number">2.</span> <span class="nav-text"> TL;DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#algorithm"><span class="nav-number">3.</span> <span class="nav-text"> Algorithm</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#thought"><span class="nav-number">4.</span> <span class="nav-text"> Thought</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Zhangzhe</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives">
+          <span class="site-state-item-count">173</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">51</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhangzhe</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js', () => {
+    // 初始化 Mermaid 配置
+    mermaid.initialize({
+      theme    : 'dark',  // 设置主题
+      logLevel : 3,  // 设置日志等级
+      flowchart: { curve: 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 },
+      themeVariables: {
+        'fontFamily': 'Microsoft YaHei, Arial, sans-serif',  // 设置中文字体
+      }
+    });
+
+    // 初始化 Mermaid 图表
+    mermaid.init(undefined, document.querySelectorAll('pre.mermaid'));
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+      
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/katex@0/dist/katex.min.css">
+
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'eK3W25jybCO5jVUrYBBpAPqM-gzGzoHsz',
+      appKey     : 'F4KVyUj9wHI5c80Bhz7O2uhq',
+      placeholder: "说点什么再走吧...",
+      avatar     : 'hide',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

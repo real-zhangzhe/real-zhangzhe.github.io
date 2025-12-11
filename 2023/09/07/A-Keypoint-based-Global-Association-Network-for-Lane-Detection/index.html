@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"real-zhangzhe.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="URL  paper: https:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;2204.07335.pdf code: https:&#x2F;&#x2F;github.com&#x2F;Wolfwjs&#x2F;GANet   TL;DR  传统基于关键点检测的车道线检测网络通常需要根据任务的定义设计模型输出头结构，比如 UFLD 算法每条车道线需要占据一个输出 channel 。 本论文提出一种新颖的车道线检测范式，解耦了任务和网络，仅使用">
+<meta property="og:type" content="article">
+<meta property="og:title" content="A Keypoint-based Global Association Network for Lane Detection">
+<meta property="og:url" content="https://real-zhangzhe.github.io/2023/09/07/A-Keypoint-based-Global-Association-Network-for-Lane-Detection/index.html">
+<meta property="og:site_name" content="Zhangzhe&#39;s Blog">
+<meta property="og:description" content="URL  paper: https:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;2204.07335.pdf code: https:&#x2F;&#x2F;github.com&#x2F;Wolfwjs&#x2F;GANet   TL;DR  传统基于关键点检测的车道线检测网络通常需要根据任务的定义设计模型输出头结构，比如 UFLD 算法每条车道线需要占据一个输出 channel 。 本论文提出一种新颖的车道线检测范式，解耦了任务和网络，仅使用">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://s2.loli.net/2023/09/07/rTU59Ca6tMz24QD.png">
+<meta property="og:image" content="https://s2.loli.net/2023/09/07/nfbWKHOtFgjp6oz.png">
+<meta property="og:image" content="https://s2.loli.net/2023/09/07/nk9NbMJztSWQRrq.png">
+<meta property="article:published_time" content="2023-09-07T08:20:10.000Z">
+<meta property="article:modified_time" content="2025-12-11T05:48:26.530Z">
+<meta property="article:author" content="Zhangzhe">
+<meta property="article:tag" content="Autopilot">
+<meta property="article:tag" content="Lane">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://s2.loli.net/2023/09/07/rTU59Ca6tMz24QD.png">
+
+<link rel="canonical" href="https://real-zhangzhe.github.io/2023/09/07/A-Keypoint-based-Global-Association-Network-for-Lane-Detection/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>A Keypoint-based Global Association Network for Lane Detection | Zhangzhe's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Zhangzhe's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">The projection of my life.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/archives/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2023/09/07/A-Keypoint-based-Global-Association-Network-for-Lane-Detection/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          A Keypoint-based Global Association Network for Lane Detection
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-09-07 16:20:10" itemprop="dateCreated datePublished" datetime="2023-09-07T16:20:10+08:00">2023-09-07</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-12-11 13:48:26" itemprop="dateModified" datetime="2025-12-11T13:48:26+08:00">2025-12-11</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Autopilot/" itemprop="url" rel="index"><span itemprop="name">Autopilot</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2023/09/07/A-Keypoint-based-Global-Association-Network-for-Lane-Detection/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2023/09/07/A-Keypoint-based-Global-Association-Network-for-Lane-Detection/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2204.07335.pdf">https://arxiv.org/pdf/2204.07335.pdf</a></li>
+<li>code: <a target="_blank" rel="noopener" href="https://github.com/Wolfwjs/GANet">https://github.com/Wolfwjs/GANet</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li>传统基于关键点检测的车道线检测网络通常需要根据任务的定义设计模型输出头结构，比如 <code>UFLD</code> 算法每条车道线需要占据一个输出 <code>channel</code> 。</li>
+<li>本论文提出一种新颖的车道线检测范式，解耦了任务和网络，仅使用固定的输出通道数即可检测任意多条车道线。</li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<h3 id="总体思路"><a class="markdownIt-Anchor" href="#总体思路"></a> 总体思路</h3>
+<p><img src="https://s2.loli.net/2023/09/07/rTU59Ca6tMz24QD.png" alt="ganet2.png" /></p>
+<ul>
+<li>如何实现只用一个 <code>channel</code> 输出即可检测任意多条车道线？一个可以想到的简单方法是：
+<ol>
+<li>输出一个 <code>channel = 1</code> 的 <code>heat map</code>，其中每个位置的 <code>heat map value</code> 依旧表示该位置是车道线关键点的概率。</li>
+<li>使用阈值过滤得到所有车道线的关键点坐标（每条车道线关键点数量应 &gt;= 2）。</li>
+<li>使用聚类的方式将一堆关键点分成若干组，每组关键点表示一条车道线。聚类中的 “距离” 判定逻辑需要根据一些先验知识进行设计（比如：因为车道线在图片中更接近竖直方向，因此水平距离权重小于垂直距离）。</li>
+</ol>
+</li>
+<li>上述操作中的聚类过程包含了很多人为总结的先验知识，非常不 “机器学习”，于是我们可以改进这个过程：
+<ol>
+<li>输出一个 <code>channel = 1</code> 的 <code>heat map</code> 和一个 <code>channel = 2</code> 的 <code>offset map</code>，其中每个位置的 <code>heat map value</code> 依旧表示该位置是车道线关键点的概率，每个位置的 <code>offset map value</code> 表示 <strong>如果该点是关键点，那么该点相对于本条车道线起始点的偏移（x, y）</strong>，起始点表示一条车道线关键点中最靠近图片下方的点。</li>
+<li>使用阈值过滤得到所有关键点，将关键点对应位置的偏移 <code>offset</code> 得到新的点 <code>p'</code>，理论上同一条车道线的每一个关键点偏移后得到的新位置 <code>p'</code> 都一致，都是车道线起始点。</li>
+<li>因为神经网络不太能拟合到 <code>loss == 0</code>，因此还需要对所有的 <code>p'</code> 进行聚类，每个类表示一条车道线实例，本质相当于将聚类中的距离判定逻辑吸到神经网络内部。</li>
+</ol>
+</li>
+<li>以上就是本论文提出的 <code>GANet</code> 算法的核心思想：用固定的有限个输出通道去预测任意条车道线。</li>
+</ul>
+<h3 id="网络结构"><a class="markdownIt-Anchor" href="#网络结构"></a> 网络结构</h3>
+<p><img src="https://s2.loli.net/2023/09/07/nfbWKHOtFgjp6oz.png" alt="ganet1.png" /></p>
+<h3 id="lfalane-aware-feature-aggregator"><a class="markdownIt-Anchor" href="#lfalane-aware-feature-aggregator"></a> LFA（Lane-aware Feature Aggregator）</h3>
+<p><img src="https://s2.loli.net/2023/09/07/nk9NbMJztSWQRrq.png" alt="ganet3.png" /></p>
+<h4 id="动机"><a class="markdownIt-Anchor" href="#动机"></a> 动机</h4>
+<ul>
+<li>传统的2D卷积在固定的网格状区域内采样特征，这不适用于处理车道线的狭长形状。</li>
+<li>因此作者使用如下步骤改进各关键点上的局部特征：
+<ol>
+<li>预测该关键点同一条车道线紧邻的 <code>num_adjacent_keypoints</code> 个点的 <code>offset</code>，进行显式监督。</li>
+<li>用预测的 <code>offset</code> 引导可变形卷积改进关键点局部特征。</li>
+</ol>
+</li>
+</ul>
+<h4 id="代码实现"><a class="markdownIt-Anchor" href="#代码实现"></a> 代码实现</h4>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> torch</span><br><span class="line"><span class="keyword">import</span> torch.nn <span class="keyword">as</span> nn</span><br><span class="line"><span class="keyword">from</span> torchvision.ops <span class="keyword">import</span> deform_conv2d</span><br><span class="line"><span class="keyword">import</span> math</span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">LFA</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, in_channels, out_channels, num_adjacent_keypoints=<span class="number">5</span></span>):</span></span><br><span class="line">        <span class="built_in">super</span>(LFA, self).__init__()</span><br><span class="line">        self.offset_conv = nn.Conv2d(in_channels, <span class="number">2</span> * num_adjacent_keypoints, kernel_size=<span class="number">1</span>)</span><br><span class="line">        self.deform_conv_weight = nn.Parameter(torch.Tensor(out_channels, in_channels, <span class="number">3</span>, <span class="number">3</span>))</span><br><span class="line">        nn.init.kaiming_uniform_(self.deform_conv_weight, a=math.sqrt(<span class="number">5</span>))</span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">self, x</span>):</span></span><br><span class="line">        <span class="comment"># x: input feature map with shape [batch_size, in_channels, height, width]</span></span><br><span class="line">        </span><br><span class="line">        <span class="comment"># Step 1: Predict the offsets for adjacent keypoints</span></span><br><span class="line">        offsets = self.offset_conv(x)  <span class="comment"># shape: [batch_size, 2 * num_adjacent_keypoints, height, width]</span></span><br><span class="line">        </span><br><span class="line">        <span class="comment"># Step 2: Perform deformable convolution to aggregate features</span></span><br><span class="line">        aggregated_features = deform_conv2d(x, offsets, self.deform_conv_weight, stride=<span class="number">1</span>, padding=<span class="number">1</span>)</span><br><span class="line">        </span><br><span class="line">        <span class="keyword">return</span> aggregated_features, offsets  <span class="comment"># Return both aggregated features and offsets</span></span><br><span class="line"><span class="comment"># Initialize LFA module</span></span><br><span class="line">lfa = LFA(in_channels=<span class="number">64</span>, out_channels=<span class="number">128</span>, num_adjacent_keypoints=<span class="number">5</span>)</span><br><span class="line"><span class="comment"># Dummy input feature map with shape [batch_size, in_channels, height, width]</span></span><br><span class="line">input_feature_map = torch.randn(<span class="number">16</span>, <span class="number">64</span>, <span class="number">128</span>, <span class="number">128</span>)</span><br><span class="line"><span class="comment"># Forward pass</span></span><br><span class="line">aggregated_features, predicted_offsets = lfa(input_feature_map)</span><br><span class="line"><span class="comment"># aggregated_features 是特征输出</span></span><br><span class="line"><span class="comment"># predicted_offsets 是预测的相邻的 num_adjacent_keypoints 个车道线的偏移量，显式监督</span></span><br></pre></td></tr></table></figure>
+<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
+<ul>
+<li>提出了一种灵活的车道线检测范式，具有较好的可拓展性，目前在车道线榜单上比较靠前。</li>
+<li>另外一个创新点是<code>LFA module</code>，主要是用到了可形变卷积，对于大多数动态性较差的端侧芯片来说，不容易部署。</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Autopilot/" rel="tag"># Autopilot</a>
+              <a href="/tags/Lane/" rel="tag"># Lane</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2023/08/16/BEVFormer-Learning-Bird%E2%80%99s-Eye-View-Representation-from-Multi-Camera-Images-via-Spatiotemporal-Transformers/" rel="prev" title="BEVFormer: Learning Bird’s-Eye-View Representation from Multi-Camera Images via Spatiotemporal Transformers">
+      <i class="fa fa-chevron-left"></i> BEVFormer: Learning Bird’s-Eye-View Representation from Multi-Camera Images via Spatiotemporal Transformers
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2024/01/10/%5BWIP%5DNerf/" rel="next" title="Nerf">
+      Nerf <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#url"><span class="nav-number">1.</span> <span class="nav-text"> URL</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#tldr"><span class="nav-number">2.</span> <span class="nav-text"> TL;DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#algorithm"><span class="nav-number">3.</span> <span class="nav-text"> Algorithm</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%80%BB%E4%BD%93%E6%80%9D%E8%B7%AF"><span class="nav-number">3.1.</span> <span class="nav-text"> 总体思路</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%BD%91%E7%BB%9C%E7%BB%93%E6%9E%84"><span class="nav-number">3.2.</span> <span class="nav-text"> 网络结构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#lfalane-aware-feature-aggregator"><span class="nav-number">3.3.</span> <span class="nav-text"> LFA（Lane-aware Feature Aggregator）</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%8A%A8%E6%9C%BA"><span class="nav-number">3.3.1.</span> <span class="nav-text"> 动机</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%BB%A3%E7%A0%81%E5%AE%9E%E7%8E%B0"><span class="nav-number">3.3.2.</span> <span class="nav-text"> 代码实现</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#thought"><span class="nav-number">4.</span> <span class="nav-text"> Thought</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Zhangzhe</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives">
+          <span class="site-state-item-count">173</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">51</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhangzhe</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js', () => {
+    // 初始化 Mermaid 配置
+    mermaid.initialize({
+      theme    : 'dark',  // 设置主题
+      logLevel : 3,  // 设置日志等级
+      flowchart: { curve: 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 },
+      themeVariables: {
+        'fontFamily': 'Microsoft YaHei, Arial, sans-serif',  // 设置中文字体
+      }
+    });
+
+    // 初始化 Mermaid 图表
+    mermaid.init(undefined, document.querySelectorAll('pre.mermaid'));
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+      
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/katex@0/dist/katex.min.css">
+
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'eK3W25jybCO5jVUrYBBpAPqM-gzGzoHsz',
+      appKey     : 'F4KVyUj9wHI5c80Bhz7O2uhq',
+      placeholder: "说点什么再走吧...",
+      avatar     : 'hide',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

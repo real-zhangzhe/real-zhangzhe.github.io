@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"real-zhangzhe.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="URL  paper: https:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;2410.23262 code（民间实现）:https:&#x2F;&#x2F;github.com&#x2F;taco-group&#x2F;OpenEMMA&#x2F;blob&#x2F;main&#x2F;README_zh-CN.md   TL;DR  EMMA 是 Waymo 提出的端到端自动驾驶 VLA 模型，不像 RT-1 和 RT-2 模型输出离散化的动作 token，EMMA 的">
+<meta property="og:type" content="article">
+<meta property="og:title" content="EMMA: End-to-End Multimodal Model for Autonomous Driving">
+<meta property="og:url" content="https://real-zhangzhe.github.io/2025/10/23/EMMA-End-to-End-Multimodal-Model-for-Autonomous-Driving/index.html">
+<meta property="og:site_name" content="Zhangzhe&#39;s Blog">
+<meta property="og:description" content="URL  paper: https:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;2410.23262 code（民间实现）:https:&#x2F;&#x2F;github.com&#x2F;taco-group&#x2F;OpenEMMA&#x2F;blob&#x2F;main&#x2F;README_zh-CN.md   TL;DR  EMMA 是 Waymo 提出的端到端自动驾驶 VLA 模型，不像 RT-1 和 RT-2 模型输出离散化的动作 token，EMMA 的">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://s2.loli.net/2025/10/23/MRnNyYQIlB4fxgu.png">
+<meta property="og:image" content="https://s2.loli.net/2025/10/23/l6CvMDwVFIHrRQZ.png">
+<meta property="article:published_time" content="2025-10-23T15:03:44.000Z">
+<meta property="article:modified_time" content="2025-12-11T05:48:26.534Z">
+<meta property="article:author" content="Zhangzhe">
+<meta property="article:tag" content="VLA">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://s2.loli.net/2025/10/23/MRnNyYQIlB4fxgu.png">
+
+<link rel="canonical" href="https://real-zhangzhe.github.io/2025/10/23/EMMA-End-to-End-Multimodal-Model-for-Autonomous-Driving/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>EMMA: End-to-End Multimodal Model for Autonomous Driving | Zhangzhe's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Zhangzhe's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">The projection of my life.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/archives/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2025/10/23/EMMA-End-to-End-Multimodal-Model-for-Autonomous-Driving/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          EMMA: End-to-End Multimodal Model for Autonomous Driving
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-10-23 23:03:44" itemprop="dateCreated datePublished" datetime="2025-10-23T23:03:44+08:00">2025-10-23</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-12-11 13:48:26" itemprop="dateModified" datetime="2025-12-11T13:48:26+08:00">2025-12-11</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/VLA/" itemprop="url" rel="index"><span itemprop="name">VLA</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2025/10/23/EMMA-End-to-End-Multimodal-Model-for-Autonomous-Driving/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2025/10/23/EMMA-End-to-End-Multimodal-Model-for-Autonomous-Driving/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2410.23262">https://arxiv.org/pdf/2410.23262</a></li>
+<li>code（民间实现）:<a target="_blank" rel="noopener" href="https://github.com/taco-group/OpenEMMA/blob/main/README_zh-CN.md">https://github.com/taco-group/OpenEMMA/blob/main/README_zh-CN.md</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li><code>EMMA</code> 是 <code>Waymo</code> 提出的端到端自动驾驶 <code>VLA</code> 模型，不像 <code>RT-1</code> 和 <code>RT-2</code> 模型输出离散化的动作 <code>token</code>，<code>EMMA</code> 的输出是纯文本。</li>
+<li>模型架构特别简单，就是一个标准的 <code>VLM（&#123;image, text&#125; -&gt; &#123;text&#125;）</code>，在预训练基础上进行自动驾驶数据和通用多模态数据共训练得到。</li>
+<li>纯 <code>VLA</code> 架构，没有除图和文之外的其他任何模态（例如激光雷达、毫米波雷达、高精度地图定位等）。</li>
+</ul>
+<h2 id="algorithms"><a class="markdownIt-Anchor" href="#algorithms"></a> Algorithms</h2>
+<h3 id="核心思想"><a class="markdownIt-Anchor" href="#核心思想"></a> 核心思想</h3>
+<ul>
+<li>核心思想：<strong>将自动驾驶任务转化为语言建模问题</strong></li>
+<li>将所有文本类数据都统一到纯自然语言空间，不做任何的编码，这样所有任务都能在一个“语言空间”中统一表示与训练，利用预训练权重中的语言知识和推理能力。</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>类型</th>
+<th>表示方式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>视觉输入 (V)</td>
+<td>多摄像头拼接图像或视频帧</td>
+</tr>
+<tr>
+<td>非视觉输入 (T)</td>
+<td>文本（包括导航意图、历史状态等）</td>
+</tr>
+<tr>
+<td>输出 (O)</td>
+<td>文本（轨迹点、3D框、车道线等）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="模型架构"><a class="markdownIt-Anchor" href="#模型架构"></a> 模型架构</h3>
+<p><img src="https://s2.loli.net/2025/10/23/MRnNyYQIlB4fxgu.png" alt="2025-10-23_21-04.png" /></p>
+<h3 id="模型能力"><a class="markdownIt-Anchor" href="#模型能力"></a> 模型能力</h3>
+<ul>
+<li><code>EMMA</code> 有三大能力：
+<ul>
+<li>端到端运动规划（E2E Planning）</li>
+<li>推理增强 (Chain-of-Thought)</li>
+<li>通用多任务（Generalist EMMA）</li>
+</ul>
+</li>
+<li>这三种能力均来自于同一个模型的同一组参数，区别只是 <code>prompt</code> 中描述的任务内容不同。</li>
+</ul>
+<h4 id="1-端到端运动规划能力"><a class="markdownIt-Anchor" href="#1-端到端运动规划能力"></a> 1. 端到端运动规划能力</h4>
+<ul>
+<li>输入：
+<ul>
+<li>视频图像 V（多相机）</li>
+<li>高层导航意图 T<sub>intent</sub>（如 “turn left”）</li>
+<li>历史自车轨迹 T<sub>ego</sub>（BEV坐标文本序列）</li>
+</ul>
+</li>
+<li>输出：
+<ul>
+<li>未来轨迹 O<sub>trajectory</sub>：未来 T<sub>f</sub> 个时刻的坐标 {(x<sub>t</sub>, y<sub>t</sub>)}，纯文本形式输出</li>
+</ul>
+</li>
+<li>监督：
+<ul>
+<li>自监督，仅需未来轨迹真实值（无需人工标注）</li>
+<li>无需 HD 地图，无需 LiDAR</li>
+</ul>
+</li>
+</ul>
+<h4 id="2-思维链推理增强能力"><a class="markdownIt-Anchor" href="#2-思维链推理增强能力"></a> 2. 思维链推理增强能力</h4>
+<ul>
+<li>在输出轨迹前，模型生成 4 层“推理文本”，如下</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>层级</th>
+<th>含义</th>
+<th>示例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>R1</td>
+<td>场景描述（天气、路况等）</td>
+<td>“It’s sunny and the road is four-lane…”</td>
+</tr>
+<tr>
+<td>R2</td>
+<td>关键物体及其坐标</td>
+<td>“Pedestrian at [9.01, 3.22], vehicle at [11.58, 0.35]”</td>
+</tr>
+<tr>
+<td>R3</td>
+<td>关键物体行为</td>
+<td>“The pedestrian looks toward the road and may cross.”</td>
+</tr>
+<tr>
+<td>R4</td>
+<td>元驾驶决策</td>
+<td>“I should keep my current low speed.”</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>训练标签自动生成：
+<ul>
+<li>由专家感知模型+启发式算法+Gemini生成描述 → 无需人工标注</li>
+</ul>
+</li>
+<li>效果：
+<ul>
+<li>CoT 提升规划质量约 6.7%</li>
+<li>关键贡献来自 meta-decision (+3.0%) 与关键对象识别 (+1.5%)</li>
+</ul>
+</li>
+</ul>
+<h4 id="3-通用多任务"><a class="markdownIt-Anchor" href="#3-通用多任务"></a> 3. 通用多任务</h4>
+<p><img src="https://s2.loli.net/2025/10/23/l6CvMDwVFIHrRQZ.png" alt="2025-10-23_22-59.png" /></p>
+<h3 id="模型表现"><a class="markdownIt-Anchor" href="#模型表现"></a> 模型表现</h3>
+<ul>
+<li>一句话概括：在所有任务上，超越所有 SOTA</li>
+</ul>
+<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
+<ul>
+<li>和某车企复杂晦涩的 <code>VLA</code> 框架相比，<code>EMMA</code> 简直太优雅了，没有复杂的设计，统一框架上解决所有自动驾驶问题</li>
+<li>如果只做端到端，甚至不需要数据标注，只需要把驾驶数据的数量和质量堆上去就行</li>
+<li>可以只输出感知结果，也可以端到端，甚至 <code>CoT</code> 还可以做到白盒端到端，太雅了…</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/VLA/" rel="tag"># VLA</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2025/10/23/RT-2-Vision-Language-Action-Models-Transfer-Web-Knowledge-to-Robotic-Control/" rel="prev" title="RT-2: Vision-Language-Action Models Transfer Web Knowledge to Robotic Control">
+      <i class="fa fa-chevron-left"></i> RT-2: Vision-Language-Action Models Transfer Web Knowledge to Robotic Control
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2025/10/26/Structured-3D-Latents-for-Scalable-and-Versatile-3D-Generation/" rel="next" title="Structured 3D Latents for Scalable and Versatile 3D Generation">
+      Structured 3D Latents for Scalable and Versatile 3D Generation <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#url"><span class="nav-number">1.</span> <span class="nav-text"> URL</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#tldr"><span class="nav-number">2.</span> <span class="nav-text"> TL;DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#algorithms"><span class="nav-number">3.</span> <span class="nav-text"> Algorithms</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%A0%B8%E5%BF%83%E6%80%9D%E6%83%B3"><span class="nav-number">3.1.</span> <span class="nav-text"> 核心思想</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%A8%A1%E5%9E%8B%E6%9E%B6%E6%9E%84"><span class="nav-number">3.2.</span> <span class="nav-text"> 模型架构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%A8%A1%E5%9E%8B%E8%83%BD%E5%8A%9B"><span class="nav-number">3.3.</span> <span class="nav-text"> 模型能力</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#1-%E7%AB%AF%E5%88%B0%E7%AB%AF%E8%BF%90%E5%8A%A8%E8%A7%84%E5%88%92%E8%83%BD%E5%8A%9B"><span class="nav-number">3.3.1.</span> <span class="nav-text"> 1. 端到端运动规划能力</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-%E6%80%9D%E7%BB%B4%E9%93%BE%E6%8E%A8%E7%90%86%E5%A2%9E%E5%BC%BA%E8%83%BD%E5%8A%9B"><span class="nav-number">3.3.2.</span> <span class="nav-text"> 2. 思维链推理增强能力</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-%E9%80%9A%E7%94%A8%E5%A4%9A%E4%BB%BB%E5%8A%A1"><span class="nav-number">3.3.3.</span> <span class="nav-text"> 3. 通用多任务</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%A8%A1%E5%9E%8B%E8%A1%A8%E7%8E%B0"><span class="nav-number">3.4.</span> <span class="nav-text"> 模型表现</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#thought"><span class="nav-number">4.</span> <span class="nav-text"> Thought</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Zhangzhe</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives">
+          <span class="site-state-item-count">173</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">51</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhangzhe</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js', () => {
+    // 初始化 Mermaid 配置
+    mermaid.initialize({
+      theme    : 'dark',  // 设置主题
+      logLevel : 3,  // 设置日志等级
+      flowchart: { curve: 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 },
+      themeVariables: {
+        'fontFamily': 'Microsoft YaHei, Arial, sans-serif',  // 设置中文字体
+      }
+    });
+
+    // 初始化 Mermaid 图表
+    mermaid.init(undefined, document.querySelectorAll('pre.mermaid'));
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+      
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/katex@0/dist/katex.min.css">
+
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'eK3W25jybCO5jVUrYBBpAPqM-gzGzoHsz',
+      appKey     : 'F4KVyUj9wHI5c80Bhz7O2uhq',
+      placeholder: "说点什么再走吧...",
+      avatar     : 'hide',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

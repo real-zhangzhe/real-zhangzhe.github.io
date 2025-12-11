@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"real-zhangzhe.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="URL  paper: https:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;1910.10683 code: https:&#x2F;&#x2F;github.com&#x2F;huggingface&#x2F;transformers&#x2F;tree&#x2F;main&#x2F;src&#x2F;transformers&#x2F;models&#x2F;t5   TL;DR  T5 名字的由来是：Text-to-Text Transfer Transformer（文本到文本转换的 Trans">
+<meta property="og:type" content="article">
+<meta property="og:title" content="T5: Exploring the Limits of Transfer Learning with a Unified Text-to-Text Transformer">
+<meta property="og:url" content="https://real-zhangzhe.github.io/2024/06/03/T5-Exploring-the-Limits-of-Transfer-Learning-with-a-Unified-Text-to-Text-Transformer/index.html">
+<meta property="og:site_name" content="Zhangzhe&#39;s Blog">
+<meta property="og:description" content="URL  paper: https:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;1910.10683 code: https:&#x2F;&#x2F;github.com&#x2F;huggingface&#x2F;transformers&#x2F;tree&#x2F;main&#x2F;src&#x2F;transformers&#x2F;models&#x2F;t5   TL;DR  T5 名字的由来是：Text-to-Text Transfer Transformer（文本到文本转换的 Trans">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2024-06-03T05:24:49.000Z">
+<meta property="article:modified_time" content="2025-12-11T05:48:26.538Z">
+<meta property="article:author" content="Zhangzhe">
+<meta property="article:tag" content="LLM">
+<meta property="article:tag" content="Paper Reading">
+<meta property="article:tag" content="transformer">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://real-zhangzhe.github.io/2024/06/03/T5-Exploring-the-Limits-of-Transfer-Learning-with-a-Unified-Text-to-Text-Transformer/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>T5: Exploring the Limits of Transfer Learning with a Unified Text-to-Text Transformer | Zhangzhe's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Zhangzhe's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">The projection of my life.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/archives/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/06/03/T5-Exploring-the-Limits-of-Transfer-Learning-with-a-Unified-Text-to-Text-Transformer/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          T5: Exploring the Limits of Transfer Learning with a Unified Text-to-Text Transformer
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-06-03 13:24:49" itemprop="dateCreated datePublished" datetime="2024-06-03T13:24:49+08:00">2024-06-03</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-12-11 13:48:26" itemprop="dateModified" datetime="2025-12-11T13:48:26+08:00">2025-12-11</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/LLM/" itemprop="url" rel="index"><span itemprop="name">LLM</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2024/06/03/T5-Exploring-the-Limits-of-Transfer-Learning-with-a-Unified-Text-to-Text-Transformer/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2024/06/03/T5-Exploring-the-Limits-of-Transfer-Learning-with-a-Unified-Text-to-Text-Transformer/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/1910.10683">https://arxiv.org/pdf/1910.10683</a></li>
+<li>code: <a target="_blank" rel="noopener" href="https://github.com/huggingface/transformers/tree/main/src/transformers/models/t5">https://github.com/huggingface/transformers/tree/main/src/transformers/models/t5</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li><code>T5</code> 名字的由来是：<code>Text-to-Text Transfer Transformer</code>（<strong>文本到文本转换的 Transformer</strong>）</li>
+<li><code>T5</code> 使用了 <code>《Attention is all you need》</code> 中提出的标准 <code>Transformer</code> 网络，没有任何改变</li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<h3 id="example"><a class="markdownIt-Anchor" href="#example"></a> example</h3>
+<ul>
+<li><code>T5</code> 是一个 <code>encoder-decoder</code> 架构的模型，可以用来做文本翻译，本例子使用 <code>Hello, world!</code> 英语翻译法语为例</li>
+</ul>
+<h4 id="0-prompt"><a class="markdownIt-Anchor" href="#0-prompt"></a> 0. prompt</h4>
+<ul>
+<li><code>prompt</code> 的作用是在输入之前加上对任务的描述</li>
+<li>比如 <code>english_to_franch(&quot;Hello, world!&quot;) API</code> 会被 <code>prompt</code> 为 <code>&quot;translate English to French: Hello, world!&quot;</code> 纯文本输入到模型</li>
+</ul>
+<h4 id="1-encoder-input-tokenize"><a class="markdownIt-Anchor" href="#1-encoder-input-tokenize"></a> 1. encoder input tokenize</h4>
+<ul>
+<li><code>T5</code> 使用的分词算法是 <code>unigram</code>，词表可以在 <a target="_blank" rel="noopener" href="https://huggingface.co/google-t5/t5-base/blob/main/tokenizer.json">https://huggingface.co/google-t5/t5-base/blob/main/tokenizer.json</a> 这里找到</li>
+<li><code>&quot;translate English to French: Hello, world!&quot;</code> 会被 <code>tokenize</code> 为：<code>[13959, 1566, 12, 2379, 10, 8774, 6, 296, 55, 1]</code></li>
+</ul>
+<h4 id="2-encoder-input-token-embedding"><a class="markdownIt-Anchor" href="#2-encoder-input-token-embedding"></a> 2. encoder input token embedding</h4>
+<ul>
+<li>和 <code>GPT</code> 系列没有区别，需要把 <code>encoder input token id</code> 查表变成 <code>token embedding</code></li>
+</ul>
+<h4 id="3-encoder-input-position-encoding"><a class="markdownIt-Anchor" href="#3-encoder-input-position-encoding"></a> 3. encoder input position encoding</h4>
+<ul>
+<li>与 <code>GPT</code> 系列使用可学习的 <code>position embedding</code> 不同，<code>T5</code> 使用的是 <code>position encoding</code></li>
+<li>且使用的是相对位置编码，而不是绝对位置编码</li>
+<li>与 <code>GPT</code> 系列只在模型 <code>casual decoder</code> 第一层输入加入 <code>position embedding</code> 不同，<code>T5</code> 的 <code>position encoding</code> 是在 <code>encoder</code> 以及 <code>decoder</code> 的每一层都是使用了</li>
+</ul>
+<h4 id="4-encoder"><a class="markdownIt-Anchor" href="#4-encoder"></a> 4. encoder</h4>
+<ul>
+<li>与 <code>GPT</code> 系列直接使用 <code>token embedding</code> + <code>position embedding</code> 直接得到 <code>hidden state</code> 来输入 <code>decoder</code> 不同，<code>T5</code> 有 <code>encoder</code> 结构</li>
+<li><code>T5</code> 的 <code>encoder</code> 结构采用标准 <code>transformer encoder</code> 结构，<strong>每个 <code>token</code> 可以看到所有 <code>token</code>（双向注意力机制）</strong></li>
+<li><code>encoder</code> 一共 <code>12</code> 层，每一层包括如下顺序结构为：
+<ul>
+<li><code>self attention block</code>
+<ul>
+<li><code>layer norm</code></li>
+<li><code>self attention</code></li>
+<li><code>dropout</code></li>
+</ul>
+</li>
+<li><code>FFN</code>
+<ul>
+<li><code>layer norm</code></li>
+<li><code>MLP</code></li>
+<li><code>dropout</code></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><code>encoder</code> 最终输出一个 <code>shape = (batch, input_token_len, encoder_dim)</code> 的 <code>encoder hidden state</code></strong></li>
+</ul>
+<h4 id="5-decoder-input-token-embedding-and-position-encoding"><a class="markdownIt-Anchor" href="#5-decoder-input-token-embedding-and-position-encoding"></a> 5. decoder input token embedding and position encoding</h4>
+<ul>
+<li>与 <code>GPT</code> 系列不同之处在于 <code>T5</code> 在 <code>decoder</code> 阶段需要 <code>decoder input</code></li>
+<li>通常情况下 <code>decoder input</code> 是 <code>&lt;BOS&gt;</code> 或 <code>&lt;S&gt;</code> 等特殊标记，<code>token</code> 长度仅仅为 <code>1</code>，用于表示序列开始</li>
+<li><code>decoder input token embedding</code> 和 <code>position encoding</code> 过程和 <code>encoder input token embedding</code> 和 <code>position encoding</code> 并无区别</li>
+<li><strong><code>token embedding</code> + <code>position encoding</code> 得到 <code>decoder hidden state</code>，其 <code>shape = (batch, 1, decoder_dim)</code></strong></li>
+</ul>
+<h4 id="6-decoder"><a class="markdownIt-Anchor" href="#6-decoder"></a> 6. decoder</h4>
+<ul>
+<li><code>decoder</code> 一共 <code>12</code> 层，每一层包括如下顺序结构为：
+<ul>
+<li><code>self attention block</code>
+<ul>
+<li><code>layer norm</code></li>
+<li><code>self attention</code></li>
+<li><code>dropout</code></li>
+</ul>
+</li>
+<li><code>cross attention block</code>
+<ul>
+<li><code>layer norm</code></li>
+<li><code>self attention</code></li>
+<li><code>dropout</code></li>
+</ul>
+</li>
+<li><code>FFN</code>
+<ul>
+<li><code>layer norm</code></li>
+<li><code>MLP</code></li>
+<li><code>dropout</code></li>
+</ul>
+</li>
+</ul>
+</li>
+<li>其中 <code>self attention</code> 的输入是 <code>decoder hidden state</code>（<strong>注意不是 <code>encoder hidden state</code></strong>），在 <code>self attention</code> 中，和 <code>GPT</code> 类似，采用 <strong>单向注意力</strong></li>
+<li><code>decoder hidden state</code> 和 <code>encoder hidden state</code> 输入到 <code>cross attention</code>中，<code>Cross attention</code> 和 <code>Self attention</code> 实际上只有一个区别：
+<ul>
+<li><strong><code>self attention</code> 的 <code>query / key / value</code> 都由同一个 <code>hidden state</code> 得到，因此称为 <code>self</code></strong></li>
+<li><strong><code>cross attention</code> 的 <code>key / value</code> 由同一个 <code>hidden state</code> 得到，<code>query</code> 由另一个 <code>hidden state</code> 得到，因此称为 <code>cross</code></strong></li>
+<li><strong>在 <code>encoder-decoder</code> 架构的 <code>transformer</code> 中，<code>decoder</code> 中的 <code>cross attention</code> 的 <code>key / value</code> 通常由 <code>encoder output hidden state</code> 得到，<code>query</code> 通常由 <code>decoder hidden state</code> 得到</strong></li>
+<li><code>Cross attention</code> 中每个 <code>decoder hidden state</code> 可以查询到所有的 <code>encoder hidden state</code></li>
+</ul>
+</li>
+<li>重复跑完 <code>12</code> 层，最终输出 <code>shape = (batch, 1, decoder_dim)</code> 的 <code>decoder output hidden state</code></li>
+</ul>
+<h4 id="7-decoder-output-hidden-state-to-token"><a class="markdownIt-Anchor" href="#7-decoder-output-hidden-state-to-token"></a> 7. decoder output hidden state to token</h4>
+<ul>
+<li>需要将 <code>docoder output hidden state</code> 用一层 <code>MLP</code> 转化到 <code>vocabulary</code> 空间，找到最可能的一个 <code>token</code></li>
+<li>此 <code>token</code> 对应的单词即为模型最终输出的第一个词。</li>
+<li>如果这个词是词表中的结束符，则停止输出。如果不是，则用此词替代前一个词，重复上述的 <strong>5. decoder input token embedding and position encoding</strong> 和 <strong>6. decoder</strong> 和 <strong>7. decoder output hidden state to token</strong> 过程，直到达到最长输出长度限制或出现停止符。</li>
+</ul>
+<h3 id="总结"><a class="markdownIt-Anchor" href="#总结"></a> 总结</h3>
+<p>标准 <code>transformer</code> 的行为</p>
+<ol>
+<li><code>encoder</code> 输入所有文本，<strong>双向注意力</strong>，得到 <code>encoder hidden state</code></li>
+<li><code>decoder</code> 输入初始化为 <code>&lt;BOS&gt;</code>，长度为 <code>1</code></li>
+<li><code>decoder</code> 每一层包含：
+<ol>
+<li><code>self attention</code>，<strong>单向注意力</strong></li>
+<li><code>cross attention</code>，<strong>双向注意力</strong>，<code>decoder hidden state</code> 做 <code>query</code>，<code>encoder hidden states</code> 做 <code>key and value</code></li>
+<li><code>FFN</code></li>
+</ol>
+</li>
+</ol>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/LLM/" rel="tag"># LLM</a>
+              <a href="/tags/Paper-Reading/" rel="tag"># Paper Reading</a>
+              <a href="/tags/transformer/" rel="tag"># transformer</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2024/04/24/%5BWIP%5DA-Survey-of-Large-Language-Models/" rel="prev" title="A Survey of Large Language Models">
+      <i class="fa fa-chevron-left"></i> A Survey of Large Language Models
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2024/06/17/HiPPO-Recurrent-Memory-with-Optimal-Polynomial-Projections/" rel="next" title="HiPPO: Recurrent Memory with Optimal Polynomial Projections">
+      HiPPO: Recurrent Memory with Optimal Polynomial Projections <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#url"><span class="nav-number">1.</span> <span class="nav-text"> URL</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#tldr"><span class="nav-number">2.</span> <span class="nav-text"> TL;DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#algorithm"><span class="nav-number">3.</span> <span class="nav-text"> Algorithm</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#example"><span class="nav-number">3.1.</span> <span class="nav-text"> example</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#0-prompt"><span class="nav-number">3.1.1.</span> <span class="nav-text"> 0. prompt</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#1-encoder-input-tokenize"><span class="nav-number">3.1.2.</span> <span class="nav-text"> 1. encoder input tokenize</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-encoder-input-token-embedding"><span class="nav-number">3.1.3.</span> <span class="nav-text"> 2. encoder input token embedding</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-encoder-input-position-encoding"><span class="nav-number">3.1.4.</span> <span class="nav-text"> 3. encoder input position encoding</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#4-encoder"><span class="nav-number">3.1.5.</span> <span class="nav-text"> 4. encoder</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#5-decoder-input-token-embedding-and-position-encoding"><span class="nav-number">3.1.6.</span> <span class="nav-text"> 5. decoder input token embedding and position encoding</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#6-decoder"><span class="nav-number">3.1.7.</span> <span class="nav-text"> 6. decoder</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#7-decoder-output-hidden-state-to-token"><span class="nav-number">3.1.8.</span> <span class="nav-text"> 7. decoder output hidden state to token</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-number">3.2.</span> <span class="nav-text"> 总结</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Zhangzhe</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives">
+          <span class="site-state-item-count">173</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">51</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhangzhe</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js', () => {
+    // 初始化 Mermaid 配置
+    mermaid.initialize({
+      theme    : 'dark',  // 设置主题
+      logLevel : 3,  // 设置日志等级
+      flowchart: { curve: 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 },
+      themeVariables: {
+        'fontFamily': 'Microsoft YaHei, Arial, sans-serif',  // 设置中文字体
+      }
+    });
+
+    // 初始化 Mermaid 图表
+    mermaid.init(undefined, document.querySelectorAll('pre.mermaid'));
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+      
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/katex@0/dist/katex.min.css">
+
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'eK3W25jybCO5jVUrYBBpAPqM-gzGzoHsz',
+      appKey     : 'F4KVyUj9wHI5c80Bhz7O2uhq',
+      placeholder: "说点什么再走吧...",
+      avatar     : 'hide',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

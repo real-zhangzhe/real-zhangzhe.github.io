@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"real-zhangzhe.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="URL  paper: https:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;1904.07734.pdf code: https:&#x2F;&#x2F;github.com&#x2F;GMvandeVen&#x2F;continual-learning   TL;DR   本文将增量学习细分为三种场景：  训练阶段：所有场景在训练阶段都一样，Task 1、Task 2、… 、Task T 一个接一个训练 预测阶段  task-increme">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Three scenarios for continual learning">
+<meta property="og:url" content="https://real-zhangzhe.github.io/2022/01/25/Three-scenarios-for-continual-learning/index.html">
+<meta property="og:site_name" content="Zhangzhe&#39;s Blog">
+<meta property="og:description" content="URL  paper: https:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;1904.07734.pdf code: https:&#x2F;&#x2F;github.com&#x2F;GMvandeVen&#x2F;continual-learning   TL;DR   本文将增量学习细分为三种场景：  训练阶段：所有场景在训练阶段都一样，Task 1、Task 2、… 、Task T 一个接一个训练 预测阶段  task-increme">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://s2.loli.net/2022/02/03/r6zYvnkKDPCUquL.png">
+<meta property="og:image" content="https://s2.loli.net/2022/02/03/xIoQg7nsVmzMXBy.png">
+<meta property="og:image" content="https://s2.loli.net/2022/06/24/N9QqtwU8soyugzd.png">
+<meta property="og:image" content="https://s2.loli.net/2022/06/24/ujckPnxgAJhi6Vy.png">
+<meta property="article:published_time" content="2022-01-25T01:17:55.000Z">
+<meta property="article:modified_time" content="2025-12-11T05:48:26.538Z">
+<meta property="article:author" content="Zhangzhe">
+<meta property="article:tag" content="Paper Reading">
+<meta property="article:tag" content="Incremental Learning">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://s2.loli.net/2022/02/03/r6zYvnkKDPCUquL.png">
+
+<link rel="canonical" href="https://real-zhangzhe.github.io/2022/01/25/Three-scenarios-for-continual-learning/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>Three scenarios for continual learning | Zhangzhe's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Zhangzhe's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">The projection of my life.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/archives/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2022/01/25/Three-scenarios-for-continual-learning/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Three scenarios for continual learning
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2022-01-25 09:17:55" itemprop="dateCreated datePublished" datetime="2022-01-25T09:17:55+08:00">2022-01-25</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-12-11 13:48:26" itemprop="dateModified" datetime="2025-12-11T13:48:26+08:00">2025-12-11</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Incremental-Learning/" itemprop="url" rel="index"><span itemprop="name">Incremental Learning</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2022/01/25/Three-scenarios-for-continual-learning/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2022/01/25/Three-scenarios-for-continual-learning/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/1904.07734.pdf">https://arxiv.org/pdf/1904.07734.pdf</a></li>
+<li>code: <a target="_blank" rel="noopener" href="https://github.com/GMvandeVen/continual-learning">https://github.com/GMvandeVen/continual-learning</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<p><img src="https://s2.loli.net/2022/02/03/r6zYvnkKDPCUquL.png" alt="three1.png" /></p>
+<ul>
+<li>本文将增量学习细分为三种场景：
+<ul>
+<li>训练阶段：所有场景在训练阶段都一样，Task 1、Task 2、… 、Task T 一个接一个训练</li>
+<li>预测阶段
+<ul>
+<li><code>task-incremental learning (Task-IL)</code>：测试阶段会指明是哪个 task，常用的结构是 <code>Multi-head</code> 每个任务独占一个 <code>head</code>，所有任务共享 <code>backbone</code>，但 <code>Multi-head</code> 和 <code>Single-head</code> 网络结构不能决定增量学习场景，只是一种常用的结构。</li>
+<li><code>domain-incremental learning (Domain-IL)</code>：测试阶段不指明是哪个 task，网络也无需推测输入属于哪一个 task，常用的网络结构是 <code>Single-head</code>。</li>
+<li><code>class-incremental learning (Class-IL)</code>：网络需要推测输入属于哪个 task，并且输出这个任务中的哪一类。</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<ul>
+<li>本文的三种增量学习的对比实验所用实验策略有两个：
+<ul>
+<li><code>MNIST</code> 数据分类：一共 5 个 task，每个 task 分类 2 种数字，细节如上图所示。</li>
+<li><code>Permuted MNIST</code> 数据分类：一共 10 个 task，每个 task 分类 <strong>一种固定 shuffle 方式</strong> 的 10 种 MNIST 数字数据，细节如下图所示：<br />
+<img src="https://s2.loli.net/2022/02/03/xIoQg7nsVmzMXBy.png" alt="three2.png" /></li>
+</ul>
+</li>
+</ul>
+<hr />
+<table>
+<thead>
+<tr>
+<th style="text-align:center">model name</th>
+<th style="text-align:center">task number</th>
+<th style="text-align:center">class number</th>
+<th style="text-align:center">image size</th>
+<th style="text-align:center">info</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center">split mnist</td>
+<td style="text-align:center">5</td>
+<td style="text-align:center">2</td>
+<td style="text-align:center">28x28 pixel grey-scale images</td>
+<td style="text-align:center">总共 10 类数字，每个类别有 6000个图片用于训练，1000个用于测试</td>
+</tr>
+<tr>
+<td style="text-align:center">permuted mnist</td>
+<td style="text-align:center">10</td>
+<td style="text-align:center">10</td>
+<td style="text-align:center">zero-padded to 32x32 pixels</td>
+<td style="text-align:center">总共 100 类数字，每个类别有 6000个图片用于训练，1000个用于测试</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="增量学习常用策略"><a class="markdownIt-Anchor" href="#增量学习常用策略"></a> 增量学习常用策略</h3>
+<ul>
+<li><strong>任务独占组件</strong>：在每个任务上训练单独的组件，在 <code>inference</code> 时根据给定的 <code>task</code> 选择组件。只适用于 <code>Task-IL</code>，例如 <a target="_blank" rel="noopener" href="https://www.pnas.org/doi/pdf/10.1073/pnas.1803839115"><code>XdG</code></a> 算法。</li>
+<li><strong>正则优化</strong>：在每个任务上训练单独的组件，但在 <code>inference</code> 时由于 <code>task</code> 不可知，所以使用整个网络 <code>inference</code>。<strong>训练时加入正则化项，使得网络在新任务中的参数与旧任务参数接近</strong>，常用的算法有：<code>EWC</code>、<code>Online-EWC</code>、<code>SI</code> 等。</li>
+<li><strong>修改训练数据</strong>：又被称为 <code>replay</code> 方法，即<strong>通过某种方法将之前任务的数据（或伪数据）补充到新的训练任务中</strong>，例如：
+<ul>
+<li><a target="_blank" rel="noopener" href="https://zhangzhe.space/2022/02/03/Learning-without-Forgetting/"><code>Learning without Forgetting</code></a> 方法（LwF），这种方法将新任务输入数据在旧模型中的输出分布作为软标签伪数据，与新数据的数据一起在旧模型上 fine-tunning，最终得到新模型，利用了类似 <strong>知识蒸馏</strong> 的方法。</li>
+<li><a target="_blank" rel="noopener" href="https://zhangzhe.space/2022/02/15/Continual-Learning-with-Deep-Generative-Replay/"><code>Deep Generative Replay</code></a> 方法（DGR），这种方法和 LwF 都属于使用 <strong>数据重放（data replay）</strong> 来实现增量学习的算法，不同之处在于，DGR 使用的是使用样本生成的方法直接生成旧任务的样本，使用硬标签训练，而不是使用新任务数据在旧模型上的软标签进行蒸馏。</li>
+<li>或者使用 <code>DGR + LwF</code> 的方法，用 <code>DGR</code> 生成与旧任务数据同分布的数据并使用 <code>LwF</code> 方法蒸馏。</li>
+</ul>
+</li>
+<li><strong>使用范例数据</strong>：例如 <a target="_blank" rel="noopener" href="https://zhangzhe.space/2022/06/24/iCaRL-Incremental-Classifier-and-Representation-Learning/"><code>iCaRL</code></a> 类别增量学习算法，保存一部分旧类别数据的典型样本，每次和新类别数据一起更新表征，再根据新表征更新旧任务典型样本。</li>
+</ul>
+<h3 id="增量学习的算法上下界"><a class="markdownIt-Anchor" href="#增量学习的算法上下界"></a> 增量学习的算法上下界</h3>
+<ul>
+<li>增量学习的算法上界（joint training）：所有任务的训练数据可以一次性拿到，同时训练所有任务。</li>
+<li>增量学习的算法下界（fine-tuning）：不使用任何优化，每次新任务都只使用新任务的数据对旧模型进行训练。</li>
+</ul>
+<h2 id="experiment"><a class="markdownIt-Anchor" href="#experiment"></a> Experiment</h2>
+<h3 id="实验设置"><a class="markdownIt-Anchor" href="#实验设置"></a> 实验设置</h3>
+<ul>
+<li>输出单元设置：为了公平比较，所有方法都使用相同的输出单元。<code>split MNIST</code> 使用２个隐藏层实现，每层 400 节点。<code>permuted MNIST</code> 使用２个隐藏层实现，每层 1000 节点。激活函数使用 <code>ReLU</code>，除了 <code>iCaRL</code> 之外，其他模型最后一层都是 <code>softmax</code> 输出层。</li>
+<li><code>iCaRL</code> 只能用于类增量学习，任务增量和域增量不可以。</li>
+<li><code>Task-IL</code> 实验设置：所有算法都使用 <code>Multi-head Output Layer</code> 结构，每个任务都有一个指定的输出单元，对于任务 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>T</mi><mi>a</mi></msub></mrow><annotation encoding="application/x-tex">T_a</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">T</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">a</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span>，只有对应的输出单元 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>O</mi><mi>a</mi></msub></mrow><annotation encoding="application/x-tex">O_a</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.02778em;">O</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:-0.02778em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">a</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> 被使用，其他任务对应的输出单元不被使用。</li>
+<li><code>Domain-IL</code> 实验设置：所有算法都使用 <code>Single-head Output Layer</code> 结构，只有一个输出单元，所有任务共用一个输出单元。</li>
+<li><code>Class-IL</code> 实验设置：目前已有多少类，就有多少个输出单元，每个类都有独立的输出单元。</li>
+</ul>
+<h3 id="实验结果"><a class="markdownIt-Anchor" href="#实验结果"></a> 实验结果</h3>
+<ul>
+<li>对于 <code>split MNIST</code> 任务<br />
+<img src="https://s2.loli.net/2022/06/24/N9QqtwU8soyugzd.png" alt="icarl_6.png" /></li>
+<li>对于 <code>permuted MNIST</code> 任务<br />
+<img src="https://s2.loli.net/2022/06/24/ujckPnxgAJhi6Vy.png" alt="icarl_7.png" /></li>
+</ul>
+<h2 id="through"><a class="markdownIt-Anchor" href="#through"></a> Through</h2>
+<ul>
+<li>文章逻辑挺清晰的，就是代码写的太拉胯了…</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Paper-Reading/" rel="tag"># Paper Reading</a>
+              <a href="/tags/Incremental-Learning/" rel="tag"># Incremental Learning</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2022/01/20/An-Image-is-Worth-16x16-Words-Transformers-for-Image-Recognition-at-Scale/" rel="prev" title="An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale">
+      <i class="fa fa-chevron-left"></i> An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2022/02/03/LwF-Learning-without-Forgetting/" rel="next" title="LwF: Learning without Forgetting">
+      LwF: Learning without Forgetting <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#url"><span class="nav-number">1.</span> <span class="nav-text"> URL</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#tldr"><span class="nav-number">2.</span> <span class="nav-text"> TL;DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#algorithm"><span class="nav-number">3.</span> <span class="nav-text"> Algorithm</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%A2%9E%E9%87%8F%E5%AD%A6%E4%B9%A0%E5%B8%B8%E7%94%A8%E7%AD%96%E7%95%A5"><span class="nav-number">3.1.</span> <span class="nav-text"> 增量学习常用策略</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%A2%9E%E9%87%8F%E5%AD%A6%E4%B9%A0%E7%9A%84%E7%AE%97%E6%B3%95%E4%B8%8A%E4%B8%8B%E7%95%8C"><span class="nav-number">3.2.</span> <span class="nav-text"> 增量学习的算法上下界</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#experiment"><span class="nav-number">4.</span> <span class="nav-text"> Experiment</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AE%9E%E9%AA%8C%E8%AE%BE%E7%BD%AE"><span class="nav-number">4.1.</span> <span class="nav-text"> 实验设置</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AE%9E%E9%AA%8C%E7%BB%93%E6%9E%9C"><span class="nav-number">4.2.</span> <span class="nav-text"> 实验结果</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#through"><span class="nav-number">5.</span> <span class="nav-text"> Through</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Zhangzhe</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives">
+          <span class="site-state-item-count">173</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">51</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhangzhe</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js', () => {
+    // 初始化 Mermaid 配置
+    mermaid.initialize({
+      theme    : 'dark',  // 设置主题
+      logLevel : 3,  // 设置日志等级
+      flowchart: { curve: 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 },
+      themeVariables: {
+        'fontFamily': 'Microsoft YaHei, Arial, sans-serif',  // 设置中文字体
+      }
+    });
+
+    // 初始化 Mermaid 图表
+    mermaid.init(undefined, document.querySelectorAll('pre.mermaid'));
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+      
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/katex@0/dist/katex.min.css">
+
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'eK3W25jybCO5jVUrYBBpAPqM-gzGzoHsz',
+      appKey     : 'F4KVyUj9wHI5c80Bhz7O2uhq',
+      placeholder: "说点什么再走吧...",
+      avatar     : 'hide',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

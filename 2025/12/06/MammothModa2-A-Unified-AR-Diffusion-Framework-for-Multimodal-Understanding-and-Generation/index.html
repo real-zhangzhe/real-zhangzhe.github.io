@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"real-zhangzhe.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="URL  paper: https:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;2511.18262 code: https:&#x2F;&#x2F;github.com&#x2F;bytedance&#x2F;mammothmoda   TL;DR  本文提出一种多模态理解和生成统一的架构，在 Qwen3-VL-8B 的基础上加入了 generation experts（3B） 和 DiT（2B），在不牺牲任何多模态理解能力的情况下，实现了生成">
+<meta property="og:type" content="article">
+<meta property="og:title" content="MammothModa2: A Unified AR-Diffusion Framework for Multimodal Understanding and Generation">
+<meta property="og:url" content="https://real-zhangzhe.github.io/2025/12/06/MammothModa2-A-Unified-AR-Diffusion-Framework-for-Multimodal-Understanding-and-Generation/index.html">
+<meta property="og:site_name" content="Zhangzhe&#39;s Blog">
+<meta property="og:description" content="URL  paper: https:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;2511.18262 code: https:&#x2F;&#x2F;github.com&#x2F;bytedance&#x2F;mammothmoda   TL;DR  本文提出一种多模态理解和生成统一的架构，在 Qwen3-VL-8B 的基础上加入了 generation experts（3B） 和 DiT（2B），在不牺牲任何多模态理解能力的情况下，实现了生成">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://s2.loli.net/2025/12/06/M3icFrKVbC8Skzp.png">
+<meta property="article:published_time" content="2025-12-06T10:25:24.000Z">
+<meta property="article:modified_time" content="2025-12-11T05:54:59.019Z">
+<meta property="article:author" content="Zhangzhe">
+<meta property="article:tag" content="(VLM, Diffusion)">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://s2.loli.net/2025/12/06/M3icFrKVbC8Skzp.png">
+
+<link rel="canonical" href="https://real-zhangzhe.github.io/2025/12/06/MammothModa2-A-Unified-AR-Diffusion-Framework-for-Multimodal-Understanding-and-Generation/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>MammothModa2: A Unified AR-Diffusion Framework for Multimodal Understanding and Generation | Zhangzhe's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Zhangzhe's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">The projection of my life.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/archives/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2025/12/06/MammothModa2-A-Unified-AR-Diffusion-Framework-for-Multimodal-Understanding-and-Generation/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          MammothModa2: A Unified AR-Diffusion Framework for Multimodal Understanding and Generation
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-12-06 18:25:24" itemprop="dateCreated datePublished" datetime="2025-12-06T18:25:24+08:00">2025-12-06</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-12-11 13:54:59" itemprop="dateModified" datetime="2025-12-11T13:54:59+08:00">2025-12-11</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Diffusion/" itemprop="url" rel="index"><span itemprop="name">Diffusion</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2025/12/06/MammothModa2-A-Unified-AR-Diffusion-Framework-for-Multimodal-Understanding-and-Generation/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2025/12/06/MammothModa2-A-Unified-AR-Diffusion-Framework-for-Multimodal-Understanding-and-Generation/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2511.18262">https://arxiv.org/pdf/2511.18262</a></li>
+<li>code: <a target="_blank" rel="noopener" href="https://github.com/bytedance/mammothmoda">https://github.com/bytedance/mammothmoda</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li>本文提出一种多模态理解和生成统一的架构，在 <code>Qwen3-VL-8B</code> 的基础上加入了 <code>generation experts（3B）</code> 和 <code>DiT（2B）</code>，在不牺牲任何多模态理解能力的情况下，实现了生成和理解的统一。</li>
+<li>可以解决图文输入图文输出的多模态任务，比如：
+<ol>
+<li>文生图</li>
+<li>图像编辑</li>
+<li>多模态理解等</li>
+</ol>
+</li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<h3 id="1-硬路由混合专家hard-routing-mixture-of-experts"><a class="markdownIt-Anchor" href="#1-硬路由混合专家hard-routing-mixture-of-experts"></a> 1. 硬路由混合专家（Hard-Routing Mixture-of-Experts）</h3>
+<ul>
+<li>为了增加图像生成能力，<code>Mammothmoda2</code> 在 <code>Qwen3-VL-8B</code> 的内部加入了随即初始化的 <code>generation experts</code></li>
+<li>为了不牺牲 <code>pretrain</code> 多模态理解的能力，<code>pretrain</code> 模型的参数和 <code>generation experts</code> 的参数是通过 <strong>硬路由混合专家</strong> 的方式选择 <code>token</code> 的，具体来说就是：<strong>多模态理解的 <code>token</code> 激活原 <code>pretrain</code> 模型的参数（也被叫做 <code>understanding experts</code>），图像生成的 <code>token</code> 激活新增的随机初始化的 <code>generation experts</code></strong></li>
+<li>这样做的好处是啥？</li>
+</ul>
+<p><img src="https://s2.loli.net/2025/12/06/M3icFrKVbC8Skzp.png" alt="mammothmoda.png" /></p>
+<ul>
+<li>从上图可以看出在 <code>pre-stage 1 / 2</code> 阶段，模型的 <code>backbone</code> 参数是冻结的，也就是说在第三列的 <code>SFT</code> 阶段之前，<code>qwen3-vl-8b</code> 的多模态理解能力是不会受到任何影响的</li>
+<li>硬路由混合专家的具体实现方式：
+<ol>
+<li>每层 <code>transformer</code> 初始化一个新的 <code>ffn</code> 层，被称为 <code>generation experts</code>；原始的 <code>ffn</code> 层叫做 <code>understanding experts</code></li>
+<li>为 <code>generation</code> 任务扩展词表和扩展 <code>vocab embedding</code> 参数随机初始化</li>
+<li>根据每一个 <code>token</code> 是否属于 <code>generation token</code> 得到一个 <code>gen token mask</code></li>
+<li>每一层根据 <code>gen token mask</code> 来为每一个 <code>token</code> 选择是激活哪个 <code>ffn</code></li>
+</ol>
+</li>
+<li>作者通过消融实验对比了 <code>ffn moe</code> / <code>attention moe</code> / <code>ffn-attention moe</code> 以及全层使用和仅深层使用，最终发现 <code>14</code> 层之后用 <code>ffn moe</code> 效果很好</li>
+</ul>
+<h3 id="2-扩散生成器diffusion-generator"><a class="markdownIt-Anchor" href="#2-扩散生成器diffusion-generator"></a> 2. 扩散生成器（Diffusion Generator）</h3>
+<ul>
+<li><code>qwen3-vl-8b</code> 作为大脑，<code>DiT</code> 就是画图的手</li>
+<li>本文使用了一种单流扩散架构 <code>DiT</code>，将处理后的条件信号和噪声潜变量（由 <code>VAE</code> 编码）作为统一输入（而不是两个输入），通过全序列自注意力机制进行生成</li>
+</ul>
+<h3 id="3-ar-diffusion-特征对齐模块"><a class="markdownIt-Anchor" href="#3-ar-diffusion-特征对齐模块"></a> 3. AR-Diffusion 特征对齐模块</h3>
+<ul>
+<li>如果说 <code>Qwen3-VL</code> 是大脑，<code>DiT</code> 是手，那么 <code>AR-Diffusion</code> 特征对齐模块 就是神经系统</li>
+<li>总体来说，特征对齐分为三个步骤：
+<ol>
+<li><strong>多层级特征融合</strong>：不仅仅用 <code>qwen3-vl-8b</code> 的最后一层输出，而是使用了模型深层的多层特征</li>
+<li><strong>统一条件编码</strong>：将 <code>backbone</code> 输出的特征重新按照模态拆分，并分别压缩，再用双向 <code>transformer</code> 融合，作为 <code>condition encoding</code></li>
+<li><strong>上下文条件注入</strong>：将原图通过 <code>vae</code> 编码为 <code>noise</code>，和 <code>condition encoding</code> 合并作为单流 <code>DiT</code> 的输入</li>
+</ol>
+</li>
+<li>用一个例子说明：图像编辑任务，图像是一只猫，shape = (256, 256, 3)，文本是：“给这只猫戴个红色的帽子”
+<ol>
+<li>假设图像经过 <code>vit</code> 压缩之后的 <code>token</code> 长度 <code>L_v = 224</code>，文本 <code>token</code> 长度 <code>L_t = 32</code>，总长度 <code>L_seq = 256</code></li>
+<li>取 <code>qwen3-vl-8b</code> 后 <code>6</code> 层的特征，每层 <code>shape = (256, 4096)</code>，<code>4096</code> 是 <code>qwen3-vl-8b</code> 的 <code>hidden size</code></li>
+<li>对 <code>6</code> 层特征作平均池化 <code>(6, 256, 4096) -&gt; (256, 4096)</code></li>
+<li>分离图文特征：<code>(256, 4096) -&gt; (32, 4096) + (224, 4096)</code></li>
+<li>文本特征压缩：<code>(32, 4096) -&gt; mlp -&gt; (32, 1024)</code>，<code>1024</code> 是 <code>DiT</code> 的 <code>hidden size</code></li>
+<li>图像特征压缩：<code>(224, 4096) -&gt; QFormer -&gt; (64, 4096)</code>，<code>QFormer</code> 可以将任意长度的视觉特征编码成固定长度（<code>64</code>）的特征，做法是用 <code>64</code> 个 <code>query</code> 去 <code>cross attention</code></li>
+<li>图文特征重新融合得到 <strong>条件特征</strong> ：文本 <code>(32, 1024)</code> + 视觉 <code>(64, 1024)</code> -&gt; 拼接为 <code>(96, 1024)</code> -&gt; 双向 <code>Transformer</code> 编码  -&gt; 输出 <strong>条件特征</strong> <code>(96, 1024)</code></li>
+<li>原图用 <code>vae</code> 压缩为 <strong>噪声潜变量</strong>：<code>(256, 256, 3) -&gt; vae -&gt; (32, 32, 4) -&gt; flatten -&gt; (1024, 4) -&gt; mlp -&gt; (1024, 1024)</code></li>
+<li>噪声潜变量和条件特征合并作为单流 <code>DiT</code> 输入：<code>(96, 1024) + (1024, 1024) -&gt; (1120, 1024) -&gt; DiT -&gt; Target Image</code></li>
+</ol>
+</li>
+</ul>
+<h3 id="4-训练策略"><a class="markdownIt-Anchor" href="#4-训练策略"></a> 4. 训练策略</h3>
+<h4 id="41-预训练"><a class="markdownIt-Anchor" href="#41-预训练"></a> 4.1 预训练</h4>
+<p>预训练过程冻结 <code>backbone</code></p>
+<ul>
+<li>第一阶段：生成基础（<code>Pre-Stage 1</code>）
+<ul>
+<li>目标：建立文本到图像（<code>T2I</code>）的基础映射关系。</li>
+<li>数据：仅使用 <code>T2I</code> 数据，分辨率限制在 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>512</mn><mo>×</mo><mn>512</mn></mrow><annotation encoding="application/x-tex">512 \times 512</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.72777em;vertical-align:-0.08333em;"></span><span class="mord">5</span><span class="mord">1</span><span class="mord">2</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.64444em;vertical-align:0em;"></span><span class="mord">5</span><span class="mord">1</span><span class="mord">2</span></span></span></span>。</li>
+<li>策略：<code>DiT</code> <strong>仅接收来自 <code>AR</code> 骨干网的文本特征</strong> 作为条件。此时，生成专家（<code>Generation Experts</code>）和 <code>DiT</code> 参数从零开始训练，而理解参数被冻结。</li>
+<li>逻辑：在低分辨率和单一模态条件下，模型更容易收敛，学会基本的物体形状和构图。</li>
+</ul>
+</li>
+<li>第二阶段：复杂指令与编辑（<code>Pre-Stage 2</code>）
+<ul>
+<li>目标：引入图像编辑能力和高分辨率生成。</li>
+<li>数据：引入图像编辑（<code>Image Editing</code>）数据，分辨率提升至 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1024</mn><mo>×</mo><mn>1024</mn></mrow><annotation encoding="application/x-tex">1024 \times 1024</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.72777em;vertical-align:-0.08333em;"></span><span class="mord">1</span><span class="mord">0</span><span class="mord">2</span><span class="mord">4</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.64444em;vertical-align:0em;"></span><span class="mord">1</span><span class="mord">0</span><span class="mord">2</span><span class="mord">4</span></span></span></span>。</li>
+<li>策略：<strong><code>DiT</code> 开始接收文本+视觉的双重特征</strong>。此时，模型开始学习如何理解输入图像（例如“把图中的猫变成狗”），并保留原图的背景结构。</li>
+<li>关键点：这一阶段是 <code>Mammoth2</code> 区别于普通 <code>T2I</code> 模型的关键，它开始具备“看图改图”的能力。</li>
+</ul>
+</li>
+</ul>
+<h4 id="42-sft"><a class="markdownIt-Anchor" href="#42-sft"></a> 4.2 SFT</h4>
+<ul>
+<li>所有参数都解冻，全部参与更新，通过联合优化，<code>AR</code> 部分学会了生成更适合 <code>DiT</code> 解码的语义规划，而 <code>DiT</code> 也学会了更好地适应 <code>AR</code> 的意图</li>
+</ul>
+<h4 id="43-rl"><a class="markdownIt-Anchor" href="#43-rl"></a> 4.3 RL</h4>
+<ul>
+<li><code>Mammoth2</code> 引入了 <code>DiffusionNFT (Negative-aware Fine-Tuning)</code>，这是一种针对流匹配模型的开创性 <code>RL</code> 算法 。</li>
+</ul>
+<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
+<ul>
+<li>为了保留 <code>vlm</code> 模型的能力作了很大的创新，理论上作生成任务的潜力很大</li>
+<li>理解和生成统一架构可能是未来发展方向</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/VLM-Diffusion/" rel="tag"># (VLM, Diffusion)</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2025/10/26/Structured-3D-Latents-for-Scalable-and-Versatile-3D-Generation/" rel="prev" title="Structured 3D Latents for Scalable and Versatile 3D Generation">
+      <i class="fa fa-chevron-left"></i> Structured 3D Latents for Scalable and Versatile 3D Generation
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#url"><span class="nav-number">1.</span> <span class="nav-text"> URL</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#tldr"><span class="nav-number">2.</span> <span class="nav-text"> TL;DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#algorithm"><span class="nav-number">3.</span> <span class="nav-text"> Algorithm</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-%E7%A1%AC%E8%B7%AF%E7%94%B1%E6%B7%B7%E5%90%88%E4%B8%93%E5%AE%B6hard-routing-mixture-of-experts"><span class="nav-number">3.1.</span> <span class="nav-text"> 1. 硬路由混合专家（Hard-Routing Mixture-of-Experts）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-%E6%89%A9%E6%95%A3%E7%94%9F%E6%88%90%E5%99%A8diffusion-generator"><span class="nav-number">3.2.</span> <span class="nav-text"> 2. 扩散生成器（Diffusion Generator）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-ar-diffusion-%E7%89%B9%E5%BE%81%E5%AF%B9%E9%BD%90%E6%A8%A1%E5%9D%97"><span class="nav-number">3.3.</span> <span class="nav-text"> 3. AR-Diffusion 特征对齐模块</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-%E8%AE%AD%E7%BB%83%E7%AD%96%E7%95%A5"><span class="nav-number">3.4.</span> <span class="nav-text"> 4. 训练策略</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#41-%E9%A2%84%E8%AE%AD%E7%BB%83"><span class="nav-number">3.4.1.</span> <span class="nav-text"> 4.1 预训练</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#42-sft"><span class="nav-number">3.4.2.</span> <span class="nav-text"> 4.2 SFT</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#43-rl"><span class="nav-number">3.4.3.</span> <span class="nav-text"> 4.3 RL</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#thought"><span class="nav-number">4.</span> <span class="nav-text"> Thought</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Zhangzhe</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives">
+          <span class="site-state-item-count">173</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">51</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhangzhe</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js', () => {
+    // 初始化 Mermaid 配置
+    mermaid.initialize({
+      theme    : 'dark',  // 设置主题
+      logLevel : 3,  // 设置日志等级
+      flowchart: { curve: 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 },
+      themeVariables: {
+        'fontFamily': 'Microsoft YaHei, Arial, sans-serif',  // 设置中文字体
+      }
+    });
+
+    // 初始化 Mermaid 图表
+    mermaid.init(undefined, document.querySelectorAll('pre.mermaid'));
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+      
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/katex@0/dist/katex.min.css">
+
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'eK3W25jybCO5jVUrYBBpAPqM-gzGzoHsz',
+      appKey     : 'F4KVyUj9wHI5c80Bhz7O2uhq',
+      placeholder: "说点什么再走吧...",
+      avatar     : 'hide',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

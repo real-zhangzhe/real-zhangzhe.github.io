@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"real-zhangzhe.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="URL  paper: https:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;2110.07602 code: https:&#x2F;&#x2F;github.com&#x2F;THUDM&#x2F;P-tuning-v2   TL;DR  本文提出一种提示词微调的方法，是对 P-Tuning 的升级 P-Tuning v2 要解决的问题是：对于所有（或大多数）任务类型和模型参数规模，将提示词微调的精度达到和整体参数微调同样的效果，这也是这篇">
+<meta property="og:type" content="article">
+<meta property="og:title" content="P-Tuning v2: Prompt Tuning Can Be Comparable to Fine-tuning Universally Across Scales and Tasks">
+<meta property="og:url" content="https://real-zhangzhe.github.io/2024/10/08/P-Tuning-v2-Prompt-Tuning-Can-Be-Comparable-to-Fine-tuning-Universally-Across-Scales-and-Tasks/index.html">
+<meta property="og:site_name" content="Zhangzhe&#39;s Blog">
+<meta property="og:description" content="URL  paper: https:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;2110.07602 code: https:&#x2F;&#x2F;github.com&#x2F;THUDM&#x2F;P-tuning-v2   TL;DR  本文提出一种提示词微调的方法，是对 P-Tuning 的升级 P-Tuning v2 要解决的问题是：对于所有（或大多数）任务类型和模型参数规模，将提示词微调的精度达到和整体参数微调同样的效果，这也是这篇">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://s2.loli.net/2024/10/08/cZJW9RoSl6yT2uz.png">
+<meta property="article:published_time" content="2024-10-08T00:54:23.000Z">
+<meta property="article:modified_time" content="2025-12-11T05:48:26.538Z">
+<meta property="article:author" content="Zhangzhe">
+<meta property="article:tag" content="LLM">
+<meta property="article:tag" content="Paper Reading">
+<meta property="article:tag" content="Tuning">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://s2.loli.net/2024/10/08/cZJW9RoSl6yT2uz.png">
+
+<link rel="canonical" href="https://real-zhangzhe.github.io/2024/10/08/P-Tuning-v2-Prompt-Tuning-Can-Be-Comparable-to-Fine-tuning-Universally-Across-Scales-and-Tasks/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>P-Tuning v2: Prompt Tuning Can Be Comparable to Fine-tuning Universally Across Scales and Tasks | Zhangzhe's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Zhangzhe's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">The projection of my life.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/archives/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/10/08/P-Tuning-v2-Prompt-Tuning-Can-Be-Comparable-to-Fine-tuning-Universally-Across-Scales-and-Tasks/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          P-Tuning v2: Prompt Tuning Can Be Comparable to Fine-tuning Universally Across Scales and Tasks
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-10-08 08:54:23" itemprop="dateCreated datePublished" datetime="2024-10-08T08:54:23+08:00">2024-10-08</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-12-11 13:48:26" itemprop="dateModified" datetime="2025-12-11T13:48:26+08:00">2025-12-11</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Tuning/" itemprop="url" rel="index"><span itemprop="name">Tuning</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2024/10/08/P-Tuning-v2-Prompt-Tuning-Can-Be-Comparable-to-Fine-tuning-Universally-Across-Scales-and-Tasks/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2024/10/08/P-Tuning-v2-Prompt-Tuning-Can-Be-Comparable-to-Fine-tuning-Universally-Across-Scales-and-Tasks/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2110.07602">https://arxiv.org/pdf/2110.07602</a></li>
+<li>code: <a target="_blank" rel="noopener" href="https://github.com/THUDM/P-tuning-v2">https://github.com/THUDM/P-tuning-v2</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li>本文提出一种提示词微调的方法，是对 <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2103.10385"><code>P-Tuning</code></a> 的升级</li>
+<li><code>P-Tuning v2</code> 要解决的问题是：<strong>对于所有（或大多数）任务类型和模型参数规模，将提示词微调的精度达到和整体参数微调同样的效果</strong>，这也是这篇论文的题目</li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<p><img src="https://s2.loli.net/2024/10/08/cZJW9RoSl6yT2uz.png" alt="p_tuning_v2.png" /></p>
+<h3 id="对-p-tuning-的优化"><a class="markdownIt-Anchor" href="#对-p-tuning-的优化"></a> 对 <code>P-Tuning</code> 的优化</h3>
+<h4 id="1-p-tuning-只在模型输入层添加可学习的连续嵌入p-tuning-v2-在模型的每一层都添加"><a class="markdownIt-Anchor" href="#1-p-tuning-只在模型输入层添加可学习的连续嵌入p-tuning-v2-在模型的每一层都添加"></a> 1. <code>P-Tuning</code> 只在模型输入层添加可学习的连续嵌入，<code>P-Tuning v2</code> 在模型的每一层都添加</h4>
+<ol>
+<li><code>Prefix Tuning / Prompt Tuning / P-Tuning</code> 三种方法都是在模型输入中加入连续嵌入
+<ul>
+<li>添加方式可能是前缀，也可能是其他 <code>Concat Pattern</code></li>
+<li>通过 <code>Self-Attention</code> 的 <code>embedding</code> 间信息融合机制让虚拟连续嵌入影响整个模型</li>
+</ul>
+</li>
+<li><code>P-Tuning V2</code> 的做法则完全不同，是对模型的 <strong>每一层</strong> 都添加了可学习的虚拟连续嵌入
+<ul>
+<li>具体来说是通过初始化虚拟 <code>past_key_values</code> 来实现的</li>
+<li>用 <code>GPT2-small</code> 来举例（<code>12</code> 层 <code>transformer</code>，每层 <code>12</code> 个头，每个头的 <code>dim = 64</code>）
+<ul>
+<li>假设 <code>virtual_prompt_seq_len=3</code>，<code>input_prompt_seq_len=10</code></li>
+<li>那么需要先初始化 <code>past_key_values</code>，<code>shape = [12, 2, 12, 3, 64]</code>，分别表示：
+<ul>
+<li><code>num_layers</code></li>
+<li><code>key and value</code></li>
+<li><code>num_heads</code></li>
+<li><code>virtual_prompt_seq_len</code></li>
+<li><code>dim</code></li>
+<li><strong><code>shape = [12, 2, 12, 3, 64]</code> 以及修改后的输出层参数是可训练的所有参数</strong></li>
+</ul>
+</li>
+</ul>
+</li>
+<li>然后将序列长度为 <code>10</code> 的 <code>input token embeddings</code> 输入模型，第一层输出长度还是 <code>10</code></li>
+<li>第二层以及之后的每一层都将上一层输出的长度为 <code>10</code> 的序列和长度为 <code>3</code> 的 <code>virtual_prompt_key_values</code> 合并计算，并输出长度为 <code>10</code> 的序列</li>
+</ul>
+</li>
+</ol>
+<h4 id="2-不再使用-verbalizer而是使用-class-head"><a class="markdownIt-Anchor" href="#2-不再使用-verbalizer而是使用-class-head"></a> 2. 不再使用 <code>Verbalizer</code>，而是使用 <code>class head</code></h4>
+<ol>
+<li>什么是 <code>Verbalizer</code> ?
+<ul>
+<li>传统的预训练语言模型（例如 <code>Bert</code>）的输入是一个 <code>token</code> 序列，输出是一个 <code>token</code>，也就是说词表中每个词都有可能输出</li>
+<li>现在有个下游任务需要用 <code>Bert</code> 做情感分类，输入是一段话，输出是：{正面，负面，中性} 中的一种，而且用 <code>P-Tuning</code> 方法微调，那么直接把输入附加上一些虚拟连续提示嵌入，输出的结果还是整个词表，不是三分类</li>
+<li>这时候就需要 <code>Verbalizer</code> 的存在了，它的作用是将 <code>Bert</code> 模型的输出从词表空间映射到三分类空间，它的实现形式可以是规则，也可以是深度学习模型</li>
+</ul>
+</li>
+<li><code>P-Tuning V2</code> 如何抛弃 <code>Verbalizer</code>?
+<ul>
+<li>抛弃 <code>Verbalizer</code> 的方式很简单，就是打破 <strong><code>Prompt Tuning</code> 模型时不应修改模型参数和结构</strong> 的限制</li>
+<li>直接删除预训练模型输出层，改成任务相关的层并随机初始化，然后微调</li>
+</ul>
+</li>
+</ol>
+<h2 id="thought"><a class="markdownIt-Anchor" href="#thought"></a> Thought</h2>
+<ul>
+<li>看起来比 <code>P-Tuning v2</code> 更优雅，和 <code>kv cache attention</code> 结合起来，推理耗时增加较小</li>
+<li>据说对大模型来讲，这种方法和 <code>Prompt Tuning</code> 相比并没有显著精度优势（模型参数量小时，设计很重要；模型参数量大时，参数量几乎可以弥补一切设计上的非最优）</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/LLM/" rel="tag"># LLM</a>
+              <a href="/tags/Paper-Reading/" rel="tag"># Paper Reading</a>
+              <a href="/tags/Tuning/" rel="tag"># Tuning</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2024/09/29/GPT-Understands-Too/" rel="prev" title="GPT Understands, Too">
+      <i class="fa fa-chevron-left"></i> GPT Understands, Too
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2024/10/11/DINO-Emerging-Properties-in-Self-Supervised-Vision-Transformers/" rel="next" title="DINO: Emerging Properties in Self-Supervised Vision Transformers">
+      DINO: Emerging Properties in Self-Supervised Vision Transformers <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#url"><span class="nav-number">1.</span> <span class="nav-text"> URL</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#tldr"><span class="nav-number">2.</span> <span class="nav-text"> TL;DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#algorithm"><span class="nav-number">3.</span> <span class="nav-text"> Algorithm</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AF%B9-p-tuning-%E7%9A%84%E4%BC%98%E5%8C%96"><span class="nav-number">3.1.</span> <span class="nav-text"> 对 P-Tuning 的优化</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#1-p-tuning-%E5%8F%AA%E5%9C%A8%E6%A8%A1%E5%9E%8B%E8%BE%93%E5%85%A5%E5%B1%82%E6%B7%BB%E5%8A%A0%E5%8F%AF%E5%AD%A6%E4%B9%A0%E7%9A%84%E8%BF%9E%E7%BB%AD%E5%B5%8C%E5%85%A5p-tuning-v2-%E5%9C%A8%E6%A8%A1%E5%9E%8B%E7%9A%84%E6%AF%8F%E4%B8%80%E5%B1%82%E9%83%BD%E6%B7%BB%E5%8A%A0"><span class="nav-number">3.1.1.</span> <span class="nav-text"> 1. P-Tuning 只在模型输入层添加可学习的连续嵌入，P-Tuning v2 在模型的每一层都添加</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-%E4%B8%8D%E5%86%8D%E4%BD%BF%E7%94%A8-verbalizer%E8%80%8C%E6%98%AF%E4%BD%BF%E7%94%A8-class-head"><span class="nav-number">3.1.2.</span> <span class="nav-text"> 2. 不再使用 Verbalizer，而是使用 class head</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#thought"><span class="nav-number">4.</span> <span class="nav-text"> Thought</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Zhangzhe</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives">
+          <span class="site-state-item-count">173</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">51</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhangzhe</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js', () => {
+    // 初始化 Mermaid 配置
+    mermaid.initialize({
+      theme    : 'dark',  // 设置主题
+      logLevel : 3,  // 设置日志等级
+      flowchart: { curve: 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 },
+      themeVariables: {
+        'fontFamily': 'Microsoft YaHei, Arial, sans-serif',  // 设置中文字体
+      }
+    });
+
+    // 初始化 Mermaid 图表
+    mermaid.init(undefined, document.querySelectorAll('pre.mermaid'));
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+      
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/katex@0/dist/katex.min.css">
+
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'eK3W25jybCO5jVUrYBBpAPqM-gzGzoHsz',
+      appKey     : 'F4KVyUj9wHI5c80Bhz7O2uhq',
+      placeholder: "说点什么再走吧...",
+      avatar     : 'hide',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

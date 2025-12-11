@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"real-zhangzhe.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="URL  blog: https:&#x2F;&#x2F;qwenlm.github.io&#x2F;zh&#x2F;blog&#x2F;qwen3&#x2F;   TL;DR  Qwen3 系列模型四月二十九日正式发布，但到目前为止，还没发布技术报告，只有一篇官方博客，介绍了 Qwen3 的一些基本信息 本文围绕着官方博客介绍，结合实际使用情况，给出一些个人的理解   Qwen3 系列模型  本次 Qwen3 主要发布了八个版本的模型，其中包含两个 M">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Qwen3 技术报告先导篇">
+<meta property="og:url" content="https://real-zhangzhe.github.io/2025/05/05/Qwen3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E5%85%88%E5%AF%BC%E7%AF%87/index.html">
+<meta property="og:site_name" content="Zhangzhe&#39;s Blog">
+<meta property="og:description" content="URL  blog: https:&#x2F;&#x2F;qwenlm.github.io&#x2F;zh&#x2F;blog&#x2F;qwen3&#x2F;   TL;DR  Qwen3 系列模型四月二十九日正式发布，但到目前为止，还没发布技术报告，只有一篇官方博客，介绍了 Qwen3 的一些基本信息 本文围绕着官方博客介绍，结合实际使用情况，给出一些个人的理解   Qwen3 系列模型  本次 Qwen3 主要发布了八个版本的模型，其中包含两个 M">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://s2.loli.net/2025/05/05/eEUjxX8bvydgNqt.png">
+<meta property="article:published_time" content="2025-05-05T13:40:44.000Z">
+<meta property="article:modified_time" content="2025-12-11T05:48:26.538Z">
+<meta property="article:author" content="Zhangzhe">
+<meta property="article:tag" content="LLM">
+<meta property="article:tag" content="Qwen3">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://s2.loli.net/2025/05/05/eEUjxX8bvydgNqt.png">
+
+<link rel="canonical" href="https://real-zhangzhe.github.io/2025/05/05/Qwen3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E5%85%88%E5%AF%BC%E7%AF%87/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>Qwen3 技术报告先导篇 | Zhangzhe's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Zhangzhe's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">The projection of my life.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/archives/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2025/05/05/Qwen3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E5%85%88%E5%AF%BC%E7%AF%87/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Qwen3 技术报告先导篇
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-05-05 21:40:44" itemprop="dateCreated datePublished" datetime="2025-05-05T21:40:44+08:00">2025-05-05</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-12-11 13:48:26" itemprop="dateModified" datetime="2025-12-11T13:48:26+08:00">2025-12-11</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/LLM/" itemprop="url" rel="index"><span itemprop="name">LLM</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2025/05/05/Qwen3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E5%85%88%E5%AF%BC%E7%AF%87/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2025/05/05/Qwen3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E5%85%88%E5%AF%BC%E7%AF%87/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>blog: <a target="_blank" rel="noopener" href="https://qwenlm.github.io/zh/blog/qwen3/">https://qwenlm.github.io/zh/blog/qwen3/</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li><code>Qwen3</code> 系列模型四月二十九日正式发布，但到目前为止，还没发布技术报告，只有一篇官方博客，介绍了 <code>Qwen3</code> 的一些基本信息</li>
+<li>本文围绕着官方博客介绍，结合实际使用情况，给出一些个人的理解</li>
+</ul>
+<h2 id="qwen3-系列模型"><a class="markdownIt-Anchor" href="#qwen3-系列模型"></a> Qwen3 系列模型</h2>
+<ul>
+<li>本次 <code>Qwen3</code> 主要发布了八个版本的模型，其中包含两个 <code>MOE</code> 模型和六个 <code>dense</code> 模型：
+<ul>
+<li><code>Qwen3-235B-A22B</code>：<code>MOE</code> 模型，<code>235B</code> 参数量，<code>22B</code> 激活参数量</li>
+<li><code>Qwen3-30B-A3B</code>：<code>MOE</code> 模型，<code>30B</code> 参数量，<code>3B</code> 激活参数量</li>
+<li><code>Qwen3-32B</code>：<code>dense</code> 模型，<code>32B</code> 参数量</li>
+<li><code>Qwen3-14B</code>：<code>dense</code> 模型，<code>14B</code> 参数量</li>
+<li><code>Qwen3-8B</code>：<code>dense</code> 模型，<code>8B</code> 参数量</li>
+<li><code>Qwen3-4B</code>：<code>dense</code> 模型，<code>4B</code> 参数量</li>
+<li><code>Qwen3-1.7B</code>：<code>dense</code> 模型，<code>1.7B</code> 参数量</li>
+<li><code>Qwen3-0.6B</code>：<code>dense</code> 模型，<code>0.6B</code> 参数量</li>
+</ul>
+</li>
+<li>还有对应的 <code>Base</code> 模型（只经过预训练）和 <code>fp8 Quantized</code> 模型（量化模型）</li>
+<li><code>Qwen3</code> 相较于上一代 <code>Qwen2.5</code>，一个较大的技术进步是：<strong>统一了 Reasoning 和非 Reasoning 模式</strong>，即不再区分<strong>推理模型和非推理模型（或者叫思考模型和非思考模型）</strong>，而是一个模型可以通过 <code>prompt</code> 来选择推理模式和非推理模式</li>
+</ul>
+<h2 id="qwen3-模型的主要特性"><a class="markdownIt-Anchor" href="#qwen3-模型的主要特性"></a> Qwen3 模型的主要特性</h2>
+<h3 id="预训练"><a class="markdownIt-Anchor" href="#预训练"></a> 预训练</h3>
+<ul>
+<li>相较于上一代 <code>Qwen2.5</code> 使用了 <code>18</code> 万亿个 <code>token</code> 做预训练，<code>Qwen3</code> 使用了 <code>36</code> 万亿个 <code>token</code> 做预训练（整整翻了一倍，这是多大的数据团队才能搞出来的，<s>太壕了</s>）</li>
+<li>包含了 <code>119</code> 种语言和方言，有大量数据是合成数据和在 <code>PDF</code> 上识别的文本数据</li>
+<li>预训练分成了三个阶段：
+<ul>
+<li>第一阶段：模型在超过 <code>30</code> 万亿个 <code>token</code> 上进行了预训练，上下文长度为 <code>4K token</code></li>
+<li>第二阶段：通过增加知识密集型数据（如 <code>STEM</code>、编程和推理任务）的比例来改进数据集，在 <code>5</code> 万亿个 <code>token</code> 上进行了预训练</li>
+<li>第三阶段：使用高质量的长上下文数据将上下文长度扩展到 <code>32K token</code></li>
+</ul>
+</li>
+<li>预训练实际效果：官方的说法是 <code>Qwen3-1.7B/4B/8B/14B/32B-Base</code> 分别与 <code>Qwen2.5-3B/7B/14B/32B/72B-Base</code> 表现相当</li>
+</ul>
+<h3 id="后训练"><a class="markdownIt-Anchor" href="#后训练"></a> 后训练</h3>
+<p><img src="https://s2.loli.net/2025/05/05/eEUjxX8bvydgNqt.png" alt="post-training.png" /></p>
+<ul>
+<li>简单概括：用 <code>SFT → RL → SFT+RL 混合 → RL</code> 四个阶段后训练 <code>Qwen3-235B-A22B</code> 和 <code>Qwen3-32B</code> 模型，然后蒸馏得到其他小尺寸模型（大 <code>MOE</code> 蒸小 <code>MOE</code>，大 <code>dense</code> 蒸小 <code>dense</code>）</li>
+<li>四个阶段分别是：
+<ul>
+<li>长思维链冷启动 ：使用监督微调（<code>SFT</code>）训练模型生成初步的长思维链推理能力，作为初始阶段的基础。</li>
+<li>长思维链强化学习 ：通过强化学习（<code>RL</code>）进一步提升模型在复杂推理任务中的表现，优化生成思维链的质量和连贯性。</li>
+<li>思维模式融合 ：结合 <code>SFT</code> 和 <code>RL</code> 的混合策略，将不同思维模式（如逻辑推理、知识检索等）整合到统一框架中，增强模型的灵活性。</li>
+<li>通用强化学习 ：以 <code>RL</code> 为主导，对模型进行全局优化，强化其在多样化任务中的通用性和鲁棒性。</li>
+</ul>
+</li>
+</ul>
+<h2 id="qwen3-使用"><a class="markdownIt-Anchor" href="#qwen3-使用"></a> Qwen3 使用</h2>
+<ul>
+<li>使用上和 <code>Qwen2.5</code> 没有太大区别，主要是增加了 <code>Reasoning</code> 模式的选择开关</li>
+<li>这个开关也非常简便，大概有两种方式可以选择：
+<ol>
+<li>在最新版 <code>Transformer</code> 库中 <code>tokenizer.apply_chat_template</code> 中可以设置 <code>enable_thinking=True # Switch between thinking and non-thinking modes. Default is True.</code></li>
+<li>另外一种方式就是始终保持上面的开关常开，然后在 <code>prompt</code> 中添加 <code>/no_think</code> 来关闭推理模式。<code>/no_think</code> 可加到 <code>system content</code> 或 <code>user content</code> 结尾。</li>
+</ol>
+</li>
+<li>在一些下游任务上做了 <code>SFT</code> 微调测试，发现 <code>Qwen3-1.7B</code> 经过 <code>SFT</code> 之后和 <code>Qwen2.5-3B-Instruct</code> 经过 <code>SFT</code> 之后的效果差不多，这一点和官方对预训练的说法一致</li>
+</ul>
+<h2 id="thoughts"><a class="markdownIt-Anchor" href="#thoughts"></a> Thoughts</h2>
+<ul>
+<li>在当今这个大模型结构同质化时代，预训练数据越多，模型的能力越强（同样效果下数据翻一倍模型尺寸可缩减一半！！），所以小厂没有这么多数据工程师，搞不到大量的高质量的数据，是很难在大模型上追赶大厂</li>
+<li>到今天为止，<code>Llama</code> 系列官方模型都不能做到原生支持中文，和 <code>Qwen</code> 系列模型原生支持 <code>119</code> 种语言和方言相比，感觉非常小家子气，注定会被扫进历史的垃圾堆里</li>
+<li><code>DeepSeek</code> 对 <code>Qwen</code> 的影响很大，比如：
+<ul>
+<li>从 <code>DeepSeek v3</code> 之后，<code>Qwen</code> 系列模型预训练和最终版的命名从：<code>Qwen2.5-7B/Qwen2.5-7B-Instruct</code> 变成了 <code>Qwen3-8B-Base/Qwen3-8B</code></li>
+<li>广泛的使用了<strong>模型蒸馏</strong>，确实极大的提高了小尺寸模型的能力（之前 <code>Qwen2.5-0.5B-Instruct</code> 基本就是个答非所问的傻子，现如今的 <code>Qwen3-0.6B</code> 在不开推理模式的情况下也可以解决很多数学问题，非常强）</li>
+<li>四段式后训练也和 <code>DeepSeek</code> 使用的后训练非常相似</li>
+</ul>
+</li>
+<li>合并推理和非推理模型的做法，是今后大模型的趋势，有不少模型都在朝着这个方向发展</li>
+<li>官方表示 <code>Qwen</code> 系列后续会向着 <code>Agent</code> 方向发展，铺垫了很久的 <code>MCP</code> 可能会产生新的 <code>Agent</code> 应用变革</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/LLM/" rel="tag"># LLM</a>
+              <a href="/tags/Qwen3/" rel="tag"># Qwen3</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2025/03/24/CUDA-%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0-01-%E2%80%94%E2%80%94-CUDA-%E5%9F%BA%E7%A1%80/" rel="prev" title="CUDA 学习笔记 01 —— CUDA 基础">
+      <i class="fa fa-chevron-left"></i> CUDA 学习笔记 01 —— CUDA 基础
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2025/05/10/Denoising-Diffusion-Implicit-Models/" rel="next" title="Denoising Diffusion Implicit Models">
+      Denoising Diffusion Implicit Models <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#url"><span class="nav-number">1.</span> <span class="nav-text"> URL</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#tldr"><span class="nav-number">2.</span> <span class="nav-text"> TL;DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#qwen3-%E7%B3%BB%E5%88%97%E6%A8%A1%E5%9E%8B"><span class="nav-number">3.</span> <span class="nav-text"> Qwen3 系列模型</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#qwen3-%E6%A8%A1%E5%9E%8B%E7%9A%84%E4%B8%BB%E8%A6%81%E7%89%B9%E6%80%A7"><span class="nav-number">4.</span> <span class="nav-text"> Qwen3 模型的主要特性</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%A2%84%E8%AE%AD%E7%BB%83"><span class="nav-number">4.1.</span> <span class="nav-text"> 预训练</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%90%8E%E8%AE%AD%E7%BB%83"><span class="nav-number">4.2.</span> <span class="nav-text"> 后训练</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#qwen3-%E4%BD%BF%E7%94%A8"><span class="nav-number">5.</span> <span class="nav-text"> Qwen3 使用</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#thoughts"><span class="nav-number">6.</span> <span class="nav-text"> Thoughts</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Zhangzhe</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives">
+          <span class="site-state-item-count">173</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">51</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhangzhe</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js', () => {
+    // 初始化 Mermaid 配置
+    mermaid.initialize({
+      theme    : 'dark',  // 设置主题
+      logLevel : 3,  // 设置日志等级
+      flowchart: { curve: 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 },
+      themeVariables: {
+        'fontFamily': 'Microsoft YaHei, Arial, sans-serif',  // 设置中文字体
+      }
+    });
+
+    // 初始化 Mermaid 图表
+    mermaid.init(undefined, document.querySelectorAll('pre.mermaid'));
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+      
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/katex@0/dist/katex.min.css">
+
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'eK3W25jybCO5jVUrYBBpAPqM-gzGzoHsz',
+      appKey     : 'F4KVyUj9wHI5c80Bhz7O2uhq',
+      placeholder: "说点什么再走吧...",
+      avatar     : 'hide',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"real-zhangzhe.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="0. 背景知识  NAS 是什么？  NAS 的全称是 Network Attached Storage，网络附加存储，说白了就是一个低性能高容量的私有云服务器   NAS 能干什么用？  NAS 可以作为家庭影院数据中心，NAS + 局域网文件传输协议 + 智能电视 + 家庭影院软件可以实现非常好的家庭观影体验 NAS 可以作为私有云服务器，承担例如图床&#x2F;视频床等功能，也可以建网站   怎么做">
+<meta property="og:type" content="article">
+<meta property="og:title" content="用树莓派 5 搭建 NAS 的 worklog">
+<meta property="og:url" content="https://real-zhangzhe.github.io/2024/10/21/%E7%94%A8%E6%A0%91%E8%8E%93%E6%B4%BE-5-%E6%90%AD%E5%BB%BA-NAS-%E7%9A%84-worklog/index.html">
+<meta property="og:site_name" content="Zhangzhe&#39;s Blog">
+<meta property="og:description" content="0. 背景知识  NAS 是什么？  NAS 的全称是 Network Attached Storage，网络附加存储，说白了就是一个低性能高容量的私有云服务器   NAS 能干什么用？  NAS 可以作为家庭影院数据中心，NAS + 局域网文件传输协议 + 智能电视 + 家庭影院软件可以实现非常好的家庭观影体验 NAS 可以作为私有云服务器，承担例如图床&#x2F;视频床等功能，也可以建网站   怎么做">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://s2.loli.net/2025/06/08/EI1Cr2WXAkvhKfU.jpg">
+<meta property="article:published_time" content="2024-10-21T04:22:45.000Z">
+<meta property="article:modified_time" content="2025-12-11T05:48:26.542Z">
+<meta property="article:author" content="Zhangzhe">
+<meta property="article:tag" content="worklog">
+<meta property="article:tag" content="NAS">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://s2.loli.net/2025/06/08/EI1Cr2WXAkvhKfU.jpg">
+
+<link rel="canonical" href="https://real-zhangzhe.github.io/2024/10/21/%E7%94%A8%E6%A0%91%E8%8E%93%E6%B4%BE-5-%E6%90%AD%E5%BB%BA-NAS-%E7%9A%84-worklog/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>用树莓派 5 搭建 NAS 的 worklog | Zhangzhe's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Zhangzhe's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">The projection of my life.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/archives/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/10/21/%E7%94%A8%E6%A0%91%E8%8E%93%E6%B4%BE-5-%E6%90%AD%E5%BB%BA-NAS-%E7%9A%84-worklog/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          用树莓派 5 搭建 NAS 的 worklog
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-10-21 12:22:45" itemprop="dateCreated datePublished" datetime="2024-10-21T12:22:45+08:00">2024-10-21</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-12-11 13:48:26" itemprop="dateModified" datetime="2025-12-11T13:48:26+08:00">2025-12-11</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/worklog/" itemprop="url" rel="index"><span itemprop="name">worklog</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2024/10/21/%E7%94%A8%E6%A0%91%E8%8E%93%E6%B4%BE-5-%E6%90%AD%E5%BB%BA-NAS-%E7%9A%84-worklog/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2024/10/21/%E7%94%A8%E6%A0%91%E8%8E%93%E6%B4%BE-5-%E6%90%AD%E5%BB%BA-NAS-%E7%9A%84-worklog/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="0-背景知识"><a class="markdownIt-Anchor" href="#0-背景知识"></a> 0. 背景知识</h2>
+<ol>
+<li><code>NAS</code> 是什么？
+<ul>
+<li><code>NAS</code> 的全称是 <code>Network Attached Storage</code>，网络附加存储，说白了就是一个低性能高容量的私有云服务器</li>
+</ul>
+</li>
+<li><code>NAS</code> 能干什么用？
+<ul>
+<li><code>NAS</code> 可以作为家庭影院数据中心，<code>NAS</code> + 局域网文件传输协议 + 智能电视 + 家庭影院软件可以实现非常好的家庭观影体验</li>
+<li><code>NAS</code> 可以作为私有云服务器，承担例如图床/视频床等功能，也可以建网站</li>
+</ul>
+</li>
+<li>怎么做一个 <code>NAS</code>？
+<ul>
+<li>通常情况下，直接买一个成品 <code>NAS</code> 是一个省心的选择，外观看通常是一个可以插硬盘的盒子，本质是一个 <code>PC</code></li>
+<li>我更喜欢自己手搓</li>
+</ul>
+</li>
+</ol>
+<h2 id="1-手搓-nas-方案"><a class="markdownIt-Anchor" href="#1-手搓-nas-方案"></a> 1. 手搓 <code>NAS</code> 方案</h2>
+<ol>
+<li><code>NAS</code> 手搓需要搞定 <code>NAS</code> 本体和网络两大块
+<ol>
+<li><code>NAS</code> 本体负责下载数据，保存数据和局域网内数据共享</li>
+<li>网络部分负责让 <code>NAS</code> 本体成为一个公网可访问的设备</li>
+</ol>
+</li>
+<li><code>NAS</code> 本体用树莓派 <code>5</code> 实现是一个不错的选择</li>
+<li>网络部分用光猫桥接 + <code>DDNS</code> + 端口转发方案</li>
+</ol>
+<h2 id="2-nas-本体"><a class="markdownIt-Anchor" href="#2-nas-本体"></a> 2. <code>NAS</code> 本体</h2>
+<h3 id="硬件"><a class="markdownIt-Anchor" href="#硬件"></a> 硬件</h3>
+<ol>
+<li><code>NAS</code> 本体是一个 <code>4GB</code> 版本树莓派 <code>5</code></li>
+<li>一个 <code>32GB</code> 的 <code>SD</code> 卡作为系统盘</li>
+<li>一块 <code>500GB</code> 的 <code>USB 3.0</code> 的移动机械硬盘（后续根据需求扩容）</li>
+</ol>
+<h3 id="软件"><a class="markdownIt-Anchor" href="#软件"></a> 软件</h3>
+<ol>
+<li>操作系统：<code>Ubuntu 24.04 Desktop arm64</code>，<a target="_blank" rel="noopener" href="https://mirror.tuna.tsinghua.edu.cn/ubuntu-cdimage/ubuntu/releases/24.04.1/release/ubuntu-24.04.1-preinstalled-desktop-arm64%2Braspi.img.xz">下载地址</a>
+<ol>
+<li>用 <code>Ubuntu</code> 的好处：社区活跃，遇到问题容易解决</li>
+<li>坏处：预安装软件很多，比较大</li>
+</ol>
+</li>
+<li>其他软件：根据需求安装，例如：
+<ol>
+<li><code>Samba</code> 局域网共享软件</li>
+<li><code>RDP</code> 远程桌面软件</li>
+<li><code>Transmission</code> 磁力链接下载器</li>
+</ol>
+</li>
+</ol>
+<h2 id="3-网络"><a class="markdownIt-Anchor" href="#3-网络"></a> 3. 网络</h2>
+<p>和 <code>NAS</code> 本体比起来，网络才是手搓 <code>NAS</code> 最难的部分，主要包含如下几个部分</p>
+<h3 id="公网-ip"><a class="markdownIt-Anchor" href="#公网-ip"></a> 公网 <code>IP</code></h3>
+<ol>
+<li>选择的宽带运营商是电信，电信的入户光纤是动态公网 <code>IPv4</code> 地址（这一点还是比较良心的）</li>
+<li>光猫默认开启了路由模式，因此路由器的输入已经变成了局域网，为了简化网络拓扑，需要给电信客服打电话要求将光猫改成桥接模式，即光猫只承担光电转换功能，输出端口 <code>IP</code> 和输入端口 <code>IP</code> 一致</li>
+<li>光猫开启桥接模式之后，路由器输入端口变成了公网 <code>IP</code>，通过 <code>PPPoE</code> 拨号上网，同时实测发现，光猫桥接模式下，下载速度更快</li>
+</ol>
+<h3 id="ddns"><a class="markdownIt-Anchor" href="#ddns"></a> <code>DDNS</code></h3>
+<ol>
+<li>虽然路由器的输入已经变成公网 <code>IP</code>，但是动态的，几乎每天都在发生变化</li>
+<li>因此需要用到 <code>DDNS</code> 服务，让动态 <code>IP</code> 绑定到静态的域名上，域名之前已购买，只需要在顶级域名之前加上一个 <code>A</code> 记录的子域名</li>
+<li>由于家里用的路由器是小米 <code>be6500 pro</code> 型号，这个路由器本身并不支持腾讯云（<code>dnspod</code>）的 <code>DDNS</code> 服务，所以有两条路可以选：
+<ol>
+<li>刷机到 <code>Openwrt</code> 路由器固件，这个开源固件功能十分强大，但坏处是路由器无法再绑定到米家 <code>APP</code> 实现远程控制的一些官方功能</li>
+<li>另外一种方法是通过某种方法开启路由器的 <code>ssh</code> 权限，登录到路由器内部，在内部开启 <code>dnspod DDNS</code></li>
+</ol>
+</li>
+<li>这里选择了第二种方法，<code>ssh</code> 开启教程在 <a target="_blank" rel="noopener" href="https://www.gaicas.com/xiaomi-be6500-pro.html">这里</a></li>
+<li>开启 <code>ssh</code> 后，就可以登录到路由器 <code>terminal</code>，然而路由器使用的是小米自己魔改的 <code>XiaoQiang Linux</code> 操作系统，包管理工具以及软件源什么的完全搞不懂，也很难查到相关资料，所以常用的 <code>DDNS</code> 服务软件例如 <a target="_blank" rel="noopener" href="https://github.com/jeessy2/ddns-go"><code>ddns-go</code></a> 什么的也无法正常安装和配置</li>
+<li>在仔细了解了 <code>DDNS</code> 服务的基本原理之后，决定用 <code>SHELL</code> 手写一个 <code>DDNS</code> 服务
+<ol>
+<li><code>DDNS</code> 的原理（仅在 <code>dnspod</code> 服务商上测试过）：客户端（路由器）定期检查输入端口 <code>IP</code>，当发现和 <code>dnspod</code> 服务商记录的这个域名绑定的 <code>IP</code> 不一致时，就给 <code>dnspod</code> 发一条修改绑定关系的请求，<code>dnspod</code> 更改后，新的 “域名——<code>IP</code>” 绑定关系就建立了</li>
+<li>这里涉及到几个关键：
+<ol>
+<li><code>API Token</code>：上面这个修改过程显然不是任何人都可以改的，你只能修改自己名下的域名绑定的 <code>IP</code>，所以需要一个密钥来和 <code>dnspod</code> 服务器交互，这个密钥在 <code>https://console.dnspod.cn/account/token/token</code> 创建</li>
+<li>查找域名和记录对应的 <code>ID</code>：由于 <code>dnspod</code> 的 <code>DDNS API</code> 要求域名和对应的记录是以 <code>ID</code> 的方式描述的，所以需要查到域名 <code>ID</code> 和记录 <code>ID</code>
+<ol>
+<li>域名 <code>ID</code>：
+<ol>
+<li><code>curl -s &quot;https://dnsapi.cn/Domain.List&quot;  -d &quot;login_token=&lt;your_token&gt;&amp;format=json&quot;</code> 得到输出查询结果</li>
+<li>然后在查询结果中找到名下多个域名中想要查询域名的 <code>ID</code></li>
+</ol>
+</li>
+<li>记录 <code>ID</code>：
+<ol>
+<li><code>curl -s &quot;https://dnsapi.cn/Record.List&quot;  -d &quot;login_token=&lt;your_token&gt;&amp;format=json&amp;domain_id=&lt;your_domain_id&gt;&amp;sub_domain=&lt;your_sub_domain&gt;&quot;</code> 得到查询结果</li>
+<li>在查询到的此域名下多条记录中，找到关注的记录 <code>ID</code></li>
+</ol>
+</li>
+</ol>
+</li>
+<li>查询当前 <code>IP</code>：<code>curl -s http://ipinfo.io/ip</code></li>
+<li>更新 <code>DNS</code> 记录：<code>curl -s -X POST &quot;https://dnsapi.cn/Record.Modify&quot;  -d &quot;login_token=$&#123;API_TOKEN&#125;&quot; -d &quot;format=json&quot; -d &quot;domain_id=$&#123;DOMAIN_ID&#125;&quot; -d &quot;record_id=$&#123;RECORD_ID&#125;&quot; -d &quot;sub_domain=$&#123;SUB_DOMAIN&#125;&quot; -d &quot;record_line=$&#123;RECORD_LINE&#125;&quot; -d &quot;record_type=$&#123;RECORD_TYPE&#125;&quot; -d &quot;value=$&#123;CURRENT_IP&#125;&quot;</code></li>
+</ol>
+</li>
+<li>然后将此 <code>DDNS_update.sh</code> 文件注册到 <code>crontab</code> 中，每 <code>5</code> 分钟更新一次</li>
+</ol>
+</li>
+<li>确实可以正常更新 <code>DNS</code>，不过忙完之后才发现可以在树莓派上实现，不用自己写 <code>SHELL</code>…</li>
+</ol>
+<h3 id="端口转发"><a class="markdownIt-Anchor" href="#端口转发"></a> 端口转发</h3>
+<ul>
+<li>外网只能访问到路由器，如果想要通过 <code>ssh</code> 实现外网直连树莓派，那么需要在路由器上配置端口转发</li>
+<li>由于目前只有 <code>SSH</code> 和 <code>VNC</code> 两个远程访问需求，所以只开了 <code>22</code> 的 <code>TCP</code> 端口转发</li>
+<li><code>VNC</code> 可以通过 <code>ssh</code> + 端口转发实现，不用开 <code>5900</code> 端口，开的越少内网设备越安全</li>
+<li><code>VNC</code> 具体使用方法
+<ol>
+<li>在树莓派上开启 <code>VNC</code> 服务，并打开 <code>5900</code> 监听端口</li>
+<li>由于路由器只配置了 <code>22</code> 端口转发，所以这个 <code>5900</code> 端口在公网是无法访问的</li>
+<li>这时候就需要用到 <code>ssh</code> 的端口转发功能，在本地电脑上执行如下命令： <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 在连接 ssh 的时候，开启端口转发，将本地的 `5900` 端口转发到树莓派的 `5900` 端口</span></span><br><span class="line"><span class="comment"># 实际上走的还是服务器的 `22` 端口</span></span><br><span class="line">ssh -L 5900:localhost:5900 &lt;your_username&gt;@&lt;your_domain&gt;</span><br></pre></td></tr></table></figure>
+</li>
+<li>建立好 <code>ssh</code> 连接后，就可以在本地电脑上通过 <code>localhost:5900</code> 访问树莓派的 <code>VNC</code> 服务了（一定要注意，是连接 <font color='red'><strong>本地 localhost 不是服务器</strong></font> <code>5900</code> 端口）</li>
+</ol>
+</li>
+</ul>
+<h2 id="4-使用体验和后续计划"><a class="markdownIt-Anchor" href="#4-使用体验和后续计划"></a> 4. 使用体验和后续计划</h2>
+<h3 id="使用体验"><a class="markdownIt-Anchor" href="#使用体验"></a> 使用体验</h3>
+<ol>
+<li>用外网可以直连树莓派，可以用 <code>SSH</code> 远程给树莓派下发一些下载任务，也可以用 <code>VNC</code> 处理一些需要 <code>GUI</code> 的需求</li>
+<li>设置了移动硬盘开机自动挂载，索尼电视安装 <code>KODI</code> 通过 <code>Samba</code> 协议看 <code>4K</code> 电影体验很震撼</li>
+</ol>
+<h3 id="后续计划"><a class="markdownIt-Anchor" href="#后续计划"></a> 后续计划</h3>
+<ol>
+<li>开放 <code>http</code> 协议端口，在树莓派上用 <code>Nginx</code> 等引擎让树莓派作为个人博客的图床和视频床</li>
+<li>扩展硬盘架，树莓派外接 <a target="_blank" rel="noopener" href="https://wiki.geekworm.com/X1009"><code>16 pin PCIE</code> 转多口 <code>SATA</code> 扩展板</a> ，连接机械硬盘架</li>
+</ol>
+<h2 id="5-最终版效果"><a class="markdownIt-Anchor" href="#5-最终版效果"></a> 5. 最终版效果</h2>
+<p><img src="https://s2.loli.net/2025/06/08/EI1Cr2WXAkvhKfU.jpg" alt="nas.jpg" /></p>
+<ul>
+<li>买了一个二手服务器电源 <code>12v</code> 供电，买了一个车载 <code>12v</code> 转 <code>5v</code> 的电源模块，这两个一起给所有设备供电</li>
+<li>买了树莓派 <code>m2</code> 转 <code>SATA * 6</code> 的扩展板，用 <code>16pin PCIE</code> 连到主板上</li>
+<li>硬盘架现在是两块 <code>16T</code> 服务器拆机机械硬盘 + 四块 <code>500G</code> 单片机械硬盘（凑数用的），后续会根据实际情况逐步把 <code>500G</code> 硬盘换成 <code>16T</code> 的服务器氦气盘</li>
+<li>因为供电电流充足（服务器电源可最高提供 <code>50A</code> 稳定电流），在不同时和多个硬盘交互的情况下，<code>16T</code> 硬盘读写速度差不多 <code>260MB/s</code>，<code>500G</code> 硬盘读写速度差不多 <code>100MB/s</code></li>
+<li>如果有小容量高速读写需求的话，主板上有一块 <code>512GB</code> 的 <code>Flash</code> 可以用</li>
+<li>一堆风扇组成了一个小型的散热系统，电视柜当机箱用</li>
+<li>非常耐操，已经稳定运行半年多了，几乎没有关过机，随时随地访问私有云 + 家庭影院确实爽</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/worklog/" rel="tag"># worklog</a>
+              <a href="/tags/NAS/" rel="tag"># NAS</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2024/10/12/LoRA-Low-Rank-Adaptation-of-Large-Language-Models/" rel="prev" title="LoRA: Low-Rank Adaptation of Large Language Models">
+      <i class="fa fa-chevron-left"></i> LoRA: Low-Rank Adaptation of Large Language Models
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2024/10/22/%E7%94%A8-transformers-%E6%8E%A8%E7%90%86-Qwen2-0-5B-Instruct/" rel="next" title="用 transformers 推理 Qwen2-0.5B-Instruct">
+      用 transformers 推理 Qwen2-0.5B-Instruct <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#0-%E8%83%8C%E6%99%AF%E7%9F%A5%E8%AF%86"><span class="nav-number">1.</span> <span class="nav-text"> 0. 背景知识</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-%E6%89%8B%E6%90%93-nas-%E6%96%B9%E6%A1%88"><span class="nav-number">2.</span> <span class="nav-text"> 1. 手搓 NAS 方案</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-nas-%E6%9C%AC%E4%BD%93"><span class="nav-number">3.</span> <span class="nav-text"> 2. NAS 本体</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%A1%AC%E4%BB%B6"><span class="nav-number">3.1.</span> <span class="nav-text"> 硬件</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%BD%AF%E4%BB%B6"><span class="nav-number">3.2.</span> <span class="nav-text"> 软件</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-%E7%BD%91%E7%BB%9C"><span class="nav-number">4.</span> <span class="nav-text"> 3. 网络</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%85%AC%E7%BD%91-ip"><span class="nav-number">4.1.</span> <span class="nav-text"> 公网 IP</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#ddns"><span class="nav-number">4.2.</span> <span class="nav-text"> DDNS</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AB%AF%E5%8F%A3%E8%BD%AC%E5%8F%91"><span class="nav-number">4.3.</span> <span class="nav-text"> 端口转发</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-%E4%BD%BF%E7%94%A8%E4%BD%93%E9%AA%8C%E5%92%8C%E5%90%8E%E7%BB%AD%E8%AE%A1%E5%88%92"><span class="nav-number">5.</span> <span class="nav-text"> 4. 使用体验和后续计划</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BD%BF%E7%94%A8%E4%BD%93%E9%AA%8C"><span class="nav-number">5.1.</span> <span class="nav-text"> 使用体验</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%90%8E%E7%BB%AD%E8%AE%A1%E5%88%92"><span class="nav-number">5.2.</span> <span class="nav-text"> 后续计划</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-%E6%9C%80%E7%BB%88%E7%89%88%E6%95%88%E6%9E%9C"><span class="nav-number">6.</span> <span class="nav-text"> 5. 最终版效果</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Zhangzhe</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives">
+          <span class="site-state-item-count">173</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">51</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhangzhe</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js', () => {
+    // 初始化 Mermaid 配置
+    mermaid.initialize({
+      theme    : 'dark',  // 设置主题
+      logLevel : 3,  // 设置日志等级
+      flowchart: { curve: 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 },
+      themeVariables: {
+        'fontFamily': 'Microsoft YaHei, Arial, sans-serif',  // 设置中文字体
+      }
+    });
+
+    // 初始化 Mermaid 图表
+    mermaid.init(undefined, document.querySelectorAll('pre.mermaid'));
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+      
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/katex@0/dist/katex.min.css">
+
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'eK3W25jybCO5jVUrYBBpAPqM-gzGzoHsz',
+      appKey     : 'F4KVyUj9wHI5c80Bhz7O2uhq',
+      placeholder: "说点什么再走吧...",
+      avatar     : 'hide',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

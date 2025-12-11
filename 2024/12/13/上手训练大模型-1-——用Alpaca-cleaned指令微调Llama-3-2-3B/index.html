@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"real-zhangzhe.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="TL;DR  本文是上手训练大模型系列的第一篇，主要介绍了如何用指令微调数据集去微调一个大模型。 为了快速走通流程，本文选择了较小的指令微调数据集和较小的模型。   详细介绍  SFT  SFT 全称是 Supervised Fine-Tuning，监督微调，是预训练大模型在变成实际可用模型必须经过的一个步骤。 训练的基础配置（例如：optimizer、learning rete、weight">
+<meta property="og:type" content="article">
+<meta property="og:title" content="上手训练大模型(1)——用Alpaca-cleaned指令微调Llama-3.2-3B">
+<meta property="og:url" content="https://real-zhangzhe.github.io/2024/12/13/%E4%B8%8A%E6%89%8B%E8%AE%AD%E7%BB%83%E5%A4%A7%E6%A8%A1%E5%9E%8B-1-%E2%80%94%E2%80%94%E7%94%A8Alpaca-cleaned%E6%8C%87%E4%BB%A4%E5%BE%AE%E8%B0%83Llama-3-2-3B/index.html">
+<meta property="og:site_name" content="Zhangzhe&#39;s Blog">
+<meta property="og:description" content="TL;DR  本文是上手训练大模型系列的第一篇，主要介绍了如何用指令微调数据集去微调一个大模型。 为了快速走通流程，本文选择了较小的指令微调数据集和较小的模型。   详细介绍  SFT  SFT 全称是 Supervised Fine-Tuning，监督微调，是预训练大模型在变成实际可用模型必须经过的一个步骤。 训练的基础配置（例如：optimizer、learning rete、weight">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2024-12-13T02:20:21.000Z">
+<meta property="article:modified_time" content="2025-12-11T05:48:26.542Z">
+<meta property="article:author" content="Zhangzhe">
+<meta property="article:tag" content="LLM">
+<meta property="article:tag" content="SFT">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://real-zhangzhe.github.io/2024/12/13/%E4%B8%8A%E6%89%8B%E8%AE%AD%E7%BB%83%E5%A4%A7%E6%A8%A1%E5%9E%8B-1-%E2%80%94%E2%80%94%E7%94%A8Alpaca-cleaned%E6%8C%87%E4%BB%A4%E5%BE%AE%E8%B0%83Llama-3-2-3B/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>上手训练大模型(1)——用Alpaca-cleaned指令微调Llama-3.2-3B | Zhangzhe's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Zhangzhe's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">The projection of my life.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/archives/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2024/12/13/%E4%B8%8A%E6%89%8B%E8%AE%AD%E7%BB%83%E5%A4%A7%E6%A8%A1%E5%9E%8B-1-%E2%80%94%E2%80%94%E7%94%A8Alpaca-cleaned%E6%8C%87%E4%BB%A4%E5%BE%AE%E8%B0%83Llama-3-2-3B/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          上手训练大模型(1)——用Alpaca-cleaned指令微调Llama-3.2-3B
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-12-13 10:20:21" itemprop="dateCreated datePublished" datetime="2024-12-13T10:20:21+08:00">2024-12-13</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-12-11 13:48:26" itemprop="dateModified" datetime="2025-12-11T13:48:26+08:00">2025-12-11</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/LLM/" itemprop="url" rel="index"><span itemprop="name">LLM</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2024/12/13/%E4%B8%8A%E6%89%8B%E8%AE%AD%E7%BB%83%E5%A4%A7%E6%A8%A1%E5%9E%8B-1-%E2%80%94%E2%80%94%E7%94%A8Alpaca-cleaned%E6%8C%87%E4%BB%A4%E5%BE%AE%E8%B0%83Llama-3-2-3B/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2024/12/13/%E4%B8%8A%E6%89%8B%E8%AE%AD%E7%BB%83%E5%A4%A7%E6%A8%A1%E5%9E%8B-1-%E2%80%94%E2%80%94%E7%94%A8Alpaca-cleaned%E6%8C%87%E4%BB%A4%E5%BE%AE%E8%B0%83Llama-3-2-3B/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li>本文是上手训练大模型系列的第一篇，主要介绍了如何用指令微调数据集去微调一个大模型。</li>
+<li>为了快速走通流程，本文选择了较小的指令微调数据集和较小的模型。</li>
+</ul>
+<h2 id="详细介绍"><a class="markdownIt-Anchor" href="#详细介绍"></a> 详细介绍</h2>
+<h3 id="sft"><a class="markdownIt-Anchor" href="#sft"></a> <code>SFT</code></h3>
+<ul>
+<li><code>SFT</code> 全称是 <code>Supervised Fine-Tuning</code>，监督微调，是预训练大模型在变成实际可用模型必须经过的一个步骤。</li>
+<li>训练的基础配置（例如：<code>optimizer</code>、<code>learning rete</code>、<code>weight decay</code>）等一般都是从预训练模型继承过来的。</li>
+<li>但实际上训练范式已经完全变化了，从无监督的预训练变成了有监督的微调，具体来说：
+<ul>
+<li>预训练过程中，模型只需要预测下一个 <code>token</code>，直到输出 <code>EOS</code> 或者达到最大长度。</li>
+<li>在 <code>Instruct-SFT</code> 阶段，模型的输入是一条指令（通常是 <code>Instruction + Input</code>，即指令和输入），输出是指令对应的输出。指令部分的预测不会被用于 <code>loss</code> 的计算，只有输入部分的预测会被用于 <code>loss</code> 的计算。</li>
+</ul>
+</li>
+<li>用一个例子来说明，假如有一条数据：“请计算：1 + 1 = 2”
+<ul>
+<li>在预训练阶段
+<ul>
+<li>模型 <code>input</code> 是 [“请”，“计算”，“：”，“1”，“+”，“1”，“=”，“2”]</li>
+<li>模型 <code>label</code> 是 [“计算”，“：”，“1”，“+”，“1”，“=”，“2”, “pad”]，其中 <code>pad</code> 是占位符，表示这个位置不需要预测。</li>
+<li>除 <code>pad</code> 之外，其他位置的预测都会被用于 <code>loss</code> 的计算。</li>
+</ul>
+</li>
+<li>在 <code>Instruct-SFT</code> 阶段
+<ul>
+<li>模型 <code>input</code> 是 [“请”，“计算”，“：”，“1”，“+”，“1”，“=”]</li>
+<li>模型 <code>label</code> 是 [“pad”, “pad”, “pad”, “pad”, “pad”, “pad”, “2”]</li>
+<li>只有最后一个位置的预测会被用于 <code>loss</code> 的计算。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>从实际推理效果看：
+<ul>
+<li><code>SFT</code> 前，模型的输出重复性较高，指令遵循能力很差。</li>
+<li><code>SFT</code> 后，模型的输出重复性降低，指令遵循能力明显提升，但可能产生格式依赖问题。</li>
+</ul>
+</li>
+</ul>
+<h3 id="alpaca-cleaned-数据集"><a class="markdownIt-Anchor" href="#alpaca-cleaned-数据集"></a> <code>Alpaca-cleaned</code> 数据集</h3>
+<ul>
+<li><code>Alpaca-cleaned</code> 是一个指令微调数据集，数据集地址：<a target="_blank" rel="noopener" href="https://huggingface.co/datasets/yahma/alpaca-cleaned">Alpaca-cleaned</a></li>
+<li>数据集包含 <code>51,760</code> 条数据，每条数据包含 <code>instruction</code> 和 <code>input</code> 和 <code>output</code> 三个字段。</li>
+<li>其中 <code>instruction</code> 是指令，<code>input</code> 是输入，<code>output</code> 是输出，<code>input</code> 字段可能为空。</li>
+<li>例如：
+<ul>
+<li><code>instruction</code> 是 “请计算如下数学题：”</li>
+<li><code>input</code> 是 “1 + 1 =”</li>
+<li><code>output</code> 是 “2”</li>
+</ul>
+</li>
+</ul>
+<h3 id="llama-32-3b"><a class="markdownIt-Anchor" href="#llama-32-3b"></a> <code>Llama-3.2-3B</code></h3>
+<ul>
+<li><code>Llama-3.2-3B</code> 是 <code>meta</code> 开源的预训练大模型（未经过 <code>SFT</code> 和 <code>RLHF</code>），模型地址：<a target="_blank" rel="noopener" href="https://huggingface.co/meta-llama/Llama-3.2-3B">Llama-3.2-3B</a></li>
+<li>词表大小 <code>128,256</code>，支持英语、德语、法语、意大利语、葡萄牙语、印地语、西班牙语和泰语等多种语言（就是不支持中文，好烦）。</li>
+<li>模型有 <code>32</code> 层 <code>Transformer</code>，每个 <code>Transformer</code> 有 <code>32</code> 个 <code>Head</code>，使用了 <code>GQA</code> 降低了 <code>Transformer</code> 的计算复杂度，<code>hidden size</code> 是 <code>4096</code>。</li>
+</ul>
+<h3 id="指令微调"><a class="markdownIt-Anchor" href="#指令微调"></a> 指令微调</h3>
+<ul>
+<li>指令微调的流程如下：
+<ol>
+<li><strong>加载预训练模型和 <code>tokenizer</code></strong></li>
+<li><strong>加载数据集并进行预处理</strong></li>
+<li><strong>分布式训练</strong></li>
+</ol>
+</li>
+<li>具体实现代码如下：</li>
+</ul>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> os</span><br><span class="line"><span class="keyword">import</span> torch</span><br><span class="line"><span class="keyword">import</span> torch.distributed <span class="keyword">as</span> dist</span><br><span class="line"><span class="keyword">from</span> datasets <span class="keyword">import</span> load_dataset</span><br><span class="line"><span class="keyword">from</span> datasets <span class="keyword">import</span> Split</span><br><span class="line"><span class="keyword">from</span> transformers <span class="keyword">import</span> AutoTokenizer, AutoModelForCausalLM</span><br><span class="line"><span class="keyword">from</span> torch.utils.data <span class="keyword">import</span> IterableDataset, DataLoader</span><br><span class="line"><span class="keyword">import</span> deepspeed</span><br><span class="line"><span class="keyword">from</span> torch.utils.tensorboard <span class="keyword">import</span> SummaryWriter</span><br><span class="line"><span class="comment"># 初始化 DeepSpeed</span></span><br><span class="line">deepspeed.init_distributed()</span><br><span class="line"><span class="comment"># 设置环境变量以避免 tokenizers 并行化问题</span></span><br><span class="line">os.environ[<span class="string">&quot;TOKENIZERS_PARALLELISM&quot;</span>] = <span class="string">&quot;false&quot;</span></span><br><span class="line"><span class="comment"># 设置分布式训练所需的环境变量</span></span><br><span class="line">local_rank = <span class="built_in">int</span>(os.getenv(<span class="string">&quot;LOCAL_RANK&quot;</span>, <span class="string">&quot;0&quot;</span>))</span><br><span class="line">world_size = <span class="built_in">int</span>(os.getenv(<span class="string">&quot;WORLD_SIZE&quot;</span>, <span class="string">&quot;1&quot;</span>))</span><br><span class="line">os.environ[<span class="string">&quot;RANK&quot;</span>] = <span class="built_in">str</span>(local_rank)</span><br><span class="line">os.environ[<span class="string">&quot;WORLD_SIZE&quot;</span>] = <span class="built_in">str</span>(world_size)</span><br><span class="line">os.environ[<span class="string">&quot;MASTER_ADDR&quot;</span>] = <span class="string">&quot;localhost&quot;</span></span><br><span class="line">os.environ[<span class="string">&quot;MASTER_PORT&quot;</span>] = <span class="string">&quot;23333&quot;</span></span><br><span class="line"><span class="comment"># NCCL 超时参数配置</span></span><br><span class="line">os.environ[<span class="string">&quot;NCCL_BLOCKING_WAIT&quot;</span>] = <span class="string">&quot;1&quot;</span></span><br><span class="line">os.environ[<span class="string">&quot;NCCL_ASYNC_ERROR_HANDLING&quot;</span>] = <span class="string">&quot;1&quot;</span></span><br><span class="line">os.environ[<span class="string">&quot;NCCL_DEBUG&quot;</span>] = <span class="string">&quot;INFO&quot;</span></span><br><span class="line">os.environ[<span class="string">&quot;NCCL_TIMEOUT&quot;</span>] = <span class="string">&quot;600&quot;</span></span><br><span class="line"><span class="comment"># 初始化进程组</span></span><br><span class="line"><span class="keyword">if</span> <span class="keyword">not</span> dist.is_initialized():</span><br><span class="line">    dist.init_process_group(backend=<span class="string">&quot;nccl&quot;</span>)</span><br><span class="line"><span class="comment"># config</span></span><br><span class="line">model_path = <span class="string">&quot;./models/meta-llama/Llama-3.2-3B&quot;</span></span><br><span class="line">dataset_path = <span class="string">&quot;./dataset/LLM/yahma___alpaca-cleaned&quot;</span></span><br><span class="line">ds_config = <span class="string">&quot;./ds_config.json&quot;</span></span><br><span class="line">log_dir = <span class="string">&quot;./logs&quot;</span></span><br><span class="line">max_length = <span class="number">1024</span></span><br><span class="line">batch_size = <span class="number">8</span></span><br><span class="line">train_epochs = <span class="number">3</span></span><br><span class="line"><span class="comment"># Load the local alpaca dataset</span></span><br><span class="line">dataset_stream = load_dataset(dataset_path, split=Split.TRAIN, streaming=<span class="literal">True</span>)</span><br><span class="line"><span class="comment"># tokenizer</span></span><br><span class="line">tokenizer = AutoTokenizer.from_pretrained(model_path, token=<span class="literal">True</span>)</span><br><span class="line">tokenizer.pad_token = tokenizer.eos_token  <span class="comment"># llama-3.2 tokenizer padding token not set</span></span><br><span class="line"><span class="comment"># model</span></span><br><span class="line">model = AutoModelForCausalLM.from_pretrained(model_path, token=<span class="literal">True</span>)</span><br><span class="line">model.to(<span class="string">f&quot;cuda:<span class="subst">&#123;local_rank&#125;</span>&quot;</span>)  <span class="comment"># 将模型移动到对应的 GPU</span></span><br><span class="line"><span class="comment"># dataset</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">StreamDataset</span>(<span class="params">IterableDataset</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, data_stream, tokenizer, max_length=max_length</span>):</span></span><br><span class="line">        self.data_stream = data_stream</span><br><span class="line">        self.tokenizer = tokenizer</span><br><span class="line">        self.max_length = max_length</span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__iter__</span>(<span class="params">self</span>):</span></span><br><span class="line">        <span class="keyword">for</span> data <span class="keyword">in</span> self.data_stream:</span><br><span class="line">            instruction = data[<span class="string">&quot;instruction&quot;</span>]</span><br><span class="line">            input_text = data[<span class="string">&quot;input&quot;</span>]</span><br><span class="line">            output = data[<span class="string">&quot;output&quot;</span>]</span><br><span class="line">            <span class="comment"># 构造 Prompt</span></span><br><span class="line">            <span class="keyword">if</span> input_text.strip():</span><br><span class="line">                prompt = <span class="string">f&quot;### Instruction:\n<span class="subst">&#123;instruction&#125;</span>\n\n### Input:\n<span class="subst">&#123;input_text&#125;</span>\n\n### Response:\n&quot;</span></span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                prompt = <span class="string">f&quot;### Instruction:\n<span class="subst">&#123;instruction&#125;</span>\n\n### Response:\n&quot;</span></span><br><span class="line">            <span class="comment"># 拼接完整输入序列：prompt + output</span></span><br><span class="line">            full_text = prompt + output</span><br><span class="line">            <span class="comment"># Tokenize</span></span><br><span class="line">            input_ids = tokenizer(</span><br><span class="line">                full_text,</span><br><span class="line">                truncation=<span class="literal">True</span>,</span><br><span class="line">                max_length=self.max_length,</span><br><span class="line">                padding=<span class="string">&quot;max_length&quot;</span>,</span><br><span class="line">            )[<span class="string">&quot;input_ids&quot;</span>]</span><br><span class="line">            <span class="comment"># 构造 labels: 仅监督 output 部分</span></span><br><span class="line">            <span class="comment"># 找到 output 起始位置</span></span><br><span class="line">            prompt_length = <span class="built_in">len</span>(</span><br><span class="line">                tokenizer(prompt, padding=<span class="string">&quot;do_not_pad&quot;</span>, truncation=<span class="literal">False</span>)[<span class="string">&quot;input_ids&quot;</span>]</span><br><span class="line">            )</span><br><span class="line">            labels = [-<span class="number">100</span>] * prompt_length + input_ids[prompt_length:]  <span class="comment"># 忽略 prompt 的部分</span></span><br><span class="line">            labels = labels[: self.max_length]  <span class="comment"># 截断</span></span><br><span class="line">            labels = labels + [-<span class="number">100</span>] * (max_length - <span class="built_in">len</span>(labels))  <span class="comment"># Padding 保持一致长度</span></span><br><span class="line">            <span class="keyword">yield</span> &#123;</span><br><span class="line">                <span class="string">&quot;input_ids&quot;</span>: torch.tensor(input_ids, dtype=torch.long),</span><br><span class="line">                <span class="string">&quot;labels&quot;</span>: torch.tensor(labels, dtype=torch.long),</span><br><span class="line">            &#125;</span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__len__</span>(<span class="params">self</span>):</span></span><br><span class="line">        <span class="keyword">return</span> <span class="number">51760</span>  <span class="comment"># cleaned alpaca dataset rows</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">train</span>():</span></span><br><span class="line">    <span class="comment"># DataLoader</span></span><br><span class="line">    train_dataset = StreamDataset(dataset_stream, tokenizer)</span><br><span class="line">    train_dataloader = DataLoader(train_dataset, batch_size=batch_size)</span><br><span class="line">    <span class="comment"># TensorBoard SummaryWriter</span></span><br><span class="line">    writer = SummaryWriter(log_dir=log_dir) <span class="keyword">if</span> dist.get_rank() == <span class="number">0</span> <span class="keyword">else</span> <span class="literal">None</span></span><br><span class="line">    <span class="comment"># DeepSpeed 初始化</span></span><br><span class="line">    model_engine, optimizer, _, _ = deepspeed.initialize(</span><br><span class="line">        model=model,</span><br><span class="line">        model_parameters=model.parameters(),</span><br><span class="line">        config=ds_config,</span><br><span class="line">        training_data=train_dataset,</span><br><span class="line">    )</span><br><span class="line">    <span class="comment"># 训练循环</span></span><br><span class="line">    <span class="keyword">for</span> epoch <span class="keyword">in</span> <span class="built_in">range</span>(train_epochs):  <span class="comment"># num_train_epochs</span></span><br><span class="line">        <span class="keyword">for</span> step, batch <span class="keyword">in</span> <span class="built_in">enumerate</span>(train_dataloader):</span><br><span class="line">            inputs = &#123;</span><br><span class="line">                key: value.to(<span class="string">f&quot;cuda:<span class="subst">&#123;local_rank&#125;</span>&quot;</span>) <span class="keyword">for</span> key, value <span class="keyword">in</span> batch.items()</span><br><span class="line">            &#125;</span><br><span class="line">            outputs = model_engine(**inputs)  <span class="comment"># 添加 labels 参数</span></span><br><span class="line">            loss = outputs.loss</span><br><span class="line">            model_engine.backward(loss)</span><br><span class="line">            model_engine.step()</span><br><span class="line">            <span class="comment"># 日志打印和 TensorBoard 记录</span></span><br><span class="line">            <span class="keyword">if</span> dist.get_rank() == <span class="number">0</span>:</span><br><span class="line">                <span class="keyword">if</span> step % <span class="number">10</span> == <span class="number">0</span>:</span><br><span class="line">                    <span class="built_in">print</span>(</span><br><span class="line">                        <span class="string">f&quot;Epoch: <span class="subst">&#123;epoch&#125;</span>, Step: <span class="subst">&#123;step&#125;</span>/<span class="subst">&#123;<span class="built_in">len</span>(train_dataloader)&#125;</span>, Loss: <span class="subst">&#123;loss.item()&#125;</span>&quot;</span></span><br><span class="line">                    )</span><br><span class="line">                    writer.add_scalar(</span><br><span class="line">                        <span class="string">&quot;Loss/train&quot;</span>, loss.item(), epoch * <span class="built_in">len</span>(train_dataloader) + step</span><br><span class="line">                    )</span><br><span class="line">        checkpoint_path = <span class="string">f&quot;./checkpoints&quot;</span></span><br><span class="line">        model_engine.save_checkpoint(checkpoint_path, tag=<span class="string">f&quot;epoch_<span class="subst">&#123;epoch&#125;</span>&quot;</span>)</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">f&quot;Checkpoint saved at <span class="subst">&#123;checkpoint_path&#125;</span>&quot;</span>)</span><br><span class="line">    <span class="comment"># 关闭 TensorBoard SummaryWriter</span></span><br><span class="line">    <span class="keyword">if</span> writer:</span><br><span class="line">        writer.close()</span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">&quot;__main__&quot;</span>:</span><br><span class="line">    train()</span><br></pre></td></tr></table></figure>
+<ul>
+<li>总体上使用了：
+<ul>
+<li><code>transformers</code> 加载模型和 <code>tokenizer</code>。</li>
+<li><code>datasets</code> 加载开源数据集。</li>
+<li><code>deepspeed</code> 进行分布式训练，包含大规模分布式训练和零冗余优化以及混合精度训练等。</li>
+</ul>
+</li>
+</ul>
+<h3 id="模型格式转换"><a class="markdownIt-Anchor" href="#模型格式转换"></a> 模型格式转换</h3>
+<ul>
+<li>使用 <code>deepspeed</code> 训练和保存的模型格式是 <code>deepspeed</code> 特有的，无法直接加载到 <code>transformers</code> 中，因此需要进行模型格式转换。</li>
+<li><code>deepspeed</code> 保存的模型结构如下:</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">checkpoints/</span><br><span class="line">├── epoch_xxx</span><br><span class="line">│   ├── mp_rank_00_model_states.pt</span><br><span class="line">│   ├── zero_pp_rank_0_mp_rank_00_optim_states.pt</span><br><span class="line">│   ├── zero_pp_rank_1_mp_rank_00_optim_states.pt</span><br><span class="line">│   ├── zero_pp_rank_2_mp_rank_00_optim_states.pt</span><br><span class="line">│   └── zero_pp_rank_3_mp_rank_00_optim_states.pt</span><br><span class="line">└── latest</span><br></pre></td></tr></table></figure>
+<ul>
+<li>转换过程分成两步：
+<ol>
+<li>使用 <code>deepspeed</code> 在保存模型同时提供的 <code>zero_to_fp32.py</code> 脚本将模型转换为 <code>fp32</code> 格式（主要是将不同的 <code>part</code> 的 <code>fp16</code> 模型参数用 <code>ring reduce</code> 聚合成完整的并转成 <code>fp32</code>），转换后的模型格式是 <code>pytorch</code> 适用的（<code>zero_to_fp32.py</code> 只会转换 <code>latest</code> 指向的 <code>epoch</code>）。</li>
+<li>将 <code>pytorch</code> 格式的模型转成 <code>transformers</code> 格式。</li>
+</ol>
+</li>
+<li>第一步代码 <code>deepseed</code> 提供了，第二步代码如下：</li>
+</ul>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> os</span><br><span class="line"><span class="keyword">from</span> transformers <span class="keyword">import</span> AutoModelForCausalLM, AutoTokenizer</span><br><span class="line">final_model_save_path = <span class="string">&quot;./checkpoints/final_transformers_model&quot;</span>  <span class="comment"># 保存最终模型的路径</span></span><br><span class="line">original_model_path = <span class="string">&quot;./models/meta-llama/Llama-3.2-3B&quot;</span>  <span class="comment"># 原始模型的路径</span></span><br><span class="line">sharded_model_dir = <span class="string">&quot;./checkpoints/fp32_checkpoints&quot;</span>  <span class="comment"># SFT fp32 分片模型的路径</span></span><br><span class="line"><span class="comment"># 1. 将原始模型配置复制到最终模型目录，需要让 transformers 自动识别模型</span></span><br><span class="line">os.system(</span><br><span class="line">    <span class="string">f&quot;cp <span class="subst">&#123;os.path.join(original_model_path, <span class="string">&#x27;config.json&#x27;</span>)&#125;</span> <span class="subst">&#123;final_model_save_path&#125;</span>&quot;</span></span><br><span class="line">)</span><br><span class="line"><span class="comment"># 2. 将分片模型转换为 transformers 模型</span></span><br><span class="line">model = AutoModelForCausalLM.from_pretrained(sharded_model_dir)</span><br><span class="line">model.save_pretrained(final_model_save_path)</span><br><span class="line"><span class="comment"># 3. 补全 tokenizer 配置</span></span><br><span class="line">tokenizer = AutoTokenizer.from_pretrained(original_model_path, token=<span class="literal">True</span>)</span><br><span class="line">tokenizer.save_pretrained(final_model_save_path)</span><br></pre></td></tr></table></figure>
+<ul>
+<li>转换后的模型变成了 <code>transformers</code> 可以识别的格式，可以直接加载到 <code>transformers</code> 中进行推理。</li>
+</ul>
+<h3 id="推理"><a class="markdownIt-Anchor" href="#推理"></a> 推理</h3>
+<ul>
+<li>将转换后的模型加载到 <code>transformers</code> 中，即可使用 <code>pipeline</code> 进行推理。</li>
+<li>推理代码如下：</li>
+</ul>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> torch</span><br><span class="line"><span class="keyword">from</span> transformers <span class="keyword">import</span> pipeline</span><br><span class="line">model_id = <span class="string">&quot;./checkpoints/final_transformers_model&quot;</span></span><br><span class="line">pipe = pipeline(</span><br><span class="line">    <span class="string">&quot;text-generation&quot;</span>, model=model_id, torch_dtype=torch.bfloat16, device_map=<span class="string">&quot;auto&quot;</span></span><br><span class="line">)</span><br><span class="line">instruction = <span class="string">&quot;Use Python code to implement.&quot;</span></span><br><span class="line">input_text = <span class="string">&quot;Find prime numbers within 100.&quot;</span></span><br><span class="line">total_input = <span class="string">f&quot;### Instruction:\n<span class="subst">&#123;instruction&#125;</span>\n\n### Input:\n<span class="subst">&#123;input_text&#125;</span>\n\n### Response:\n&quot;</span></span><br><span class="line"><span class="built_in">print</span>(</span><br><span class="line">    pipe(total_input, max_length=<span class="number">1024</span>)[<span class="number">0</span>][</span><br><span class="line">        <span class="string">&quot;generated_text&quot;</span></span><br><span class="line">    ]</span><br><span class="line">)</span><br></pre></td></tr></table></figure>
+<h2 id="thoughts"><a class="markdownIt-Anchor" href="#thoughts"></a> Thoughts</h2>
+<ul>
+<li>大模型是个非常依赖工具的领域，<code>transformers</code>、<code>datasets</code>、<code>deepspeed</code> 等工具的使用对于大模型的最终效果非常重要。</li>
+<li>大模型即使在微调阶段，能做的也不多，什么都不能改，数据集的质量对于模型的影响非常大。</li>
+<li>指令微调前后，模型差距不是一星半点。</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/LLM/" rel="tag"># LLM</a>
+              <a href="/tags/SFT/" rel="tag"># SFT</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2024/11/28/%E5%BC%BA%E5%8C%96%E5%AD%A6%E4%B9%A0-6-%E2%80%94%E2%80%94Actor-Critic%E7%B3%BB%E5%88%97%E7%AE%97%E6%B3%95/" rel="prev" title="强化学习(6)——Actor-Critic系列算法">
+      <i class="fa fa-chevron-left"></i> 强化学习(6)——Actor-Critic系列算法
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2024/12/13/%E4%B8%8A%E6%89%8B%E8%AE%AD%E7%BB%83%E5%A4%A7%E6%A8%A1%E5%9E%8B-2-%E2%80%94%E2%80%94%E4%BB%A5LlamaFactory%E8%A7%86%E8%A7%92%E7%9C%8B%E5%A4%A7%E6%A8%A1%E5%9E%8B%E5%BE%AE%E8%B0%83%E5%85%A8%E6%B5%81%E7%A8%8B/" rel="next" title="上手训练大模型(2)——以LlamaFactory视角看大模型微调全流程">
+      上手训练大模型(2)——以LlamaFactory视角看大模型微调全流程 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#tldr"><span class="nav-number">1.</span> <span class="nav-text"> TL;DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%AF%A6%E7%BB%86%E4%BB%8B%E7%BB%8D"><span class="nav-number">2.</span> <span class="nav-text"> 详细介绍</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#sft"><span class="nav-number">2.1.</span> <span class="nav-text"> SFT</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#alpaca-cleaned-%E6%95%B0%E6%8D%AE%E9%9B%86"><span class="nav-number">2.2.</span> <span class="nav-text"> Alpaca-cleaned 数据集</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#llama-32-3b"><span class="nav-number">2.3.</span> <span class="nav-text"> Llama-3.2-3B</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%8C%87%E4%BB%A4%E5%BE%AE%E8%B0%83"><span class="nav-number">2.4.</span> <span class="nav-text"> 指令微调</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%A8%A1%E5%9E%8B%E6%A0%BC%E5%BC%8F%E8%BD%AC%E6%8D%A2"><span class="nav-number">2.5.</span> <span class="nav-text"> 模型格式转换</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%8E%A8%E7%90%86"><span class="nav-number">2.6.</span> <span class="nav-text"> 推理</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#thoughts"><span class="nav-number">3.</span> <span class="nav-text"> Thoughts</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Zhangzhe</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives">
+          <span class="site-state-item-count">173</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">51</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhangzhe</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js', () => {
+    // 初始化 Mermaid 配置
+    mermaid.initialize({
+      theme    : 'dark',  // 设置主题
+      logLevel : 3,  // 设置日志等级
+      flowchart: { curve: 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 },
+      themeVariables: {
+        'fontFamily': 'Microsoft YaHei, Arial, sans-serif',  // 设置中文字体
+      }
+    });
+
+    // 初始化 Mermaid 图表
+    mermaid.init(undefined, document.querySelectorAll('pre.mermaid'));
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+      
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/katex@0/dist/katex.min.css">
+
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'eK3W25jybCO5jVUrYBBpAPqM-gzGzoHsz',
+      appKey     : 'F4KVyUj9wHI5c80Bhz7O2uhq',
+      placeholder: "说点什么再走吧...",
+      avatar     : 'hide',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

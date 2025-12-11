@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"real-zhangzhe.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="URL  https:&#x2F;&#x2F;mlc.ai&#x2F;zh&#x2F;chapter_gpu_acceleration&#x2F;index.html   背景知识  CUDA（Compute Unified Device Architecture，同一计算设备架构）教程：  知乎 CUDA 编程入门极简教程 谭升的博客 NVIDIA CUDA 编程指南 CUDA C++ 编程指南 CUDA memory hierarchy">
+<meta property="og:type" content="article">
+<meta property="og:title" content="机器学习编译(6)——GPU硬件加速">
+<meta property="og:url" content="https://real-zhangzhe.github.io/2022/11/09/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0%E7%BC%96%E8%AF%91-6-%E2%80%94%E2%80%94GPU%E7%A1%AC%E4%BB%B6%E5%8A%A0%E9%80%9F/index.html">
+<meta property="og:site_name" content="Zhangzhe&#39;s Blog">
+<meta property="og:description" content="URL  https:&#x2F;&#x2F;mlc.ai&#x2F;zh&#x2F;chapter_gpu_acceleration&#x2F;index.html   背景知识  CUDA（Compute Unified Device Architecture，同一计算设备架构）教程：  知乎 CUDA 编程入门极简教程 谭升的博客 NVIDIA CUDA 编程指南 CUDA C++ 编程指南 CUDA memory hierarchy">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://s2.loli.net/2022/11/19/JdMwmXu9oTrE3H4.png">
+<meta property="og:image" content="https://s2.loli.net/2022/11/19/uEcUSFqiQbpdeHM.png">
+<meta property="og:image" content="https://s2.loli.net/2022/11/19/ovTRipHj94Uemlb.png">
+<meta property="og:image" content="https://s2.loli.net/2022/11/19/CXoJct3fqD7ui4P.png">
+<meta property="og:image" content="https://s2.loli.net/2022/11/09/BFIHjXAhY534Sar.png">
+<meta property="og:image" content="https://s2.loli.net/2022/11/14/I5wkRrieyxAgFWl.png">
+<meta property="og:image" content="https://s2.loli.net/2022/11/14/exR47Sh82q3tHBa.png">
+<meta property="article:published_time" content="2022-11-09T01:47:42.000Z">
+<meta property="article:modified_time" content="2025-12-11T05:48:26.542Z">
+<meta property="article:author" content="Zhangzhe">
+<meta property="article:tag" content="机器学习编译">
+<meta property="article:tag" content="MLC">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://s2.loli.net/2022/11/19/JdMwmXu9oTrE3H4.png">
+
+<link rel="canonical" href="https://real-zhangzhe.github.io/2022/11/09/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0%E7%BC%96%E8%AF%91-6-%E2%80%94%E2%80%94GPU%E7%A1%AC%E4%BB%B6%E5%8A%A0%E9%80%9F/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>机器学习编译(6)——GPU硬件加速 | Zhangzhe's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Zhangzhe's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">The projection of my life.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/archives/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2022/11/09/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0%E7%BC%96%E8%AF%91-6-%E2%80%94%E2%80%94GPU%E7%A1%AC%E4%BB%B6%E5%8A%A0%E9%80%9F/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          机器学习编译(6)——GPU硬件加速
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2022-11-09 09:47:42" itemprop="dateCreated datePublished" datetime="2022-11-09T09:47:42+08:00">2022-11-09</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-12-11 13:48:26" itemprop="dateModified" datetime="2025-12-11T13:48:26+08:00">2025-12-11</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0%E7%BC%96%E8%AF%91/" itemprop="url" rel="index"><span itemprop="name">机器学习编译</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2022/11/09/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0%E7%BC%96%E8%AF%91-6-%E2%80%94%E2%80%94GPU%E7%A1%AC%E4%BB%B6%E5%8A%A0%E9%80%9F/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2022/11/09/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0%E7%BC%96%E8%AF%91-6-%E2%80%94%E2%80%94GPU%E7%A1%AC%E4%BB%B6%E5%8A%A0%E9%80%9F/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://mlc.ai/zh/chapter_gpu_acceleration/index.html">https://mlc.ai/zh/chapter_gpu_acceleration/index.html</a></li>
+</ul>
+<h2 id="背景知识"><a class="markdownIt-Anchor" href="#背景知识"></a> 背景知识</h2>
+<ul>
+<li>CUDA（Compute Unified Device Architecture，同一计算设备架构）教程：
+<ul>
+<li><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/34587739">知乎 CUDA 编程入门极简教程</a></li>
+<li><a target="_blank" rel="noopener" href="https://face2ai.com/categories/CUDA/page/4/">谭升的博客</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.nvidia.cn/docs/IO/51635/NVIDIA_CUDA_Programming_Guide_1.1_chs.pdf">NVIDIA CUDA 编程指南</a></li>
+<li><a target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/cuda-c-programming-guide/">CUDA C++ 编程指南</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.cnblogs.com/1024incn/p/4564726.html">CUDA memory hierarchy</a></li>
+</ul>
+</li>
+</ul>
+<h2 id="gpu-体系结构"><a class="markdownIt-Anchor" href="#gpu-体系结构"></a> GPU 体系结构</h2>
+<ul>
+<li>物理模型<br />
+<img src="https://s2.loli.net/2022/11/19/JdMwmXu9oTrE3H4.png" alt="cuda_hardware.png" />
+<ul>
+<li>典型的 <code>GPU</code> 包含一组流处理器 (<code>stream multi-processors</code>, <code>SM</code>)，每个流处理器都有许多核心，硬件实现上这些核心之间可共享内存（<code>shared memory</code>）</li>
+</ul>
+</li>
+<li>逻辑模型<br />
+<img src="https://s2.loli.net/2022/11/19/uEcUSFqiQbpdeHM.png" alt="cuda.png" />
+<ul>
+<li>逻辑模型中，引入了 <code>Grid</code> / <code>Block</code> / <code>Thread</code> 三级概念，逻辑模型与物理的对应关系如下图所示：<br />
+<img src="https://s2.loli.net/2022/11/19/ovTRipHj94Uemlb.png" alt="cuda_map.png" />
+<blockquote>
+<p>因此：同一个 <code>Block</code> 中的 <code>Thread</code> 可共享 <code>shared memory</code></p>
+</blockquote>
+</li>
+</ul>
+</li>
+<li>Memory Hierarchy<br />
+<img src="https://s2.loli.net/2022/11/19/CXoJct3fqD7ui4P.png" alt="memory_hierarchy.png" />
+<blockquote>
+<p><code>shared memory</code> 速度几乎和 <strong>L1 cache</strong> 一样，比 <code>local memory</code> 和 <code>global memory</code> 都快的多（在物理上，<code>local memory</code> 和 <code>global memory</code> 是同一块 <code>DRAM</code>）</p>
+</blockquote>
+</li>
+<li>在对 <code>GPU</code> 进行编程时，需要创建一组进程块 (<code>thread blocks</code>)，每个 <code>thread</code> 映射到单个核心，而 <code>block</code> 映射到流式多处理器 (<code>SM</code>)，如下图所示：<br />
+<img src="https://s2.loli.net/2022/11/09/BFIHjXAhY534Sar.png" alt="2.png" /></li>
+<li>每个线程可由 <code>threadIdx</code> 和 <code>blockIdx</code> 索引，在实际应用中，可以有多维线程索引</li>
+</ul>
+<h2 id="element-wise-add-gpu-加速"><a class="markdownIt-Anchor" href="#element-wise-add-gpu-加速"></a> Element-wise Add GPU 加速</h2>
+<ul>
+<li>两个向量 A 和 B，向量长度都为 1024,执行元素相加，并将结果存储在 C 中  <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@tvm.script.ir_module</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">MyModuleVecAdd</span>:</span></span><br><span class="line"><span class="meta">    @T.prim_func</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">main</span>(<span class="params">A: T.Buffer[(<span class="params"><span class="number">1024</span>,</span>), <span class="string">&quot;float32&quot;</span>],</span></span></span><br><span class="line"><span class="params"><span class="function">            B: T.Buffer[(<span class="params"><span class="number">1024</span>,</span>), <span class="string">&quot;float32&quot;</span>],</span></span></span><br><span class="line"><span class="params"><span class="function">            C: T.Buffer[(<span class="params"><span class="number">1024</span>,</span>), <span class="string">&quot;float32&quot;</span>]</span>) -&gt; <span class="literal">None</span>:</span></span><br><span class="line">        T.func_attr(&#123;<span class="string">&quot;global_symbol&quot;</span>: <span class="string">&quot;main&quot;</span>, <span class="string">&quot;tir.noalias&quot;</span>: <span class="literal">True</span>&#125;)</span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> T.grid(<span class="number">1024</span>):</span><br><span class="line">            <span class="keyword">with</span> T.block(<span class="string">&quot;C&quot;</span>):</span><br><span class="line">                vi = T.axis.remap(<span class="string">&quot;S&quot;</span>, [i])</span><br><span class="line">                C[vi] = A[vi] + B[vi]</span><br></pre></td></tr></table></figure>
+</li>
+<li>首先将循环 i 拆分成两个循环:  <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">sch = tvm.tir.Schedule(MyModuleVecAdd)</span><br><span class="line">block_C = sch.get_block(<span class="string">&quot;C&quot;</span>)</span><br><span class="line">i, = sch.get_loops(block=block_C)</span><br><span class="line">i0, i1 = sch.split(i, [<span class="literal">None</span>, <span class="number">128</span>])</span><br></pre></td></tr></table></figure>
+</li>
+<li>将迭代器绑定到 GPU 线程块。 每个线程由两个索引进行表示 <code>threadIdx.x</code> 和 <code>blockIdx.x</code>  <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">sch.bind(i0, <span class="string">&quot;blockIdx.x&quot;</span>)</span><br><span class="line">sch.bind(i1, <span class="string">&quot;threadIdx.x&quot;</span>)</span><br><span class="line">sch.mod.show()</span><br></pre></td></tr></table></figure>
+</li>
+<li>绑定后的代码：  <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@tvm.script.ir_module</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Module</span>:</span></span><br><span class="line"><span class="meta">    @T.prim_func</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">main</span>(<span class="params">A: T.Buffer[<span class="number">1024</span>, <span class="string">&quot;float32&quot;</span>], B: T.Buffer[<span class="number">1024</span>, <span class="string">&quot;float32&quot;</span>], C: T.Buffer[<span class="number">1024</span>, <span class="string">&quot;float32&quot;</span>]</span>) -&gt; <span class="literal">None</span>:</span></span><br><span class="line">        <span class="comment"># function attr dict</span></span><br><span class="line">        T.func_attr(&#123;<span class="string">&quot;global_symbol&quot;</span>: <span class="string">&quot;main&quot;</span>, <span class="string">&quot;tir.noalias&quot;</span>: <span class="literal">True</span>&#125;)</span><br><span class="line">        <span class="comment"># body</span></span><br><span class="line">        <span class="comment"># with T.block(&quot;root&quot;)</span></span><br><span class="line">        <span class="keyword">for</span> i_0 <span class="keyword">in</span> T.thread_binding(<span class="number">8</span>, thread=<span class="string">&quot;blockIdx.x&quot;</span>):</span><br><span class="line">            <span class="keyword">for</span> i_1 <span class="keyword">in</span> T.thread_binding(<span class="number">128</span>, thread=<span class="string">&quot;threadIdx.x&quot;</span>):</span><br><span class="line">                <span class="keyword">with</span> T.block(<span class="string">&quot;C&quot;</span>):</span><br><span class="line">                    vi = T.axis.spatial(<span class="number">1024</span>, i_0 * <span class="number">128</span> + i_1)</span><br><span class="line">                    T.reads(A[vi], B[vi])</span><br><span class="line">                    T.writes(C[vi])</span><br><span class="line">                    C[vi] = A[vi] + B[vi]</span><br></pre></td></tr></table></figure>
+</li>
+<li>由于 <code>Element-wise Add</code> 不存在数据依赖，所以可以直接拆分到多个 <code>block</code> 中的多个 <code>thread</code> 中，一个 <code>cycle</code> 全部算完</li>
+</ul>
+<h2 id="窗口求和-gpu-加速"><a class="markdownIt-Anchor" href="#窗口求和-gpu-加速"></a> 窗口求和 GPU 加速</h2>
+<ul>
+<li>相邻三个窗口求和，输入向量 A 长度 1026，输出 B 长度 1024。（即无 padding 的权重为 [1, 1, 1] 的 conv1d）  <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@tvm.script.ir_module</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">MyModuleWindowSum</span>:</span></span><br><span class="line"><span class="meta">    @T.prim_func</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">main</span>(<span class="params">A: T.Buffer[(<span class="params"><span class="number">1026</span>,</span>), <span class="string">&quot;float32&quot;</span>],</span></span></span><br><span class="line"><span class="params"><span class="function">            B: T.Buffer[(<span class="params"><span class="number">1024</span>,</span>), <span class="string">&quot;float32&quot;</span>]</span>) -&gt; <span class="literal">None</span>:</span></span><br><span class="line">        T.func_attr(&#123;<span class="string">&quot;global_symbol&quot;</span>: <span class="string">&quot;main&quot;</span>, <span class="string">&quot;tir.noalias&quot;</span>: <span class="literal">True</span>&#125;)</span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> T.grid(<span class="number">1024</span>):</span><br><span class="line">            <span class="keyword">with</span> T.block(<span class="string">&quot;C&quot;</span>):</span><br><span class="line">                vi = T.axis.remap(<span class="string">&quot;S&quot;</span>, [i])</span><br><span class="line">                B[vi] = A[vi] + A[vi + <span class="number">1</span>] + A[vi + <span class="number">2</span>]</span><br></pre></td></tr></table></figure>
+</li>
+<li>拆分循环并绑定到 <code>block</code> 和 <code>thread</code>  <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">sch = tvm.tir.Schedule(MyModuleWindowSum)</span><br><span class="line">nthread = <span class="number">128</span></span><br><span class="line">block_C = sch.get_block(<span class="string">&quot;C&quot;</span>)</span><br><span class="line">i,  = sch.get_loops(block=block_C)</span><br><span class="line">i0, i1 = sch.split(i, [<span class="literal">None</span>, nthread])</span><br><span class="line">sch.bind(i0, <span class="string">&quot;blockIdx.x&quot;</span>)</span><br><span class="line">sch.bind(i1, <span class="string">&quot;threadIdx.x&quot;</span>)</span><br><span class="line">sch.mod.show()</span><br></pre></td></tr></table></figure>
+</li>
+<li>拆分循环后 <code>IRModule</code>  <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@tvm.script.ir_module</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Module</span>:</span></span><br><span class="line"><span class="meta">    @T.prim_func</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">main</span>(<span class="params">A: T.Buffer[<span class="number">1027</span>, <span class="string">&quot;float32&quot;</span>], B: T.Buffer[<span class="number">1024</span>, <span class="string">&quot;float32&quot;</span>]</span>) -&gt; <span class="literal">None</span>:</span></span><br><span class="line">        <span class="comment"># function attr dict</span></span><br><span class="line">        T.func_attr(&#123;<span class="string">&quot;global_symbol&quot;</span>: <span class="string">&quot;main&quot;</span>, <span class="string">&quot;tir.noalias&quot;</span>: <span class="literal">True</span>&#125;)</span><br><span class="line">        <span class="comment"># body</span></span><br><span class="line">        <span class="comment"># with T.block(&quot;root&quot;)</span></span><br><span class="line">        <span class="keyword">for</span> i_0 <span class="keyword">in</span> T.thread_binding(<span class="number">8</span>, thread=<span class="string">&quot;blockIdx.x&quot;</span>):</span><br><span class="line">            <span class="keyword">for</span> i_1 <span class="keyword">in</span> T.thread_binding(<span class="number">128</span>, thread=<span class="string">&quot;threadIdx.x&quot;</span>):</span><br><span class="line">                <span class="comment"># 启用 8 个 block 并发计算，每个 block 用 16 个 thread 并发</span></span><br><span class="line">                <span class="comment"># 因此每一个 thread 只需要计算 1 次乘加</span></span><br><span class="line">                <span class="keyword">with</span> T.block(<span class="string">&quot;C&quot;</span>):</span><br><span class="line">                    vi = T.axis.spatial(<span class="number">1024</span>, i_0 * <span class="number">128</span> + i_1)</span><br><span class="line">                    T.reads(A[vi : vi + <span class="number">3</span>])</span><br><span class="line">                    T.writes(B[vi])</span><br><span class="line">                    B[vi] = A[vi] + A[vi + <span class="number">1</span>] + A[vi + <span class="number">2</span>]</span><br></pre></td></tr></table></figure>
+</li>
+<li>提前缓存数据  <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">A_shared = sch.cache_read(block_C, read_buffer_index=<span class="number">0</span>, storage_scope=<span class="string">&quot;shared&quot;</span>)</span><br><span class="line">sch.compute_at(A_shared, i1)</span><br><span class="line">sch.mod.show()</span><br></pre></td></tr></table></figure>
+</li>
+<li>提前缓存数据后的 <code>IRModule</code>  <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@tvm.script.ir_module</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Module</span>:</span></span><br><span class="line"><span class="meta">    @T.prim_func</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">main</span>(<span class="params">A: T.Buffer[<span class="number">1027</span>, <span class="string">&quot;float32&quot;</span>], B: T.Buffer[<span class="number">1024</span>, <span class="string">&quot;float32&quot;</span>]</span>) -&gt; <span class="literal">None</span>:</span></span><br><span class="line">        <span class="comment"># function attr dict</span></span><br><span class="line">        T.func_attr(&#123;<span class="string">&quot;global_symbol&quot;</span>: <span class="string">&quot;main&quot;</span>, <span class="string">&quot;tir.noalias&quot;</span>: <span class="literal">True</span>&#125;)</span><br><span class="line">        <span class="comment"># body</span></span><br><span class="line">        <span class="comment"># with T.block(&quot;root&quot;)</span></span><br><span class="line">        A_shared = T.alloc_buffer([<span class="number">1027</span>], dtype=<span class="string">&quot;float32&quot;</span>, scope=<span class="string">&quot;shared&quot;</span>)</span><br><span class="line">        <span class="keyword">for</span> i_0 <span class="keyword">in</span> T.thread_binding(<span class="number">8</span>, thread=<span class="string">&quot;blockIdx.x&quot;</span>):</span><br><span class="line">            <span class="keyword">for</span> i_1 <span class="keyword">in</span> T.thread_binding(<span class="number">128</span>, thread=<span class="string">&quot;threadIdx.x&quot;</span>):</span><br><span class="line">                <span class="comment"># 由上图 GPU 结构图可知</span></span><br><span class="line">                <span class="comment"># 不同 block 无法共享 share memory</span></span><br><span class="line">                <span class="comment"># 相同 block 的不同 thread 之间可以共享</span></span><br><span class="line">                <span class="comment"># 所以输出 128 个结果需要 130 个输入（本行 128 个加下一行 2 个）</span></span><br><span class="line">                <span class="keyword">for</span> ax0 <span class="keyword">in</span> T.serial(<span class="number">130</span>):</span><br><span class="line">                    <span class="keyword">with</span> T.block(<span class="string">&quot;A_shared&quot;</span>):</span><br><span class="line">                        v0 = T.axis.spatial(<span class="number">1027</span>, i_0 * <span class="number">128</span> + ax0)</span><br><span class="line">                        T.reads(A[v0])</span><br><span class="line">                        T.writes(A_shared[v0])</span><br><span class="line">                        A_shared[v0] = A[v0]</span><br><span class="line">                <span class="keyword">with</span> T.block(<span class="string">&quot;C&quot;</span>):</span><br><span class="line">                    vi = T.axis.spatial(<span class="number">1024</span>, i_0 * <span class="number">128</span> + i_1)</span><br><span class="line">                    T.reads(A_shared[vi : vi + <span class="number">3</span>])</span><br><span class="line">                    T.writes(B[vi])</span><br><span class="line">                    B[vi] = A_shared[vi] + A_shared[vi + <span class="number">1</span>] + A_shared[vi + <span class="number">2</span>]</span><br></pre></td></tr></table></figure>
+</li>
+<li>缓存数据可以使用多线程优化
+<ul>
+<li>因为内存是跨线程共享的，所以需要重新拆分循环并将获取过程的内部迭代器绑定到线程索引上，这种技术称为 <code>cooperative fetching</code></li>
+</ul>
+  <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">ax = sch.get_loops(A_shared)[-<span class="number">1</span>]</span><br><span class="line">ax0, ax1 = sch.split(ax, [<span class="literal">None</span>, nthread])</span><br><span class="line">sch.bind(ax1, <span class="string">&quot;threadIdx.x&quot;</span>)</span><br><span class="line">sch.mod.show()</span><br></pre></td></tr></table></figure>
+</li>
+<li>缓存数据优化后 <code>IRModule</code>  <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@tvm.script.ir_module</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Module</span>:</span></span><br><span class="line"><span class="meta">    @T.prim_func</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">main</span>(<span class="params">A: T.Buffer[<span class="number">1026</span>, <span class="string">&quot;float32&quot;</span>], B: T.Buffer[<span class="number">1024</span>, <span class="string">&quot;float32&quot;</span>]</span>) -&gt; <span class="literal">None</span>:</span></span><br><span class="line">        <span class="comment"># function attr dict</span></span><br><span class="line">        T.func_attr(&#123;<span class="string">&quot;global_symbol&quot;</span>: <span class="string">&quot;main&quot;</span>, <span class="string">&quot;tir.noalias&quot;</span>: <span class="literal">True</span>&#125;)</span><br><span class="line">        <span class="comment"># body</span></span><br><span class="line">        <span class="comment"># with T.block(&quot;root&quot;)</span></span><br><span class="line">        A_shared = T.alloc_buffer([<span class="number">1026</span>], dtype=<span class="string">&quot;float32&quot;</span>, scope=<span class="string">&quot;shared&quot;</span>)</span><br><span class="line">        <span class="keyword">for</span> i_0 <span class="keyword">in</span> T.thread_binding(<span class="number">8</span>, thread=<span class="string">&quot;blockIdx.x&quot;</span>):</span><br><span class="line">            <span class="keyword">for</span> i_1 <span class="keyword">in</span> T.thread_binding(<span class="number">128</span>, thread=<span class="string">&quot;threadIdx.x&quot;</span>):</span><br><span class="line">                <span class="keyword">for</span> ax0_0 <span class="keyword">in</span> T.serial(<span class="number">2</span>):</span><br><span class="line">                    <span class="keyword">for</span> ax0_1 <span class="keyword">in</span> T.thread_binding(<span class="number">128</span>, thread=<span class="string">&quot;threadIdx.x&quot;</span>):</span><br><span class="line">                        <span class="keyword">with</span> T.block(<span class="string">&quot;A_shared&quot;</span>):</span><br><span class="line">                            <span class="comment"># 由上图 GPU 结构图可知</span></span><br><span class="line">                            <span class="comment"># 不同 block 无法共享 share memory</span></span><br><span class="line">                            <span class="comment"># 相同 block 的不同 thread 之间可以共享</span></span><br><span class="line">                            <span class="comment"># 所以输出 128 个结果需要 130 个输入（本行 128 个加下一行 2 个）</span></span><br><span class="line">                            v0 = T.axis.spatial(<span class="number">1026</span>, i_0 * <span class="number">128</span> + (ax0_0 * <span class="number">128</span> + ax0_1))</span><br><span class="line">                            T.where(ax0_0 * <span class="number">128</span> + ax0_1 &lt; <span class="number">130</span>)</span><br><span class="line">                            T.reads(A[v0])</span><br><span class="line">                            T.writes(A_shared[v0])</span><br><span class="line">                            A_shared[v0] = A[v0]</span><br><span class="line">                <span class="keyword">with</span> T.block(<span class="string">&quot;C&quot;</span>):</span><br><span class="line">                    vi = T.axis.spatial(<span class="number">1024</span>, i_0 * <span class="number">128</span> + i_1)</span><br><span class="line">                    T.reads(A_shared[vi : vi + <span class="number">3</span>])</span><br><span class="line">                    T.writes(B[vi])</span><br><span class="line">                    B[vi] = A_shared[vi] + A_shared[vi + <span class="number">1</span>] + A_shared[vi + <span class="number">2</span>]</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<h2 id="矩阵乘法-gpu-加速"><a class="markdownIt-Anchor" href="#矩阵乘法-gpu-加速"></a> 矩阵乘法 GPU 加速</h2>
+<ul>
+<li><code>IRModule</code> 基础实现：  <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@tvm.script.ir_module</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">MyModuleMatmul</span>:</span></span><br><span class="line"><span class="meta">    @T.prim_func</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">main</span>(<span class="params">A: T.Buffer[(<span class="params"><span class="number">1024</span>, <span class="number">1024</span></span>), <span class="string">&quot;float32&quot;</span>],</span></span></span><br><span class="line"><span class="params"><span class="function">            B: T.Buffer[(<span class="params"><span class="number">1024</span>, <span class="number">1024</span></span>), <span class="string">&quot;float32&quot;</span>],</span></span></span><br><span class="line"><span class="params"><span class="function">            C: T.Buffer[(<span class="params"><span class="number">1024</span>, <span class="number">1024</span></span>), <span class="string">&quot;float32&quot;</span>]</span>) -&gt; <span class="literal">None</span>:</span></span><br><span class="line">        T.func_attr(&#123;<span class="string">&quot;global_symbol&quot;</span>: <span class="string">&quot;main&quot;</span>, <span class="string">&quot;tir.noalias&quot;</span>: <span class="literal">True</span>&#125;)</span><br><span class="line">        <span class="keyword">for</span> i, j, k <span class="keyword">in</span> T.grid(<span class="number">1024</span>, <span class="number">1024</span>, <span class="number">1024</span>):</span><br><span class="line">            <span class="keyword">with</span> T.block(<span class="string">&quot;C&quot;</span>):</span><br><span class="line">                vi, vj, vk = T.axis.remap(<span class="string">&quot;SSR&quot;</span>, [i, j, k])</span><br><span class="line">                <span class="keyword">with</span> T.init():</span><br><span class="line">                    C[vi, vj] = <span class="number">0.0</span></span><br><span class="line">                C[vi, vj] = C[vi, vj] + A[vi, vk] * B[vk, vj]</span><br></pre></td></tr></table></figure>
+</li>
+<li>绑定 <code>block</code> 和 <code>thread</code> + 本地存储分块优化<br />
+<img src="https://s2.loli.net/2022/11/14/I5wkRrieyxAgFWl.png" alt="3.png" />
+<blockquote>
+<p>循环拆分，来增加整体内存复用，只需要从 <code>A</code> 和 <code>B</code> 加载一次条形数据（上图中的灰色部分），然后使用它们来计算矩阵乘法结果<br />
+下面代码中设置 <code>V = 8</code></p>
+</blockquote>
+  <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">blocking</span>(<span class="params">sch,</span></span></span><br><span class="line"><span class="params"><span class="function">            tile_local_y,</span></span></span><br><span class="line"><span class="params"><span class="function">            tile_local_x,</span></span></span><br><span class="line"><span class="params"><span class="function">            tile_block_y,</span></span></span><br><span class="line"><span class="params"><span class="function">            tile_block_x,</span></span></span><br><span class="line"><span class="params"><span class="function">            tile_k</span>):</span></span><br><span class="line">    block_C = sch.get_block(<span class="string">&quot;C&quot;</span>)</span><br><span class="line">    C_local = sch.cache_write(block_C, <span class="number">0</span>, <span class="string">&quot;local&quot;</span>)</span><br><span class="line">    i, j, k = sch.get_loops(block=block_C)</span><br><span class="line">    i0, i1, i2 = sch.split(loop=i, factors=[<span class="literal">None</span>, tile_block_y, tile_local_y])</span><br><span class="line">    j0, j1, j2 = sch.split(loop=j, factors=[<span class="literal">None</span>, tile_block_x, tile_local_x])</span><br><span class="line">    k0, k1 = sch.split(loop=k, factors=[<span class="literal">None</span>, tile_k])</span><br><span class="line">    sch.unroll(k1)</span><br><span class="line">    sch.reorder(i0, j0, i1, j1, k0, k1, i2, j2)</span><br><span class="line">    sch.reverse_compute_at(C_local, j1)</span><br><span class="line">    sch.bind(i0, <span class="string">&quot;blockIdx.y&quot;</span>)</span><br><span class="line">    sch.bind(j0, <span class="string">&quot;blockIdx.x&quot;</span>)</span><br><span class="line">    sch.bind(i1, <span class="string">&quot;threadIdx.y&quot;</span>)</span><br><span class="line">    sch.bind(j1, <span class="string">&quot;threadIdx.x&quot;</span>)</span><br><span class="line">    sch.decompose_reduction(block_C, k0)</span><br><span class="line">    <span class="keyword">return</span> sch</span><br><span class="line">sch = tvm.tir.Schedule(MyModuleMatmul)</span><br><span class="line">sch = blocking(sch, <span class="number">8</span>, <span class="number">8</span>, <span class="number">8</span>, <span class="number">8</span>, <span class="number">4</span>)</span><br><span class="line">sch.mod.show()</span><br></pre></td></tr></table></figure>
+</li>
+<li>输出优化后的 <code>IRModule</code>  <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@tvm.script.ir_module</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Module</span>:</span></span><br><span class="line"><span class="meta">    @T.prim_func</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">main</span>(<span class="params">A: T.Buffer[(<span class="params"><span class="number">1024</span>, <span class="number">1024</span></span>), <span class="string">&quot;float32&quot;</span>], B: T.Buffer[(<span class="params"><span class="number">1024</span>, <span class="number">1024</span></span>), <span class="string">&quot;float32&quot;</span>], C: T.Buffer[(<span class="params"><span class="number">1024</span>, <span class="number">1024</span></span>), <span class="string">&quot;float32&quot;</span>]</span>) -&gt; <span class="literal">None</span>:</span></span><br><span class="line">        <span class="comment"># function attr dict</span></span><br><span class="line">        T.func_attr(&#123;<span class="string">&quot;global_symbol&quot;</span>: <span class="string">&quot;main&quot;</span>, <span class="string">&quot;tir.noalias&quot;</span>: <span class="literal">True</span>&#125;)</span><br><span class="line">        <span class="comment"># body</span></span><br><span class="line">        <span class="comment"># with T.block(&quot;root&quot;)</span></span><br><span class="line">        C_local = T.alloc_buffer([<span class="number">1024</span>, <span class="number">1024</span>], dtype=<span class="string">&quot;float32&quot;</span>, scope=<span class="string">&quot;local&quot;</span>)</span><br><span class="line">        <span class="keyword">for</span> i_0 <span class="keyword">in</span> T.thread_binding(<span class="number">16</span>, thread=<span class="string">&quot;blockIdx.y&quot;</span>):</span><br><span class="line">            <span class="keyword">for</span> j_0 <span class="keyword">in</span> T.thread_binding(<span class="number">16</span>, thread=<span class="string">&quot;blockIdx.x&quot;</span>):</span><br><span class="line">                <span class="keyword">for</span> i_1 <span class="keyword">in</span> T.thread_binding(<span class="number">8</span>, thread=<span class="string">&quot;threadIdx.y&quot;</span>):</span><br><span class="line">                    <span class="keyword">for</span> j_1 <span class="keyword">in</span> T.thread_binding(<span class="number">8</span>, thread=<span class="string">&quot;threadIdx.x&quot;</span>):</span><br><span class="line">                        <span class="comment"># 一共使用 16 * 16 个 block 并发计算</span></span><br><span class="line">                        <span class="comment"># 每个 block 使用 8 * 8 个 thread 并发</span></span><br><span class="line">                        <span class="comment"># 所以每个 thread 只需计算输出为 8 * 8 的区域，因此只需要加载 A 中 8 行和 B 中 8 列数据</span></span><br><span class="line">                        <span class="comment"># 1. 初始化 8 * 8 的输出区域为 0</span></span><br><span class="line">                        <span class="keyword">for</span> i_2_init, j_2_init <span class="keyword">in</span> T.grid(<span class="number">8</span>, <span class="number">8</span>):</span><br><span class="line">                            <span class="keyword">with</span> T.block(<span class="string">&quot;C_init&quot;</span>):</span><br><span class="line">                                vi = T.axis.spatial(<span class="number">1024</span>, i_0 * <span class="number">64</span> + i_1 * <span class="number">8</span> + i_2_init)</span><br><span class="line">                                vj = T.axis.spatial(<span class="number">1024</span>, j_0 * <span class="number">64</span> + j_1 * <span class="number">8</span> + j_2_init)</span><br><span class="line">                                T.reads()</span><br><span class="line">                                T.writes(C_local[vi, vj])</span><br><span class="line">                                C_local[vi, vj] = T.float32(<span class="number">0</span>)</span><br><span class="line">                        </span><br><span class="line">                        <span class="comment"># 2. 计算 8 * 8 输出区域的值，共计算 8 * 8 * 1024 次乘加</span></span><br><span class="line">                        <span class="keyword">for</span> k_0 <span class="keyword">in</span> T.serial(<span class="number">256</span>):</span><br><span class="line">                            <span class="keyword">for</span> k_1 <span class="keyword">in</span> T.unroll(<span class="number">4</span>):</span><br><span class="line">                                <span class="keyword">for</span> i_2, j_2 <span class="keyword">in</span> T.grid(<span class="number">8</span>, <span class="number">8</span>):</span><br><span class="line">                                    <span class="keyword">with</span> T.block(<span class="string">&quot;C_update&quot;</span>):</span><br><span class="line">                                        vi = T.axis.spatial(<span class="number">1024</span>, i_0 * <span class="number">64</span> + i_1 * <span class="number">8</span> + i_2)</span><br><span class="line">                                        vj = T.axis.spatial(<span class="number">1024</span>, j_0 * <span class="number">64</span> + j_1 * <span class="number">8</span> + j_2)</span><br><span class="line">                                        vk = T.axis.reduce(<span class="number">1024</span>, k_0 * <span class="number">4</span> + k_1)</span><br><span class="line">                                        T.reads(C_local[vi, vj], A[vi, vk], B[vk, vj])</span><br><span class="line">                                        T.writes(C_local[vi, vj])</span><br><span class="line">                                        C_local[vi, vj] = C_local[vi, vj] + A[vi, vk] * B[vk, vj]</span><br><span class="line">                        </span><br><span class="line">                        <span class="comment"># 3. 把每个 thread 的 8 * 8 的输出区域拼成最后的 1024 * 1024 的输出</span></span><br><span class="line">                        <span class="keyword">for</span> ax0, ax1 <span class="keyword">in</span> T.grid(<span class="number">8</span>, <span class="number">8</span>):</span><br><span class="line">                            <span class="keyword">with</span> T.block(<span class="string">&quot;C_local&quot;</span>):</span><br><span class="line">                                v0 = T.axis.spatial(<span class="number">1024</span>, i_0 * <span class="number">64</span> + i_1 * <span class="number">8</span> + ax0)</span><br><span class="line">                                v1 = T.axis.spatial(<span class="number">1024</span>, j_0 * <span class="number">64</span> + j_1 * <span class="number">8</span> + ax1)</span><br><span class="line">                                T.reads(C_local[v0, v1])</span><br><span class="line">                                T.writes(C[v0, v1])</span><br><span class="line">                                C[v0, v1] = C_local[v0, v1]</span><br></pre></td></tr></table></figure>
+</li>
+<li>共享内存优化<br />
+<img src="https://s2.loli.net/2022/11/14/exR47Sh82q3tHBa.png" alt="4.png" />
+<blockquote>
+<p>与上图不同，图中矩阵 C 中 <code>L * L</code> 灰色区域表示一个 <code>block</code> 的计算输出<br />
+每个 <code>L * L</code> 灰色区域由多个 <code>V * V</code> 的小区域组成，表示一个 <code>thread</code> 的输出</p>
+</blockquote>
+<ul>
+<li>
+<p>同一个 <code>block</code> 中的多个 <code>thread</code> 可共享内存，因此可以重排同一个 <code>block</code> 中的 <code>thread</code> 数据，使得尽可能少的数据缓存到 <code>shared memory</code> 中</p>
+</li>
+<li>
+<p>优化前：</p>
+<ul>
+<li>每个 <code>thread</code> 需要计算输出矩阵中 <code>8 * 8</code> 的数据，需要从 <code>local memory</code> 中读取 <code>8 * 8 * 1024 * 2</code> 数据</li>
+<li>每个 <code>block</code> 中的 <code>thread</code> 之间没有数据共享，所以需要从 <code>local memory</code> 中读取 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>8</mn><mo>∗</mo><mn>8</mn><mo>∗</mo><mn>8</mn><mo>∗</mo><mn>8</mn><mo>∗</mo><mn>1024</mn><mo>∗</mo><mn>2</mn><mo>=</mo><msup><mn>2</mn><mn>23</mn></msup></mrow><annotation encoding="application/x-tex">8 * 8 * 8 * 8 * 1024 * 2 = 2^{23}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.64444em;vertical-align:0em;"></span><span class="mord">8</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">∗</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.64444em;vertical-align:0em;"></span><span class="mord">8</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">∗</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.64444em;vertical-align:0em;"></span><span class="mord">8</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">∗</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.64444em;vertical-align:0em;"></span><span class="mord">8</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">∗</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.64444em;vertical-align:0em;"></span><span class="mord">1</span><span class="mord">0</span><span class="mord">2</span><span class="mord">4</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">∗</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.64444em;vertical-align:0em;"></span><span class="mord">2</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:0.8141079999999999em;vertical-align:0em;"></span><span class="mord"><span class="mord">2</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141079999999999em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">2</span><span class="mord mtight">3</span></span></span></span></span></span></span></span></span></span></span></span> 个矩阵元素</li>
+</ul>
+</li>
+<li>
+<p>优化后：</p>
+<ul>
+<li>每个 <code>block</code> 计算输出矩阵的 <code>64 * 64</code> 的数据最少需要 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>64</mn><mo>∗</mo><mn>1024</mn><mo>∗</mo><mn>2</mn><mo>=</mo><msup><mn>2</mn><mn>17</mn></msup></mrow><annotation encoding="application/x-tex">64 * 1024 * 2=2^{17}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.64444em;vertical-align:0em;"></span><span class="mord">6</span><span class="mord">4</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">∗</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.64444em;vertical-align:0em;"></span><span class="mord">1</span><span class="mord">0</span><span class="mord">2</span><span class="mord">4</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">∗</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.64444em;vertical-align:0em;"></span><span class="mord">2</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:0.8141079999999999em;vertical-align:0em;"></span><span class="mord"><span class="mord">2</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141079999999999em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">1</span><span class="mord mtight">7</span></span></span></span></span></span></span></span></span></span></span></span> 的数据，可提前将这部分数据缓存到 <code>shared memory</code></li>
+<li>然后每个 <code>thread</code> 从 <code>shared memory</code> 读数据计算，需读取 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>64</mn><mo>∗</mo><mn>1024</mn><mo>∗</mo><mn>2</mn><mo>=</mo><msup><mn>2</mn><mn>17</mn></msup></mrow><annotation encoding="application/x-tex">64 * 1024 * 2=2^{17}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.64444em;vertical-align:0em;"></span><span class="mord">6</span><span class="mord">4</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">∗</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.64444em;vertical-align:0em;"></span><span class="mord">1</span><span class="mord">0</span><span class="mord">2</span><span class="mord">4</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">∗</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.64444em;vertical-align:0em;"></span><span class="mord">2</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:0.8141079999999999em;vertical-align:0em;"></span><span class="mord"><span class="mord">2</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141079999999999em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">1</span><span class="mord mtight">7</span></span></span></span></span></span></span></span></span></span></span></span> 个数据</li>
+</ul>
+</li>
+<li>
+<p>内存优化前后每个 <code>block</code> 读取数据对比：</p>
+<ul>
+<li>优化前：从 <code>local memory</code> 读取 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mn>2</mn><mn>23</mn></msup></mrow><annotation encoding="application/x-tex">2^{23}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8141079999999999em;vertical-align:0em;"></span><span class="mord"><span class="mord">2</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141079999999999em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">2</span><span class="mord mtight">3</span></span></span></span></span></span></span></span></span></span></span></span> 个矩阵元素</li>
+<li>优化后：从 <code>local memory</code> 读取 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mn>2</mn><mn>17</mn></msup></mrow><annotation encoding="application/x-tex">2^{17}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8141079999999999em;vertical-align:0em;"></span><span class="mord"><span class="mord">2</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141079999999999em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">1</span><span class="mord mtight">7</span></span></span></span></span></span></span></span></span></span></span></span> 个矩阵元素到 <code>shared memory</code>，再从 <code>shared memory</code> 读取 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mn>2</mn><mn>17</mn></msup></mrow><annotation encoding="application/x-tex">2^{17}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8141079999999999em;vertical-align:0em;"></span><span class="mord"><span class="mord">2</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141079999999999em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">1</span><span class="mord mtight">7</span></span></span></span></span></span></span></span></span></span></span></span> 个数据计算</li>
+</ul>
+</li>
+<li>
+<p>优化过程：</p>
+</li>
+</ul>
+  <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">cache_read_and_coop_fetch</span>(<span class="params">sch, block, nthread, read_idx, read_loc</span>):</span></span><br><span class="line">    read_cache = sch.cache_read(block=block, read_buffer_index=read_idx, storage_scope=<span class="string">&quot;shared&quot;</span>)</span><br><span class="line">    sch.compute_at(block=read_cache, loop=read_loc)</span><br><span class="line">    <span class="comment"># vectorized cooperative fetch</span></span><br><span class="line">    inner0, inner1 = sch.get_loops(block=read_cache)[-<span class="number">2</span>:]</span><br><span class="line">    inner = sch.fuse(inner0, inner1)</span><br><span class="line">    _, tx, vec = sch.split(loop=inner, factors=[<span class="literal">None</span>, nthread, <span class="number">4</span>])</span><br><span class="line">    sch.vectorize(vec)</span><br><span class="line">    sch.bind(tx, <span class="string">&quot;threadIdx.x&quot;</span>)</span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">blocking_with_shared</span>(<span class="params"></span></span></span><br><span class="line"><span class="params"><span class="function">    sch,</span></span></span><br><span class="line"><span class="params"><span class="function">    tile_local_y,</span></span></span><br><span class="line"><span class="params"><span class="function">    tile_local_x,</span></span></span><br><span class="line"><span class="params"><span class="function">    tile_block_y,</span></span></span><br><span class="line"><span class="params"><span class="function">    tile_block_x,</span></span></span><br><span class="line"><span class="params"><span class="function">    tile_k</span>):</span></span><br><span class="line">    block_C = sch.get_block(<span class="string">&quot;C&quot;</span>)</span><br><span class="line">    C_local = sch.cache_write(block_C, <span class="number">0</span>, <span class="string">&quot;local&quot;</span>)</span><br><span class="line">    i, j, k = sch.get_loops(block=block_C)</span><br><span class="line">    i0, i1, i2 = sch.split(loop=i, factors=[<span class="literal">None</span>, tile_block_y, tile_local_y])</span><br><span class="line">    j0, j1, j2 = sch.split(loop=j, factors=[<span class="literal">None</span>, tile_block_x, tile_local_x])</span><br><span class="line">    k0, k1 = sch.split(loop=k, factors=[<span class="literal">None</span>, tile_k])</span><br><span class="line">    sch.reorder(i0, j0, i1, j1, k0, k1, i2, j2)</span><br><span class="line">    sch.reverse_compute_at(C_local, j1)</span><br><span class="line">    sch.bind(i0, <span class="string">&quot;blockIdx.y&quot;</span>)</span><br><span class="line">    sch.bind(j0, <span class="string">&quot;blockIdx.x&quot;</span>)</span><br><span class="line">    tx = sch.fuse(i1, j1)</span><br><span class="line">    sch.bind(tx, <span class="string">&quot;threadIdx.x&quot;</span>)</span><br><span class="line">    nthread = tile_block_y * tile_block_x</span><br><span class="line">    cache_read_and_coop_fetch(sch, block_C, nthread, <span class="number">0</span>, k0)</span><br><span class="line">    cache_read_and_coop_fetch(sch, block_C, nthread, <span class="number">1</span>, k0)</span><br><span class="line">    sch.decompose_reduction(block_C, k0)</span><br><span class="line">    <span class="keyword">return</span> sch</span><br><span class="line">sch = tvm.tir.Schedule(MyModuleMatmul)</span><br><span class="line">sch = blocking_with_shared(sch, <span class="number">8</span>, <span class="number">8</span>, <span class="number">8</span>, <span class="number">8</span>, <span class="number">8</span>)</span><br><span class="line">sch.mod.show()</span><br></pre></td></tr></table></figure>
+<ul>
+<li>优化后 <code>IRModule</code></li>
+</ul>
+  <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@tvm.script.ir_module</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Module</span>:</span></span><br><span class="line"><span class="meta">    @T.prim_func</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">main</span>(<span class="params">A: T.Buffer[(<span class="params"><span class="number">1024</span>, <span class="number">1024</span></span>), <span class="string">&quot;float32&quot;</span>], B: T.Buffer[(<span class="params"><span class="number">1024</span>, <span class="number">1024</span></span>), <span class="string">&quot;float32&quot;</span>], C: T.Buffer[(<span class="params"><span class="number">1024</span>, <span class="number">1024</span></span>), <span class="string">&quot;float32&quot;</span>]</span>) -&gt; <span class="literal">None</span>:</span></span><br><span class="line">        <span class="comment"># function attr dict</span></span><br><span class="line">        T.func_attr(&#123;<span class="string">&quot;global_symbol&quot;</span>: <span class="string">&quot;main&quot;</span>, <span class="string">&quot;tir.noalias&quot;</span>: <span class="literal">True</span>&#125;)</span><br><span class="line">        <span class="comment"># body</span></span><br><span class="line">        <span class="comment"># with T.block(&quot;root&quot;)</span></span><br><span class="line">        C_local = T.alloc_buffer([<span class="number">1024</span>, <span class="number">1024</span>], dtype=<span class="string">&quot;float32&quot;</span>, scope=<span class="string">&quot;local&quot;</span>)</span><br><span class="line">        A_shared = T.alloc_buffer([<span class="number">1024</span>, <span class="number">1024</span>], dtype=<span class="string">&quot;float32&quot;</span>, scope=<span class="string">&quot;shared&quot;</span>)</span><br><span class="line">        B_shared = T.alloc_buffer([<span class="number">1024</span>, <span class="number">1024</span>], dtype=<span class="string">&quot;float32&quot;</span>, scope=<span class="string">&quot;shared&quot;</span>)</span><br><span class="line">        <span class="keyword">for</span> i_0 <span class="keyword">in</span> T.thread_binding(<span class="number">16</span>, thread=<span class="string">&quot;blockIdx.y&quot;</span>):</span><br><span class="line">            <span class="keyword">for</span> j_0 <span class="keyword">in</span> T.thread_binding(<span class="number">16</span>, thread=<span class="string">&quot;blockIdx.x&quot;</span>):</span><br><span class="line">                <span class="keyword">for</span> i_1_j_1_fused <span class="keyword">in</span> T.thread_binding(<span class="number">64</span>, thread=<span class="string">&quot;threadIdx.x&quot;</span>):</span><br><span class="line">                    <span class="keyword">for</span> i_2_init, j_2_init <span class="keyword">in</span> T.grid(<span class="number">8</span>, <span class="number">8</span>):</span><br><span class="line">                        <span class="keyword">with</span> T.block(<span class="string">&quot;C_init&quot;</span>):</span><br><span class="line">                            vi = T.axis.spatial(<span class="number">1024</span>, i_0 * <span class="number">64</span> + i_1_j_1_fused // <span class="number">8</span> * <span class="number">8</span> + i_2_init)</span><br><span class="line">                            vj = T.axis.spatial(<span class="number">1024</span>, j_0 * <span class="number">64</span> + i_1_j_1_fused % <span class="number">8</span> * <span class="number">8</span> + j_2_init)</span><br><span class="line">                            T.reads()</span><br><span class="line">                            T.writes(C_local[vi, vj])</span><br><span class="line">                            C_local[vi, vj] = T.float32(<span class="number">0</span>)</span><br><span class="line">                    <span class="keyword">for</span> k_0 <span class="keyword">in</span> T.serial(<span class="number">128</span>):</span><br><span class="line">                        <span class="keyword">for</span> ax0_ax1_fused_0 <span class="keyword">in</span> T.serial(<span class="number">2</span>):</span><br><span class="line">                            <span class="keyword">for</span> ax0_ax1_fused_1 <span class="keyword">in</span> T.thread_binding(<span class="number">64</span>, thread=<span class="string">&quot;threadIdx.x&quot;</span>):</span><br><span class="line">                                <span class="keyword">for</span> ax0_ax1_fused_2 <span class="keyword">in</span> T.vectorized(<span class="number">4</span>):</span><br><span class="line">                                    <span class="keyword">with</span> T.block(<span class="string">&quot;A_shared&quot;</span>):</span><br><span class="line">                                        v0 = T.axis.spatial(<span class="number">1024</span>, i_0 * <span class="number">64</span> + (ax0_ax1_fused_0 * <span class="number">256</span> + ax0_ax1_fused_1 * <span class="number">4</span> + ax0_ax1_fused_2) // <span class="number">8</span>)</span><br><span class="line">                                        v1 = T.axis.spatial(<span class="number">1024</span>, k_0 * <span class="number">8</span> + (ax0_ax1_fused_0 * <span class="number">256</span> + ax0_ax1_fused_1 * <span class="number">4</span> + ax0_ax1_fused_2) % <span class="number">8</span>)</span><br><span class="line">                                        T.reads(A[v0, v1])</span><br><span class="line">                                        T.writes(A_shared[v0, v1])</span><br><span class="line">                                        A_shared[v0, v1] = A[v0, v1]</span><br><span class="line">                        <span class="keyword">for</span> ax0_ax1_fused_0 <span class="keyword">in</span> T.serial(<span class="number">2</span>):</span><br><span class="line">                            <span class="keyword">for</span> ax0_ax1_fused_1 <span class="keyword">in</span> T.thread_binding(<span class="number">64</span>, thread=<span class="string">&quot;threadIdx.x&quot;</span>):</span><br><span class="line">                                <span class="keyword">for</span> ax0_ax1_fused_2 <span class="keyword">in</span> T.vectorized(<span class="number">4</span>):</span><br><span class="line">                                    <span class="keyword">with</span> T.block(<span class="string">&quot;B_shared&quot;</span>):</span><br><span class="line">                                        v0 = T.axis.spatial(<span class="number">1024</span>, k_0 * <span class="number">8</span> + (ax0_ax1_fused_0 * <span class="number">256</span> + ax0_ax1_fused_1 * <span class="number">4</span> + ax0_ax1_fused_2) // <span class="number">64</span>)</span><br><span class="line">                                        v1 = T.axis.spatial(<span class="number">1024</span>, j_0 * <span class="number">64</span> + (ax0_ax1_fused_0 * <span class="number">256</span> + ax0_ax1_fused_1 * <span class="number">4</span> + ax0_ax1_fused_2) % <span class="number">64</span>)</span><br><span class="line">                                        T.reads(B[v0, v1])</span><br><span class="line">                                        T.writes(B_shared[v0, v1])</span><br><span class="line">                                        B_shared[v0, v1] = B[v0, v1]</span><br><span class="line">                        <span class="keyword">for</span> k_1, i_2, j_2 <span class="keyword">in</span> T.grid(<span class="number">8</span>, <span class="number">8</span>, <span class="number">8</span>):</span><br><span class="line">                            <span class="keyword">with</span> T.block(<span class="string">&quot;C_update&quot;</span>):</span><br><span class="line">                                vi = T.axis.spatial(<span class="number">1024</span>, i_0 * <span class="number">64</span> + i_1_j_1_fused // <span class="number">8</span> * <span class="number">8</span> + i_2)</span><br><span class="line">                                vj = T.axis.spatial(<span class="number">1024</span>, j_0 * <span class="number">64</span> + i_1_j_1_fused % <span class="number">8</span> * <span class="number">8</span> + j_2)</span><br><span class="line">                                vk = T.axis.reduce(<span class="number">1024</span>, k_0 * <span class="number">8</span> + k_1)</span><br><span class="line">                                T.reads(C_local[vi, vj], A_shared[vi, vk], B_shared[vk, vj])</span><br><span class="line">                                T.writes(C_local[vi, vj])</span><br><span class="line">                                C_local[vi, vj] = C_local[vi, vj] + A_shared[vi, vk] * B_shared[vk, vj]</span><br><span class="line">                    <span class="keyword">for</span> ax0, ax1 <span class="keyword">in</span> T.grid(<span class="number">8</span>, <span class="number">8</span>):</span><br><span class="line">                        <span class="keyword">with</span> T.block(<span class="string">&quot;C_local&quot;</span>):</span><br><span class="line">                            v0 = T.axis.spatial(<span class="number">1024</span>, i_0 * <span class="number">64</span> + i_1_j_1_fused // <span class="number">8</span> * <span class="number">8</span> + ax0)</span><br><span class="line">                            v1 = T.axis.spatial(<span class="number">1024</span>, j_0 * <span class="number">64</span> + i_1_j_1_fused % <span class="number">8</span> * <span class="number">8</span> + ax1)</span><br><span class="line">                            T.reads(C_local[v0, v1])</span><br><span class="line">                            T.writes(C[v0, v1])</span><br><span class="line">                            C[v0, v1] = C_local[v0, v1]</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<h2 id="程序自动变换"><a class="markdownIt-Anchor" href="#程序自动变换"></a> 程序自动变换</h2>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> tvm <span class="keyword">import</span> meta_schedule <span class="keyword">as</span> ms</span><br><span class="line">sch_tuned = ms.tune_tir(</span><br><span class="line">    mod=MyModuleMatmul,</span><br><span class="line">    target=<span class="string">&quot;nvidia/tesla-p100&quot;</span>,</span><br><span class="line">    config=ms.TuneConfig(</span><br><span class="line">      max_trials_global=<span class="number">64</span>,</span><br><span class="line">      num_trials_per_iter=<span class="number">64</span>,</span><br><span class="line">    ),</span><br><span class="line">    work_dir=<span class="string">&quot;./tune_tmp&quot;</span>,</span><br><span class="line">    task_name=<span class="string">&quot;main&quot;</span></span><br><span class="line">)</span><br><span class="line">sch_tuned.mod.show()</span><br></pre></td></tr></table></figure>
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0%E7%BC%96%E8%AF%91/" rel="tag"># 机器学习编译</a>
+              <a href="/tags/MLC/" rel="tag"># MLC</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2022/10/30/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0%E7%BC%96%E8%AF%91-5-%E2%80%94%E2%80%94%E4%B8%8E%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0%E6%A1%86%E6%9E%B6%E7%9A%84%E6%95%B4%E5%90%88/" rel="prev" title="机器学习编译(5)——与机器学习框架的整合">
+      <i class="fa fa-chevron-left"></i> 机器学习编译(5)——与机器学习框架的整合
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2022/11/21/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0%E7%BC%96%E8%AF%91%E6%80%BB%E7%BB%93/" rel="next" title="机器学习编译总结">
+      机器学习编译总结 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#url"><span class="nav-number">1.</span> <span class="nav-text"> URL</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%83%8C%E6%99%AF%E7%9F%A5%E8%AF%86"><span class="nav-number">2.</span> <span class="nav-text"> 背景知识</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#gpu-%E4%BD%93%E7%B3%BB%E7%BB%93%E6%9E%84"><span class="nav-number">3.</span> <span class="nav-text"> GPU 体系结构</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#element-wise-add-gpu-%E5%8A%A0%E9%80%9F"><span class="nav-number">4.</span> <span class="nav-text"> Element-wise Add GPU 加速</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%AA%97%E5%8F%A3%E6%B1%82%E5%92%8C-gpu-%E5%8A%A0%E9%80%9F"><span class="nav-number">5.</span> <span class="nav-text"> 窗口求和 GPU 加速</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%9F%A9%E9%98%B5%E4%B9%98%E6%B3%95-gpu-%E5%8A%A0%E9%80%9F"><span class="nav-number">6.</span> <span class="nav-text"> 矩阵乘法 GPU 加速</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%A8%8B%E5%BA%8F%E8%87%AA%E5%8A%A8%E5%8F%98%E6%8D%A2"><span class="nav-number">7.</span> <span class="nav-text"> 程序自动变换</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Zhangzhe</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives">
+          <span class="site-state-item-count">173</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">51</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhangzhe</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js', () => {
+    // 初始化 Mermaid 配置
+    mermaid.initialize({
+      theme    : 'dark',  // 设置主题
+      logLevel : 3,  // 设置日志等级
+      flowchart: { curve: 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 },
+      themeVariables: {
+        'fontFamily': 'Microsoft YaHei, Arial, sans-serif',  // 设置中文字体
+      }
+    });
+
+    // 初始化 Mermaid 图表
+    mermaid.init(undefined, document.querySelectorAll('pre.mermaid'));
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+      
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/katex@0/dist/katex.min.css">
+
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'eK3W25jybCO5jVUrYBBpAPqM-gzGzoHsz',
+      appKey     : 'F4KVyUj9wHI5c80Bhz7O2uhq',
+      placeholder: "说点什么再走吧...",
+      avatar     : 'hide',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>
