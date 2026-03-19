@@ -180,6 +180,205 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2025/07/04/Toolformer-Language-Models-Can-Teach-Themselves-to-Use-Tools/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2025/07/04/Toolformer-Language-Models-Can-Teach-Themselves-to-Use-Tools/" class="post-title-link" itemprop="url">Toolformer: Language Models Can Teach Themselves to Use Tools</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-07-04 19:46:11" itemprop="dateCreated datePublished" datetime="2025-07-04T19:46:11+08:00">2025-07-04</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-12-11 13:48:26" itemprop="dateModified" datetime="2025-12-11T13:48:26+08:00">2025-12-11</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Agent/" itemprop="url" rel="index"><span itemprop="name">Agent</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2025/07/04/Toolformer-Language-Models-Can-Teach-Themselves-to-Use-Tools/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2025/07/04/Toolformer-Language-Models-Can-Teach-Themselves-to-Use-Tools/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2302.04761">https://arxiv.org/pdf/2302.04761</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li>大模型并不是全能的，大模型 + 工具可以更好地解决问题，本文提出一种新的训练方法，让大模型可以自我学习使用如何工具。</li>
+<li>本文的主要贡献是提出了一种新的训练方法，包括通过大模型构造工具调用数据集、清洗数据集、使用工具调用数据集微调大模型。</li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<h3 id="toolformer-的意义"><a class="markdownIt-Anchor" href="#toolformer-的意义"></a> ToolFormer 的意义</h3>
+<ol>
+<li>众所周知，大模型在很多任务上表现出色，但它们并不是全能的，比如去数 “strawberry” 这个单词中有多少个 “r”。</li>
+<li>工具可以帮助大模型更好地解决问题，比如计算器、日历、知识库等。</li>
+<li>一种常见的大模型和工具结合的方式是：通过 <code>Agent</code> <strong>多角色（user / llm / function）多轮对话</strong> 形式调用，简单来说就是：
+<ol>
+<li>大模型在需要调用工具的时候，输出一段特定格式的文本</li>
+<li>外部程序解析这段文本，调用相应的工具，调用得到结果</li>
+<li>新的结果作为 <code>Function</code> 角色的输入，继续和大模型对话</li>
+</ol>
+</li>
+<li>而 <code>ToolFormer</code> 采用的方式和 <code>Agent</code> 有相似之处，也有不同的地方：
+<ul>
+<li>相似点：
+<ol>
+<li>都需要大模型输出一段特定格式的文本来调用工具</li>
+<li>都需要一段 <code>endless loop</code> 程序来解析大模型的输出，调用工具</li>
+</ol>
+</li>
+<li>不同点：
+<ol>
+<li><code>ToolFormer</code> 不是通过 <strong>多角色多轮对话</strong> 的方式调用工具，而是通过 <strong>单角色单轮对话</strong> 的方式调用工具</li>
+<li><code>ToolFormer</code> 需要对大模型进行 <strong>微调</strong>，而 <code>Agent</code> 不需要</li>
+</ol>
+</li>
+</ul>
+</li>
+<li><code>ToolFormer</code> 可以将存在确定答案的 <strong>专用</strong> 任务转化为工具调用任务（例如：计算、翻译、问答等），让大模型可以更专注在 <strong>通用</strong> 任务上（例如：上下文理解、常识知识运用等）。</li>
+</ol>
+<h3 id="toolformer-的工作方式"><a class="markdownIt-Anchor" href="#toolformer-的工作方式"></a> ToolFormer 的工作方式</h3>
+<ol>
+<li><code>ToolFormer</code> 是经过工具调用微调的大模型，知道有哪些工具可以调用，也知道如何调用这些工具。</li>
+<li>假设模型输入的问题是：<figure class="highlight pgsql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Pittsburgh <span class="keyword">is</span> <span class="keyword">also</span> known <span class="keyword">as</span></span><br></pre></td></tr></table></figure>
+</li>
+<li>这个时候，模型会意识到这个问题可以通过调用 <code>Question Answering</code> 工具来解决，于是模型会续写：<figure class="highlight pgsql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Pittsburgh <span class="keyword">is</span> <span class="keyword">also</span> known <span class="keyword">as</span> &lt;API&gt;QA(Pittsburgh <span class="keyword">is</span> <span class="keyword">also</span> known <span class="keyword">as</span>)&lt;/API&gt;</span><br></pre></td></tr></table></figure>
+</li>
+<li>输出 <code>&lt;/API&gt;</code> 之后，推理进程会暂停推理模型，等待外部监听程序的调用结束。</li>
+<li>外部监听程序会解析模型输出文本中的工具调用指令（通过 <code>&lt;API&gt; &lt;/API&gt;</code> 格式），然后调用 <code>Question Answering</code> 工具，得到结果：<figure class="highlight ebnf"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="attribute">the Steel City</span></span><br></pre></td></tr></table></figure>
+</li>
+<li>推理程序将工具调用结果和模型的历史输出（去掉调用相关信息）拼接起来，继续推理模型：<figure class="highlight pgsql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Pittsburgh <span class="keyword">is</span> <span class="keyword">also</span> known <span class="keyword">as</span> the Steel City.</span><br></pre></td></tr></table></figure>
+</li>
+</ol>
+<h3 id="应该怎么得到-toolformer"><a class="markdownIt-Anchor" href="#应该怎么得到-toolformer"></a> 应该怎么得到 ToolFormer</h3>
+<ol>
+<li>假设上面提到的 <code>ToolFormer</code> 工作方式是一个愿景，那么接下来就是考虑应该如何得到一个这样的模型。</li>
+<li>显然，直接拿一个预训练或经过微调的大模型来使用是行不通的，因为它并不知道哪些工具可以用，以及如何调用。</li>
+<li>那么需要做的事就是：<strong>通过微调，让大模型自己学习如何使用工具</strong></li>
+<li>最困难的部分就是：<strong>如何构造工具调用数据集</strong>，因为不存在现成的工具调用数据集，需要自己构造。</li>
+<li>这篇论文花了很大的篇幅就在讲一件事：<strong>如何用大模型来构造工具调用数据集</strong></li>
+</ol>
+<h3 id="如何构造工具调用数据集"><a class="markdownIt-Anchor" href="#如何构造工具调用数据集"></a> 如何构造工具调用数据集</h3>
+<p><img src="https://s2.loli.net/2025/07/07/6cHrSKzkAD7agLl.png" alt="toolformer_1.png" /></p>
+<blockquote>
+<p>上面这张图展示了如何用大模型来构造工具调用数据集的流程。</p>
+</blockquote>
+<ol>
+<li>首先，还是用预训练数据做为基础，假设一条预训练数据是：<figure class="highlight pgsql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Pittsburgh <span class="keyword">is</span> <span class="keyword">also</span> known <span class="keyword">as</span> the Steel City.</span><br></pre></td></tr></table></figure>
+</li>
+<li>然后，使用大模型（例如：GPT-3）来在数据中找到可以调用工具的位置和工具类型，并给出调用工具的参数，例如：<figure class="highlight livescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Pittsburgh <span class="keyword">is</span> also known <span class="keyword">as</span> &lt;API&gt;QA<span class="function"><span class="params">(What other name <span class="keyword">is</span> Pittsburgh known <span class="keyword">by</span>?)</span> -&gt;</span> Steel City&lt;/API&gt; the Steel City.</span><br></pre></td></tr></table></figure>
+<figure class="highlight livescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Pittsburgh <span class="keyword">is</span> also known <span class="keyword">as</span> &lt;API&gt;QA<span class="function"><span class="params">(Which country <span class="keyword">is</span> Pittsburgh <span class="keyword">in</span>?)</span> -&gt;</span> United States&lt;/API&gt; the Steel City.</span><br></pre></td></tr></table></figure>
+</li>
+<li>计算调用工具带来的损失收益，剔除负收益的数据，保留正收益的数据。
+<ul>
+<li>损失的计算方式（离调用工具位置越远，损失权重 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>w</mi><mrow><mi>j</mi><mo>−</mo><mi>i</mi></mrow></msub></mrow><annotation encoding="application/x-tex">w_{j-i}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.716668em;vertical-align:-0.286108em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.02691em;">w</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.311664em;"><span style="top:-2.5500000000000003em;margin-left:-0.02691em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.05724em;">j</span><span class="mbin mtight">−</span><span class="mord mathnormal mtight">i</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span></span></span></span> 越小）：</li>
+</ul>
+<p class='katex-block'><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msub><mi>L</mi><mi>i</mi></msub><mo stretchy="false">(</mo><mi>z</mi><mo stretchy="false">)</mo><mo>=</mo><mo>−</mo><munderover><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mi>i</mi></mrow><mi>n</mi></munderover><msub><mi>w</mi><mrow><mi>j</mi><mo>−</mo><mi>i</mi></mrow></msub><mo>⋅</mo><mi>log</mi><mo>⁡</mo><msub><mi>p</mi><mi>M</mi></msub><mo stretchy="false">(</mo><msub><mi>x</mi><mi>j</mi></msub><mi mathvariant="normal">∣</mi><mi>z</mi><mo separator="true">,</mo><msub><mi>x</mi><mrow><mi>i</mi><mo separator="true">;</mo><mi>j</mi><mo>−</mo><mn>1</mn></mrow></msub><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">L_i(z) = -\sum_{j=i}^n w_{j-i}\cdot \log p_M(x_j|z,x_{i;j-1})
+</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathnormal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.31166399999999994em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.04398em;">z</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:3.0651740000000007em;vertical-align:-1.4137769999999998em;"></span><span class="mord">−</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mop op-limits"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.6513970000000007em;"><span style="top:-1.872331em;margin-left:0em;"><span class="pstrut" style="height:3.05em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.05724em;">j</span><span class="mrel mtight">=</span><span class="mord mathnormal mtight">i</span></span></span></span><span style="top:-3.050005em;"><span class="pstrut" style="height:3.05em;"></span><span><span class="mop op-symbol large-op">∑</span></span></span><span style="top:-4.3000050000000005em;margin-left:0em;"><span class="pstrut" style="height:3.05em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">n</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.4137769999999998em;"><span></span></span></span></span></span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.02691em;">w</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.311664em;"><span style="top:-2.5500000000000003em;margin-left:-0.02691em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.05724em;">j</span><span class="mbin mtight">−</span><span class="mord mathnormal mtight">i</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">⋅</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:1.036108em;vertical-align:-0.286108em;"></span><span class="mop">lo<span style="margin-right:0.01389em;">g</span></span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathnormal">p</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.32833099999999993em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.10903em;">M</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.311664em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.05724em;">j</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span><span class="mord">∣</span><span class="mord mathnormal" style="margin-right:0.04398em;">z</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.311664em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">i</span><span class="mpunct mtight">;</span><span class="mord mathnormal mtight" style="margin-right:0.05724em;">j</span><span class="mbin mtight">−</span><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span></span></p>
+<ul>
+<li>调用工具的损失：</li>
+</ul>
+<p class='katex-block'><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msubsup><mi>L</mi><mi>i</mi><mo>+</mo></msubsup><mo>=</mo><msub><mi>L</mi><mi>i</mi></msub><mo stretchy="false">(</mo><mi>e</mi><mo stretchy="false">(</mo><msub><mi>c</mi><mi>i</mi></msub><mo separator="true">,</mo><msub><mi>r</mi><mi>i</mi></msub><mo stretchy="false">)</mo><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">L_i^+=L_i(e(c_i,r_i))
+</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.088326em;vertical-align:-0.266995em;"></span><span class="mord"><span class="mord mathnormal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.8213309999999999em;"><span style="top:-2.433005em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span><span style="top:-3.113em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mbin mtight">+</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.266995em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathnormal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.31166399999999994em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal">e</span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">c</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.31166399999999994em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.02778em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.31166399999999994em;"><span style="top:-2.5500000000000003em;margin-left:-0.02778em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">)</span><span class="mclose">)</span></span></span></span></span></p>
+<ul>
+<li>不调用工具 / 调用工具没有返回的损失：</li>
+</ul>
+<p class='katex-block'><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msubsup><mi>L</mi><mi>i</mi><mo>−</mo></msubsup><mo>=</mo><mi>min</mi><mo>⁡</mo><mo stretchy="false">(</mo><msub><mi>L</mi><mi>i</mi></msub><mo stretchy="false">(</mo><mi>ϵ</mi><mo stretchy="false">)</mo><mo separator="true">,</mo><msub><mi>L</mi><mi>i</mi></msub><mo stretchy="false">(</mo><mi>e</mi><mo stretchy="false">(</mo><msub><mi>c</mi><mi>i</mi></msub><mo separator="true">,</mo><mi>ϵ</mi><mo stretchy="false">)</mo><mo stretchy="false">)</mo><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">L_i^- = \min(L_i(\epsilon),L_i(e(c_i,\epsilon)))
+</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.088326em;vertical-align:-0.266995em;"></span><span class="mord"><span class="mord mathnormal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.8213309999999999em;"><span style="top:-2.433005em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span><span style="top:-3.113em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mbin mtight">−</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.266995em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mop">min</span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.31166399999999994em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal">ϵ</span><span class="mclose">)</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathnormal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.31166399999999994em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal">e</span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">c</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.31166399999999994em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal">ϵ</span><span class="mclose">)</span><span class="mclose">)</span><span class="mclose">)</span></span></span></span></span></p>
+<ul>
+<li>只保留调用工具损失收益大于阈值的样本：</li>
+</ul>
+<p class='katex-block'><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msubsup><mi>L</mi><mi>i</mi><mo>−</mo></msubsup><mo>−</mo><msubsup><mi>L</mi><mi>i</mi><mo>+</mo></msubsup><mo>&gt;</mo><msub><mi>τ</mi><mi>f</mi></msub></mrow><annotation encoding="application/x-tex">L_i^- - L_i^+ &gt; \tau_f
+</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.088326em;vertical-align:-0.266995em;"></span><span class="mord"><span class="mord mathnormal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.8213309999999999em;"><span style="top:-2.433005em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span><span style="top:-3.113em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mbin mtight">−</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.266995em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:1.088326em;vertical-align:-0.266995em;"></span><span class="mord"><span class="mord mathnormal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.8213309999999999em;"><span style="top:-2.433005em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span><span style="top:-3.113em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mbin mtight">+</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.266995em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">&gt;</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:0.716668em;vertical-align:-0.286108em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.1132em;">τ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361079999999999em;"><span style="top:-2.5500000000000003em;margin-left:-0.1132em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.10764em;">f</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span></span></span></span></span></p>
+</li>
+<li>用筛选后的数据来微调大模型，得到 <code>ToolFormer</code>。</li>
+</ol>
+<p><img src="https://s2.loli.net/2025/07/07/8UkSBFT5zjZbCe3.png" alt="toolformer_2.png" /></p>
+<ul>
+<li>上图展示了 <code>ToolFormer</code> 支持的五种工具类型：
+<ol>
+<li><code>Question Answering</code>：问答工具</li>
+<li><code>Wikipedia Search</code>：维基百科搜索工具</li>
+<li><code>Calculator</code>：计算器工具</li>
+<li><code>Calendar</code>：日历工具</li>
+<li><code>Machine Translation</code>：机器翻译工具</li>
+</ol>
+</li>
+</ul>
+<h2 id="thoughts"><a class="markdownIt-Anchor" href="#thoughts"></a> Thoughts</h2>
+<ul>
+<li><code>ToolFormer</code> 这种通过大模型自我学习使用工具的方式感觉挺好的，但似乎在实际使用中没有得到大范围推广，目前主流外挂工具的方式基本还是 <code>Agent</code> 的多角色多轮对话方式。</li>
+<li>可能是因为 <code>ToolFormer</code> 的方式需要对大模型进行微调，而 <code>Agent</code> 的方式不需要做工具适配微调，直接使用原模型就可以。</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2025/07/04/ReAct-Synergizing-Reasoning-and-Acting-in-Language-Models/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1892,133 +2091,6 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2025/03/12/2025-02-DeepSeek-%E5%BC%80%E6%BA%90%E5%91%A8%E7%AC%AC%E5%9B%9B%E5%BC%B9-%E2%80%94%E2%80%94-DualPipe-%EF%BC%86-EPLB/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2025/03/12/2025-02-DeepSeek-%E5%BC%80%E6%BA%90%E5%91%A8%E7%AC%AC%E5%9B%9B%E5%BC%B9-%E2%80%94%E2%80%94-DualPipe-%EF%BC%86-EPLB/" class="post-title-link" itemprop="url">2025.02 DeepSeek 开源周第四弹 —— DualPipe ＆ EPLB</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2025-03-12 11:35:53" itemprop="dateCreated datePublished" datetime="2025-03-12T11:35:53+08:00">2025-03-12</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-12-11 13:48:26" itemprop="dateModified" datetime="2025-12-11T13:48:26+08:00">2025-12-11</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/LLM/" itemprop="url" rel="index"><span itemprop="name">LLM</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2025/03/12/2025-02-DeepSeek-%E5%BC%80%E6%BA%90%E5%91%A8%E7%AC%AC%E5%9B%9B%E5%BC%B9-%E2%80%94%E2%80%94-DualPipe-%EF%BC%86-EPLB/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2025/03/12/2025-02-DeepSeek-%E5%BC%80%E6%BA%90%E5%91%A8%E7%AC%AC%E5%9B%9B%E5%BC%B9-%E2%80%94%E2%80%94-DualPipe-%EF%BC%86-EPLB/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
-<ul>
-<li>DualPipe code: <a target="_blank" rel="noopener" href="https://github.com/deepseek-ai/DualPipe">https://github.com/deepseek-ai/DualPipe</a></li>
-<li>EPLB code: <a target="_blank" rel="noopener" href="https://github.com/deepseek-ai/EPLB">https://github.com/deepseek-ai/EPLB</a></li>
-</ul>
-<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
-<ul>
-<li><code>DualPipe</code> 是 <code>deepseek</code> 提出的一种 <strong>流水线并行算法</strong>，和之间读过的 <a target="_blank" rel="noopener" href="https://zhangzhe.space/2024/08/20/GPipe-Easy-Scaling-with-Micro-Batch-Pipeline-Parallelism/">GPipe</a> 和 <a target="_blank" rel="noopener" href="https://zhangzhe.space/2024/08/20/PipeDream-Fast-and-Efficient-Pipeline-Parallel-DNN-Training/">PipeDream</a> 类似，但 <code>DualPipe</code> 的硬件利用率更高，空泡更少</li>
-<li><code>DPLB (Expert Parallelism Load Balancer)</code> 是一种 <strong>专家并行负载均衡算法</strong></li>
-</ul>
-<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
-<h3 id="dualpipe"><a class="markdownIt-Anchor" href="#dualpipe"></a> DualPipe</h3>
-<ul>
-<li><code>DualPipe</code> 的计算过程<br />
-<img src="https://s2.loli.net/2025/05/29/8kwaE7BPzYmGJiK.png" alt="dualpipe.png" /></li>
-<li><code>DualPipe-v</code> 的计算过程<br />
-<img src="https://s2.loli.net/2025/05/29/lK83UM7YyWsZbDO.png" alt="dualpipev.png" /></li>
-</ul>
-<blockquote>
-<p>上图是民间自己二创的 dualpipe-v 的计算过程，将 dualpipe 对半切开后效果更好，<a target="_blank" rel="noopener" href="https://hackmd.io/@ufotalent/r1lVXsa9Jg">博客地址</a></p>
-</blockquote>
-<h4 id="dualpipe-核心特点"><a class="markdownIt-Anchor" href="#dualpipe-核心特点"></a> <code>DualPipe</code> 核心特点</h4>
-<ol>
-<li><strong>计算与通信重叠</strong>：<code>DualPipe</code> 的设计目标是最大化集群设备的计算性能，通过在<code>Forward</code> 和 <code>Backward</code> 阶段实现计算与通信的完全重叠，显著减少传统流水线并行中的 “空泡”（<code>Pipeline Bubble</code>，即空闲等待时间）。这对于需要跨节点协作的专家并行（<code>Expert Parallelism</code>）场景尤为重要。</li>
-<li><strong>双向调度</strong>：与传统的单向流水线并行不同，<code>DualPipe</code> 采用双向调度策略，从流水线的两端同时输入微批次（<code>Micro-batches</code>），充分利用硬件资源。这种方法在保持计算通信比例恒定的情况下，即使模型规模进一步扩大，也能维持接近零的通信开销。</li>
-<li><strong>高效扩展性</strong>：<code>DualPipe</code> 针对跨节点的混合专家模型（<code>MoE</code>）进行了优化，通过减少通信瓶颈，使得大规模分布式训练能够在相对有限的硬件资源（如 <code>H800 GPU</code>）上高效运行。</li>
-<li><strong>显存优化</strong>：<code>DualPipe</code> 将模型的最浅层（包括嵌入层）和最深层（包括输出层）部署在同一流水线级别（<code>PP Rank</code>），实现参数和梯度的物理共享，进一步提升内存效率。这种设计减少了高代价的张量并行（<code>Tensor Parallelism</code>）需求。</li>
-</ol>
-<h3 id="eplb"><a class="markdownIt-Anchor" href="#eplb"></a> EPLB</h3>
-<ul>
-<li><code>EPLB (Expert Parallelism Load Balancer)</code> 是一种专家并行负载均衡算法，旨在解决专家并行中的负载不均问题</li>
-<li>很简单，仅有 <code>160</code> 行 <code>python</code> 代码</li>
-<li>核心思想是预估每个专家的负载，并根据负载设置专家拷贝和放置计划</li>
-</ul>
-<h2 id="thoughts"><a class="markdownIt-Anchor" href="#thoughts"></a> Thoughts</h2>
-<ul>
-<li><code>DualPipe</code> 实际上是 <code>deepseek</code> 根据 <a target="_blank" rel="noopener" href="https://github.com/deepseek-ai/profile-data"><code>profile-data</code></a> 分析空泡后做的一种流水线并行算法，而且用其强大的工程能力实现了 <code>SMs</code> 通信耗时降低（实际上就是用 <code>PTX</code> 编程把一部分 <code>SM</code> 当做是全职的数据搬运工），这太 <s>crazy</s> 了</li>
-<li><code>Transformer</code> 是一种重 <code>IO</code> 轻计算的架构，在 <code>Hopper</code> 硬件架构上，不改变 <code>SM</code> 是不可能做到通信和计算完全重叠的，所以 <code>deepseek</code> 做了非常底层的优化</li>
-<li><code>EPLB</code> 作为一种专家并行负载均衡算法，虽然简单，但在实际应用中可以显著提升专家并行的效率</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -2087,14 +2159,14 @@ M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">�
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">176</span>
+          <span class="site-state-item-count">177</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">51</span>
+        <span class="site-state-item-count">52</span>
         <span class="site-state-item-name">categories</span></a>
       </div>
       <div class="site-state-item site-state-tags">

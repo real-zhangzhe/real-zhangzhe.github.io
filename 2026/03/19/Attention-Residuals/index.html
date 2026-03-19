@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"real-zhangzhe.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="URL  paper: https:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;2603.15031   TL；DR  本文提出了一种新的残差连接方法，称为注意力残差（Attention Residuals），本质是一种可学习的残差连接机制，能够动态调整残差连接的权重，从而提高 Transformer 模型的性能和稳定性。   Algorithm  Architecture   code  伪代码  123">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Attention Residuals">
+<meta property="og:url" content="https://real-zhangzhe.github.io/2026/03/19/Attention-Residuals/index.html">
+<meta property="og:site_name" content="Zhangzhe&#39;s Blog">
+<meta property="og:description" content="URL  paper: https:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;2603.15031   TL；DR  本文提出了一种新的残差连接方法，称为注意力残差（Attention Residuals），本质是一种可学习的残差连接机制，能够动态调整残差连接的权重，从而提高 Transformer 模型的性能和稳定性。   Algorithm  Architecture   code  伪代码  123">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://s41.ax1x.com/2026/03/19/pemQqEt.png">
+<meta property="og:image" content="https://s41.ax1x.com/2026/03/19/pem1YF0.png">
+<meta property="article:published_time" content="2026-03-19T08:22:42.000Z">
+<meta property="article:modified_time" content="2026-03-19T09:29:40.211Z">
+<meta property="article:author" content="Zhangzhe">
+<meta property="article:tag" content="Transformer">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://s41.ax1x.com/2026/03/19/pemQqEt.png">
+
+<link rel="canonical" href="https://real-zhangzhe.github.io/2026/03/19/Attention-Residuals/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>Attention Residuals | Zhangzhe's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Zhangzhe's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">The projection of my life.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/archives/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2026/03/19/Attention-Residuals/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Attention Residuals
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2026-03-19 16:22:42 / Modified: 17:29:40" itemprop="dateCreated datePublished" datetime="2026-03-19T16:22:42+08:00">2026-03-19</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Residual/" itemprop="url" rel="index"><span itemprop="name">Residual</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2026/03/19/Attention-Residuals/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2026/03/19/Attention-Residuals/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2603.15031">https://arxiv.org/pdf/2603.15031</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL；DR</h2>
+<ul>
+<li>本文提出了一种新的残差连接方法，称为注意力残差（<code>Attention Residuals</code>），本质是一种可学习的残差连接机制，能够动态调整残差连接的权重，从而提高 <code>Transformer</code> 模型的性能和稳定性。</li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<h3 id="architecture"><a class="markdownIt-Anchor" href="#architecture"></a> Architecture</h3>
+<p><a target="_blank" rel="noopener" href="https://imgchr.com/i/pemQqEt"><img src="https://s41.ax1x.com/2026/03/19/pemQqEt.png" alt="pemQqEt.png" /></a></p>
+<h3 id="code"><a class="markdownIt-Anchor" href="#code"></a> code</h3>
+<ul>
+<li>伪代码</li>
+</ul>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">block_attn_res</span>(<span class="params"></span></span></span><br><span class="line"><span class="params"><span class="function">    blocks: <span class="built_in">list</span>[Tensor],           <span class="comment"># List[N]: each [B, T, D]</span></span></span></span><br><span class="line"><span class="params"><span class="function">    partial_block: Tensor,          <span class="comment"># [B, T, D] 或 None</span></span></span></span><br><span class="line"><span class="params"><span class="function">    proj: Linear,                   <span class="comment"># weight: [1, D] (pseudo-query wₗ)</span></span></span></span><br><span class="line"><span class="params"><span class="function">    norm: RMSNorm                   <span class="comment"># RMSNorm over last dim</span></span></span></span><br><span class="line"><span class="params"><span class="function"></span>) -&gt; Tensor:</span>                        <span class="comment"># Return: [B, T, D]</span></span><br><span class="line">    <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    跨块注意力：在 [已完成块] + [当前块部分和] 上进行选择性聚合</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span></span><br><span class="line">    </span><br><span class="line">    <span class="comment"># ── Step 1: 拼接所有候选源 ──────────────────────────────────</span></span><br><span class="line">    <span class="comment"># blocks:        N × [B, T, D]</span></span><br><span class="line">    <span class="comment"># partial_block:     [B, T, D]</span></span><br><span class="line">    <span class="comment"># 拼接后列表长度: N+1</span></span><br><span class="line">    <span class="comment"># stack 沿新维度 0 堆叠</span></span><br><span class="line">    V = torch.stack(blocks + [partial_block])  </span><br><span class="line">    <span class="comment"># V.shape: [N+1, B, T, D]</span></span><br><span class="line">    <span class="comment">#   ├─ dim 0: source index (历史块 0~N-1 + 当前部分和)</span></span><br><span class="line">    <span class="comment">#   ├─ dim 1: batch</span></span><br><span class="line">    <span class="comment">#   ├─ dim 2: token position</span></span><br><span class="line">    <span class="comment">#   └─ dim 3: hidden feature</span></span><br><span class="line">    </span><br><span class="line">    <span class="comment"># ── Step 2: RMSNorm 作为 Key ───────────────────────────────</span></span><br><span class="line">    <span class="comment"># 防止大模值块天然主导注意力权重</span></span><br><span class="line">    K = norm(V)  </span><br><span class="line">    <span class="comment"># K.shape: [N+1, B, T, D]  (与 V 相同)</span></span><br><span class="line">    </span><br><span class="line">    <span class="comment"># ── Step 3: 计算注意力 logits ──────────────────────────────</span></span><br><span class="line">    <span class="comment"># proj.weight: [1, D] → squeeze() → [D] = wₗ (层特定的伪查询)</span></span><br><span class="line">    <span class="comment"># einsum: &#x27;d, n b t d -&gt; n b t&#x27;</span></span><br><span class="line">    <span class="comment">#   对 D 维度做点积: wₗᵀ · K[n,b,t,:]</span></span><br><span class="line">    logits = torch.einsum(<span class="string">&#x27;d, n b t d -&gt; n b t&#x27;</span>, proj.weight.squeeze(), K)  </span><br><span class="line">    <span class="comment"># logits.shape: [N+1, B, T]</span></span><br><span class="line">    <span class="comment">#   每个 (n,b,t) 表示: 源 n 对位置 (b,t) 的未归一化注意力分数</span></span><br><span class="line">    </span><br><span class="line">    <span class="comment"># ── Step 4: Softmax + 加权求和 ─────────────────────────────</span></span><br><span class="line">    <span class="comment"># softmax(0): 沿 source 维度归一化，使 ∑ₙ αₙ = 1</span></span><br><span class="line">    <span class="comment"># α.shape: [N+1, B, T]</span></span><br><span class="line">    <span class="comment"># </span></span><br><span class="line">    <span class="comment"># einsum: &#x27;n b t, n b t d -&gt; b t d&#x27;</span></span><br><span class="line">    <span class="comment">#   对每个 (b,t): h[b,t] = Σₙ αₙ[b,t] · V[n,b,t,:]</span></span><br><span class="line">    h = torch.einsum(<span class="string">&#x27;n b t, n b t d -&gt; b t d&#x27;</span>, logits.softmax(<span class="number">0</span>), V)  </span><br><span class="line">    <span class="comment"># h.shape: [B, T, D]  ← 聚合后的隐藏状态，作为下一子层输入</span></span><br><span class="line">    <span class="keyword">return</span> h</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params"></span></span></span><br><span class="line"><span class="params"><span class="function">    self, </span></span></span><br><span class="line"><span class="params"><span class="function">    blocks: <span class="built_in">list</span>[Tensor],       <span class="comment"># List[N]: each [B, T, D] (历史已完成块)</span></span></span></span><br><span class="line"><span class="params"><span class="function">    hidden_states: Tensor       <span class="comment"># [B, T, D] (当前层输入)</span></span></span></span><br><span class="line"><span class="params"><span class="function"></span>) -&gt; <span class="built_in">tuple</span>[<span class="built_in">list</span>[Tensor], Tensor]:</span></span><br><span class="line">    <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    单层前向传播，维护块内残差累积 + 块间注意力聚合</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span></span><br><span class="line">    </span><br><span class="line">    <span class="comment"># ── 阶段 0: 初始化当前块的部分和 ─────────────────────────────</span></span><br><span class="line">    partial_block = hidden_states  </span><br><span class="line">    <span class="comment"># partial_block.shape: [B, T, D]</span></span><br><span class="line">    </span><br><span class="line">    <span class="comment"># ── 阶段 1: Pre-Attention 的 Block AttnRes ─────────────────</span></span><br><span class="line">    <span class="comment"># 聚合历史块 + 当前部分和 → 得到 h 作为 Attention 输入</span></span><br><span class="line">    h = block_attn_res(</span><br><span class="line">        blocks,                      <span class="comment"># List[N] × [B,T,D]</span></span><br><span class="line">        partial_block,               <span class="comment"># [B,T,D]</span></span><br><span class="line">        self.attn_res_proj,          <span class="comment"># Linear: weight [1,D]</span></span><br><span class="line">        self.attn_res_norm           <span class="comment"># RMSNorm</span></span><br><span class="line">    )  </span><br><span class="line">    <span class="comment"># h.shape: [B, T, D]</span></span><br><span class="line">    </span><br><span class="line">    <span class="comment"># ── 阶段 2: 块边界检测 ─────────────────────────────────────</span></span><br><span class="line">    <span class="comment"># block_size: 每块包含的子层数 (ATTN+MLP=2 per Transformer layer)</span></span><br><span class="line">    <span class="comment"># 例如 block_size=6 → 每块 3 个 Transformer 层</span></span><br><span class="line">    <span class="keyword">if</span> self.layer_number % (self.block_size // <span class="number">2</span>) == <span class="number">0</span>:</span><br><span class="line">        <span class="comment"># 当前块完成，将其部分和加入历史块列表</span></span><br><span class="line">        blocks.append(partial_block)  </span><br><span class="line">        <span class="comment"># blocks: List[N+1] × [B,T,D]</span></span><br><span class="line">        </span><br><span class="line">        <span class="comment"># 重置部分和，新块从头累积</span></span><br><span class="line">        partial_block = <span class="literal">None</span>  </span><br><span class="line">        <span class="comment"># partial_block: None</span></span><br><span class="line">    </span><br><span class="line">    <span class="comment"># ── 阶段 3: 标准 Self-Attention ───────────────────────────</span></span><br><span class="line">    <span class="comment"># self.attn_norm: RMSNorm</span></span><br><span class="line">    <span class="comment"># h: [B,T,D] → attn_norm(h): [B,T,D]</span></span><br><span class="line">    <span class="comment"># self.attn: 标准多头自注意力</span></span><br><span class="line">    <span class="comment">#   Q/K/V: [B,T,D] → attn_out: [B,T,D]</span></span><br><span class="line">    attn_out = self.attn(self.attn_norm(h))  </span><br><span class="line">    <span class="comment"># attn_out.shape: [B, T, D]</span></span><br><span class="line">    </span><br><span class="line">    <span class="comment"># 块内残差累加 (标准残差连接)</span></span><br><span class="line">    <span class="keyword">if</span> partial_block <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span>:</span><br><span class="line">        partial_block = partial_block + attn_out  </span><br><span class="line">        <span class="comment"># [B,T,D] + [B,T,D] = [B,T,D]</span></span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        partial_block = attn_out  </span><br><span class="line">        <span class="comment"># 新块第一层: 直接初始化为 attn_out</span></span><br><span class="line">    <span class="comment"># partial_block.shape: [B, T, D]</span></span><br><span class="line">    </span><br><span class="line">    <span class="comment"># ── 阶段 4: Pre-MLP 的 Block AttnRes ──────────────────────</span></span><br><span class="line">    <span class="comment"># 注意: 此时 partial_block 已包含 attn_out，信息更丰富</span></span><br><span class="line">    <span class="comment"># 使用独立的投影参数 (mlp_res_proj ≠ attn_res_proj)</span></span><br><span class="line">    h = block_attn_res(</span><br><span class="line">        blocks,                      <span class="comment"># List[N] or List[N+1] × [B,T,D]</span></span><br><span class="line">        partial_block,               <span class="comment"># [B,T,D]</span></span><br><span class="line">        self.mlp_res_proj,           <span class="comment"># Linear: weight [1,D] (独立参数!)</span></span><br><span class="line">        self.mlp_res_norm            <span class="comment"># RMSNorm</span></span><br><span class="line">    )  </span><br><span class="line">    <span class="comment"># h.shape: [B, T, D]</span></span><br><span class="line">    </span><br><span class="line">    <span class="comment"># ── 阶段 5: 标准 MLP ──────────────────────────────────────</span></span><br><span class="line">    <span class="comment"># self.mlp_norm: RMSNorm</span></span><br><span class="line">    <span class="comment"># self.mlp: 例如 SwiGLU: [B,T,D] → [B,T,D]</span></span><br><span class="line">    mlp_out = self.mlp(self.mlp_norm(h))  </span><br><span class="line">    <span class="comment"># mlp_out.shape: [B, T, D]</span></span><br><span class="line">    </span><br><span class="line">    <span class="comment"># 块内残差累加</span></span><br><span class="line">    partial_block = partial_block + mlp_out  </span><br><span class="line">    <span class="comment"># [B,T,D] + [B,T,D] = [B,T,D]</span></span><br><span class="line">    </span><br><span class="line">    <span class="comment"># ── 返回 ─────────────────────────────────────────────────</span></span><br><span class="line">    <span class="keyword">return</span> blocks, partial_block  </span><br><span class="line">    <span class="comment"># blocks: List[M] × [B,T,D]  (M = 已完成块数，≤ N)</span></span><br><span class="line">    <span class="comment"># partial_block: [B,T,D]  or  None (若刚重置)</span></span><br></pre></td></tr></table></figure>
+<h3 id="一些细节"><a class="markdownIt-Anchor" href="#一些细节"></a> 一些细节</h3>
+<ol>
+<li>每个层都有独立的投影参数（<code>attn_res_proj</code> 和 <code>mlp_res_proj</code>），允许每个层学习不同的注意力残差权重。</li>
+<li>在 <code>Attention</code> 前和 <code>MLP</code> 前都应用了 <code>block_attn_res</code>，确保每个子层都能从历史块和当前部分和中动态聚合信息。</li>
+<li>块边界检测基于层数和预设的块大小，确保每块包含固定数量的子层（例如 3 层），并在块完成时将部分和加入历史块列表。</li>
+<li><code>attn_res</code> 的最后是一个 <code>softmax</code>，确保所有源（历史块 + 当前部分和）的权重和为 1，使得聚合后的隐藏状态是一个加权平均，不容易出现数值不稳定。</li>
+</ol>
+<h3 id="最终结果"><a class="markdownIt-Anchor" href="#最终结果"></a> 最终结果</h3>
+<p><a target="_blank" rel="noopener" href="https://imgchr.com/i/pem1YF0"><img src="https://s41.ax1x.com/2026/03/19/pem1YF0.png" alt="pem1YF0.png" /></a></p>
+<h2 id="thoughts"><a class="markdownIt-Anchor" href="#thoughts"></a> Thoughts</h2>
+<ul>
+<li>很多大模型公司都在探索改进残差连接的方法，比如 <code>DeepSeek</code> 的 <code>mHC</code>，确实在大模型上残差连接的设计非常重要，直接影响模型的训练稳定性和性能，在大模型结构设计进入深水区之后，这种细节确实该琢磨了。</li>
+<li>这种这么长生命周期的残差，感觉会让训练和推理的显存管理变困难。</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Transformer/" rel="tag"># Transformer</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2026/02/10/Generative-Modeling-via-Drifting/" rel="prev" title="Generative Modeling via Drifting">
+      <i class="fa fa-chevron-left"></i> Generative Modeling via Drifting
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#url"><span class="nav-number">1.</span> <span class="nav-text"> URL</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#tldr"><span class="nav-number">2.</span> <span class="nav-text"> TL；DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#algorithm"><span class="nav-number">3.</span> <span class="nav-text"> Algorithm</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#architecture"><span class="nav-number">3.1.</span> <span class="nav-text"> Architecture</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#code"><span class="nav-number">3.2.</span> <span class="nav-text"> code</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B8%80%E4%BA%9B%E7%BB%86%E8%8A%82"><span class="nav-number">3.3.</span> <span class="nav-text"> 一些细节</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%9C%80%E7%BB%88%E7%BB%93%E6%9E%9C"><span class="nav-number">3.4.</span> <span class="nav-text"> 最终结果</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#thoughts"><span class="nav-number">4.</span> <span class="nav-text"> Thoughts</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Zhangzhe</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives">
+          <span class="site-state-item-count">177</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">52</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">105</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhangzhe</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js', () => {
+    // 初始化 Mermaid 配置
+    mermaid.initialize({
+      theme    : 'dark',  // 设置主题
+      logLevel : 3,  // 设置日志等级
+      flowchart: { curve: 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 },
+      themeVariables: {
+        'fontFamily': 'Microsoft YaHei, Arial, sans-serif',  // 设置中文字体
+      }
+    });
+
+    // 初始化 Mermaid 图表
+    mermaid.init(undefined, document.querySelectorAll('pre.mermaid'));
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+      
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/katex@0/dist/katex.min.css">
+
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'eK3W25jybCO5jVUrYBBpAPqM-gzGzoHsz',
+      appKey     : 'F4KVyUj9wHI5c80Bhz7O2uhq',
+      placeholder: "说点什么再走吧...",
+      avatar     : 'hide',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>
