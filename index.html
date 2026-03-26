@@ -180,6 +180,178 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2026/03/26/Monte-Carlo-Tree-Search-A-Review-of-Recent-Modifications-and-Applications/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhangzhe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zhangzhe's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2026/03/26/Monte-Carlo-Tree-Search-A-Review-of-Recent-Modifications-and-Applications/" class="post-title-link" itemprop="url">Monte Carlo Tree Search: A Review of Recent Modifications and Applications</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2026-03-26 09:23:04 / Modified: 11:42:56" itemprop="dateCreated datePublished" datetime="2026-03-26T09:23:04+08:00">2026-03-26</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/RL/" itemprop="url" rel="index"><span itemprop="name">RL</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2026/03/26/Monte-Carlo-Tree-Search-A-Review-of-Recent-Modifications-and-Applications/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2026/03/26/Monte-Carlo-Tree-Search-A-Review-of-Recent-Modifications-and-Applications/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
+<ul>
+<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2103.04931">https://arxiv.org/pdf/2103.04931</a></li>
+</ul>
+<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
+<ul>
+<li>蒙特卡洛树搜索（<code>Monte Carlo Tree Search</code>, 简称 <code>MCTS</code>）旨在解决在拥有海量状态空间的复杂决策环境下的 “维度灾难” 问题，即：当我们无法穷举所有可能性，且不知道如何准确评估当前状态时，如何利用有限的计算资源，找到当前的最优解？</li>
+<li>核心思想是：不再穷举所有分支，而是像一个有经验的玩家一样：把更多的算力（搜索时间）倾斜到那些看起来赢面更大、更有希望的分支上，同时偶尔去探索一下没怎么走过的分支，防止错过奇招。这在算法中被称为探索与利用（<code>Exploration vs. Exploitation</code>）的平衡。</li>
+</ul>
+<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
+<ul>
+<li><code>MCTS</code> 通过不断的循环迭代来构建一棵搜索树。每次迭代包含四个经典的步骤：
+<ul>
+<li>选择 (<code>Selection</code>)</li>
+<li>扩展 (<code>Expansion</code>)</li>
+<li>模拟 (<code>Simulation / Rollout</code>)</li>
+<li>回溯 / 反向传播 (<code>Backpropagation</code>)</li>
+</ul>
+</li>
+</ul>
+<h3 id="1-选择"><a class="markdownIt-Anchor" href="#1-选择"></a> 1. 选择</h3>
+<ul>
+<li>算法从树的根节点（当前局面）出发，向下遍历，直到找到一个还没有被完全展开的节点（即这个节点下还有未尝试过的动作）。</li>
+<li>在向下走的过程中，如果遇到多个子节点，它会使用一个公式来决定走哪边，最常用的公式是 <code>UCT</code> (<code>Upper Confidence Bound applied to Trees</code>)：<p class='katex-block'><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mi>U</mi><mi>C</mi><mi>T</mi><mo>=</mo><mfrac><msub><mi>W</mi><mi>i</mi></msub><msub><mi>N</mi><mi>i</mi></msub></mfrac><mo>+</mo><mi>c</mi><msqrt><mfrac><mrow><mi>ln</mi><mo>⁡</mo><mi>N</mi></mrow><msub><mi>N</mi><mi>i</mi></msub></mfrac></msqrt></mrow><annotation encoding="application/x-tex">UCT= \frac{W_i}{N_i} + c \sqrt{\frac{\ln N}{N_i}}
+</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord mathnormal" style="margin-right:0.10903em;">U</span><span class="mord mathnormal" style="margin-right:0.07153em;">C</span><span class="mord mathnormal" style="margin-right:0.13889em;">T</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:2.19633em;vertical-align:-0.8360000000000001em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.36033em;"><span style="top:-2.3139999999999996em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord"><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.31166399999999994em;"><span style="top:-2.5500000000000003em;margin-left:-0.10903em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">W</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.31166399999999994em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.8360000000000001em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:2.44em;vertical-align:-0.8384050000000001em;"></span><span class="mord mathnormal">c</span><span class="mord sqrt"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.6015949999999999em;"><span class="svg-align" style="top:-4.4em;"><span class="pstrut" style="height:4.4em;"></span><span class="mord" style="padding-left:1em;"><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.37144em;"><span style="top:-2.3139999999999996em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord"><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.31166399999999994em;"><span style="top:-2.5500000000000003em;margin-left:-0.10903em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mop">ln</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.8360000000000001em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span><span style="top:-3.5615950000000005em;"><span class="pstrut" style="height:4.4em;"></span><span class="hide-tail" style="min-width:1.02em;height:2.48em;"><svg width='400em' height='2.48em' viewBox='0 0 400000 2592' preserveAspectRatio='xMinYMin slice'><path d='M424,2478
+c-1.3,-0.7,-38.5,-172,-111.5,-514c-73,-342,-109.8,-513.3,-110.5,-514
+c0,-2,-10.7,14.3,-32,49c-4.7,7.3,-9.8,15.7,-15.5,25c-5.7,9.3,-9.8,16,-12.5,20
+s-5,7,-5,7c-4,-3.3,-8.3,-7.7,-13,-13s-13,-13,-13,-13s76,-122,76,-122s77,-121,77,-121
+s209,968,209,968c0,-2,84.7,-361.7,254,-1079c169.3,-717.3,254.7,-1077.7,256,-1081
+l0 -0c4,-6.7,10,-10,18,-10 H400000
+v40H1014.6
+s-87.3,378.7,-272.6,1166c-185.3,787.3,-279.3,1182.3,-282,1185
+c-2,6,-10,9,-24,9
+c-8,0,-12,-0.7,-12,-2z M1001 80
+h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.8384050000000001em;"><span></span></span></span></span></span></span></span></span></span></p>
+<ul>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>W</mi><mi>i</mi></msub></mrow><annotation encoding="application/x-tex">W_i</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">W</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.31166399999999994em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span>：该节点下的胜利次数</li>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>N</mi><mi>i</mi></msub></mrow><annotation encoding="application/x-tex">N_i</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.31166399999999994em;"><span style="top:-2.5500000000000003em;margin-left:-0.10903em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span>：该节点被访问的次数</li>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>W</mi><mi>i</mi></msub><mi mathvariant="normal">/</mi><msub><mi>N</mi><mi>i</mi></msub></mrow><annotation encoding="application/x-tex">W_i / N_i</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">W</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.31166399999999994em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord">/</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.31166399999999994em;"><span style="top:-2.5500000000000003em;margin-left:-0.10903em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span>：<strong>利用（Exploitation）</strong> 项，即胜率</li>
+<li>胜率越高的节点，越容易被选中。<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>N</mi></mrow><annotation encoding="application/x-tex">N</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord mathnormal" style="margin-right:0.10903em;">N</span></span></span></span>：父节点的总访问次数</li>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>c</mi></mrow><annotation encoding="application/x-tex">c</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathnormal">c</span></span></span></span>：探索常数（通常取 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msqrt><mn>2</mn></msqrt></mrow><annotation encoding="application/x-tex">\sqrt{2}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.04em;vertical-align:-0.13278em;"></span><span class="mord sqrt"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.90722em;"><span class="svg-align" style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord" style="padding-left:0.833em;"><span class="mord">2</span></span></span><span style="top:-2.86722em;"><span class="pstrut" style="height:3em;"></span><span class="hide-tail" style="min-width:0.853em;height:1.08em;"><svg width='400em' height='1.08em' viewBox='0 0 400000 1080' preserveAspectRatio='xMinYMin slice'><path d='M95,702
+c-2.7,0,-7.17,-2.7,-13.5,-8c-5.8,-5.3,-9.5,-10,-9.5,-14
+c0,-2,0.3,-3.3,1,-4c1.3,-2.7,23.83,-20.7,67.5,-54
+c44.2,-33.3,65.8,-50.3,66.5,-51c1.3,-1.3,3,-2,5,-2c4.7,0,8.7,3.3,12,10
+s173,378,173,378c0.7,0,35.3,-71,104,-213c68.7,-142,137.5,-285,206.5,-429
+c69,-144,104.5,-217.7,106.5,-221
+l0 -0
+c5.3,-9.3,12,-14,20,-14
+H400000v40H845.2724
+s-225.272,467,-225.272,467s-235,486,-235,486c-2.7,4.7,-9,7,-19,7
+c-6,0,-10,-1,-12,-3s-194,-422,-194,-422s-65,47,-65,47z
+M834 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.13278em;"><span></span></span></span></span></span></span></span></span>）</li>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>c</mi><msqrt><mfrac><mrow><mi>ln</mi><mo>⁡</mo><mi>N</mi></mrow><msub><mi>N</mi><mi>i</mi></msub></mfrac></msqrt></mrow><annotation encoding="application/x-tex">c \sqrt{\frac{\ln N}{N_i}}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.8400000000000003em;vertical-align:-0.637496em;"></span><span class="mord mathnormal">c</span><span class="mord sqrt"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.2025040000000002em;"><span class="svg-align" style="top:-3.8em;"><span class="pstrut" style="height:3.8em;"></span><span class="mord" style="padding-left:1em;"><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.8801079999999999em;"><span style="top:-2.655em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.10903em;">N</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3280857142857143em;"><span style="top:-2.357em;margin-left:-0.10903em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.143em;"><span></span></span></span></span></span></span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.394em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mop mtight"><span class="mtight">l</span><span class="mtight">n</span></span><span class="mspace mtight" style="margin-right:0.19516666666666668em;"></span><span class="mord mathnormal mtight" style="margin-right:0.10903em;">N</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.44509999999999994em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span><span style="top:-3.1625039999999998em;"><span class="pstrut" style="height:3.8em;"></span><span class="hide-tail" style="min-width:1.02em;height:1.8800000000000001em;"><svg width='400em' height='1.8800000000000001em' viewBox='0 0 400000 1944' preserveAspectRatio='xMinYMin slice'><path d='M983 90
+l0 -0
+c4,-6.7,10,-10,18,-10 H400000v40
+H1013.1s-83.4,268,-264.1,840c-180.7,572,-277,876.3,-289,913c-4.7,4.7,-12.7,7,-24,7
+s-12,0,-12,0c-1.3,-3.3,-3.7,-11.7,-7,-25c-35.3,-125.3,-106.7,-373.3,-214,-744
+c-10,12,-21,25,-33,39s-32,39,-32,39c-6,-5.3,-15,-14,-27,-26s25,-30,25,-30
+c26.7,-32.7,52,-63,76,-91s52,-60,52,-60s208,722,208,722
+c56,-175.3,126.3,-397.3,211,-666c84.7,-268.7,153.8,-488.2,207.5,-658.5
+c53.7,-170.3,84.5,-266.8,92.5,-289.5z
+M1001 80h400000v40h-400000z'/></svg></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.637496em;"><span></span></span></span></span></span></span></span></span>：<strong>探索（Exploration）</strong> 项。一个节点被访问的次数 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>N</mi><mi>i</mi></msub></mrow><annotation encoding="application/x-tex">N_i</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.31166399999999994em;"><span style="top:-2.5500000000000003em;margin-left:-0.10903em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> 越少，这项的值就越大，就越容易被选中去探索。</li>
+</ul>
+</li>
+</ul>
+<h3 id="2-扩展"><a class="markdownIt-Anchor" href="#2-扩展"></a> 2. 扩展</h3>
+<ul>
+<li>当根据 UCT 公式找到一个未完全展开的叶子节点时，就给这个节点增加一个新的子节点，代表采取了一个从未尝试过的合法动作，进入了一个新的状态。</li>
+</ul>
+<h3 id="3-模拟"><a class="markdownIt-Anchor" href="#3-模拟"></a> 3. 模拟</h3>
+<ul>
+<li>从新扩展出的新节点开始，<strong>完全随机地（或者基于某种简单策略）</strong> 往下模拟对局，直到分出胜负（到达终止状态，比如游戏结束）</li>
+<li>因为是随机模拟（这就是“蒙特卡洛”一词的来源），计算速度非常快。它不需要评估函数，而是直接把游戏“快进”到结局，看看是赢是输</li>
+</ul>
+<h3 id="4-回溯-反向传播"><a class="markdownIt-Anchor" href="#4-回溯-反向传播"></a> 4. 回溯 / 反向传播</h3>
+<ul>
+<li>根据上一步模拟出的最终结果（比如：赢了记为 1，输了记为 0，平局记为 0.5），从这个新节点沿着刚才的路径一直往回走到根节点</li>
+<li>在回退的过程中，更新沿途每一个节点的统计数据：该节点的访问次数 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>N</mi><mi>i</mi></msub></mrow><annotation encoding="application/x-tex">N_i</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.10903em;">N</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.31166399999999994em;"><span style="top:-2.5500000000000003em;margin-left:-0.10903em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> 加 1，如果模拟结果是胜利，该节点的胜利次数 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>W</mi><mi>i</mi></msub></mrow><annotation encoding="application/x-tex">W_i</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">W</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.31166399999999994em;"><span style="top:-2.5500000000000003em;margin-left:-0.13889em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> 加 1</li>
+</ul>
+<h3 id="循环与决策"><a class="markdownIt-Anchor" href="#循环与决策"></a> 循环与决策</h3>
+<ul>
+<li><code>MCTS</code> 会在给定的时间限制或计算资源内，疯狂地重复这四个步骤（成千上万次）。每次循环都会让这棵搜索树长得更大，且统计数据越来越准确。</li>
+<li>当时间耗尽时，算法会看一眼根节点的所有子节点。此时不需要再看 UCT 公式了，直接选择访问次数最多（或者胜率最高）的那个子节点，作为最终的决策动作。</li>
+</ul>
+<h3 id="mcts-在井字棋上的示例"><a class="markdownIt-Anchor" href="#mcts-在井字棋上的示例"></a> MCTS 在井字棋上的示例</h3>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> math</span><br><span class="line"><span class="keyword">import</span> random</span><br><span class="line"><span class="keyword">import</span> copy</span><br><span class="line"><span class="keyword">from</span> abc <span class="keyword">import</span> ABC, abstractmethod</span><br><span class="line"></span><br><span class="line"><span class="comment"># ==========================================</span></span><br><span class="line"><span class="comment"># 1. 定义状态接口与井字棋实现</span></span><br><span class="line"><span class="comment"># ==========================================</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">GameState</span>(<span class="params">ABC</span>):</span></span><br><span class="line"><span class="meta">    @abstractmethod</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">get_legal_actions</span>(<span class="params">self</span>):</span> <span class="keyword">pass</span></span><br><span class="line"><span class="meta">    @abstractmethod</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">apply_action</span>(<span class="params">self, action</span>):</span> <span class="keyword">pass</span></span><br><span class="line"><span class="meta">    @abstractmethod</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">is_terminal</span>(<span class="params">self</span>):</span> <span class="keyword">pass</span></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">TicTacToe</span>(<span class="params">GameState</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, board=<span class="literal">None</span>, current_player=<span class="number">1</span></span>):</span></span><br><span class="line">        <span class="comment"># board: 0 为空，1 为玩家 X，-1 为玩家 O</span></span><br><span class="line">        self.board = board <span class="keyword">if</span> board <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span> <span class="keyword">else</span> [<span class="number">0</span>] * <span class="number">9</span></span><br><span class="line">        self.current_player = current_player</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">get_legal_actions</span>(<span class="params">self</span>):</span></span><br><span class="line">        <span class="string">&quot;&quot;&quot;返回所有空位的索引&quot;&quot;&quot;</span></span><br><span class="line">        <span class="keyword">return</span> [i <span class="keyword">for</span> i, x <span class="keyword">in</span> <span class="built_in">enumerate</span>(self.board) <span class="keyword">if</span> x == <span class="number">0</span>]</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">apply_action</span>(<span class="params">self, action</span>):</span></span><br><span class="line">        <span class="string">&quot;&quot;&quot;落子，并返回切换了玩家的新状态&quot;&quot;&quot;</span></span><br><span class="line">        new_board = copy.deepcopy(self.board)</span><br><span class="line">        new_board[action] = self.current_player</span><br><span class="line">        <span class="keyword">return</span> TicTacToe(new_board, current_player=-self.current_player)</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">get_winner</span>(<span class="params">self</span>):</span></span><br><span class="line">        <span class="string">&quot;&quot;&quot;检查是否有玩家获胜，返回 1, -1, 或 None&quot;&quot;&quot;</span></span><br><span class="line">        lines = [</span><br><span class="line">            (<span class="number">0</span>, <span class="number">1</span>, <span class="number">2</span>), (<span class="number">3</span>, <span class="number">4</span>, <span class="number">5</span>), (<span class="number">6</span>, <span class="number">7</span>, <span class="number">8</span>),  <span class="comment"># 横</span></span><br><span class="line">            (<span class="number">0</span>, <span class="number">3</span>, <span class="number">6</span>), (<span class="number">1</span>, <span class="number">4</span>, <span class="number">7</span>), (<span class="number">2</span>, <span class="number">5</span>, <span class="number">8</span>),  <span class="comment"># 竖</span></span><br><span class="line">            (<span class="number">0</span>, <span class="number">4</span>, <span class="number">8</span>), (<span class="number">2</span>, <span class="number">4</span>, <span class="number">6</span>)              <span class="comment"># 交叉</span></span><br><span class="line">        ]</span><br><span class="line">        <span class="keyword">for</span> a, b, c <span class="keyword">in</span> lines:</span><br><span class="line">            <span class="keyword">if</span> self.board[a] != <span class="number">0</span> <span class="keyword">and</span> self.board[a] == self.board[b] == self.board[c]:</span><br><span class="line">                <span class="keyword">return</span> self.board[a]</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">None</span></span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">is_terminal</span>(<span class="params">self</span>):</span></span><br><span class="line">        <span class="string">&quot;&quot;&quot;判断游戏是否结束（有人赢了，或者没空位了）&quot;&quot;&quot;</span></span><br><span class="line">        <span class="keyword">return</span> self.get_winner() <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span> <span class="keyword">or</span> <span class="built_in">len</span>(self.get_legal_actions()) == <span class="number">0</span></span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">get_result</span>(<span class="params">self, player</span>):</span></span><br><span class="line">        <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">        核心方法：返回特定 player 在当前终局下的得分。</span></span><br><span class="line"><span class="string">        赢=1.0，输=0.0，平局=0.5</span></span><br><span class="line"><span class="string">        &quot;&quot;&quot;</span></span><br><span class="line">        winner = self.get_winner()</span><br><span class="line">        <span class="keyword">if</span> winner <span class="keyword">is</span> <span class="literal">None</span>:</span><br><span class="line">            <span class="keyword">return</span> <span class="number">0.5</span>  <span class="comment"># 平局</span></span><br><span class="line">        <span class="keyword">if</span> winner == player:</span><br><span class="line">            <span class="keyword">return</span> <span class="number">1.0</span>  <span class="comment"># 该玩家获胜</span></span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            <span class="keyword">return</span> <span class="number">0.0</span>  <span class="comment"># 该玩家落败</span></span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__str__</span>(<span class="params">self</span>):</span></span><br><span class="line">        symbols = &#123;<span class="number">1</span>: <span class="string">&#x27;X&#x27;</span>, -<span class="number">1</span>: <span class="string">&#x27;O&#x27;</span>, <span class="number">0</span>: <span class="string">&#x27;.&#x27;</span>&#125;</span><br><span class="line">        res = <span class="string">&quot;&quot;</span></span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">3</span>):</span><br><span class="line">            res += <span class="string">&quot; &quot;</span>.join([symbols[self.board[i*<span class="number">3</span> + j]] <span class="keyword">for</span> j <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">3</span>)]) + <span class="string">&quot;\n&quot;</span></span><br><span class="line">        <span class="keyword">return</span> res</span><br><span class="line"></span><br><span class="line"><span class="comment"># ==========================================</span></span><br><span class="line"><span class="comment"># 2. MCTS 树节点与主算法</span></span><br><span class="line"><span class="comment"># ==========================================</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">MCTSNode</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, state: TicTacToe, parent=<span class="literal">None</span>, action=<span class="literal">None</span></span>):</span></span><br><span class="line">        self.state = state</span><br><span class="line">        self.parent = parent</span><br><span class="line">        self.action = action</span><br><span class="line">        self.children = []</span><br><span class="line">        self.untried_actions = state.get_legal_actions()</span><br><span class="line">        </span><br><span class="line">        self.visits = <span class="number">0</span>  <span class="comment"># 记录此节点到达的总次数</span></span><br><span class="line">        self.wins = <span class="number">0.0</span>  <span class="comment"># 记录“导致到达此节点的动作”所带来的胜场</span></span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">is_fully_expanded</span>(<span class="params">self</span>):</span></span><br><span class="line">        <span class="keyword">return</span> <span class="built_in">len</span>(self.untried_actions) == <span class="number">0</span></span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">best_child</span>(<span class="params">self, c_param=<span class="number">1.414</span></span>):</span></span><br><span class="line">        <span class="string">&quot;&quot;&quot;使用 UCT 公式选择最优子节点&quot;&quot;&quot;</span></span><br><span class="line">        choices_weights = []</span><br><span class="line">        <span class="keyword">for</span> child <span class="keyword">in</span> self.children:</span><br><span class="line">            exploit = child.wins / child.visits</span><br><span class="line">            explore = c_param * math.sqrt((<span class="number">2</span> * math.log(self.visits) / child.visits))</span><br><span class="line">            choices_weights.append(exploit + explore)</span><br><span class="line">        <span class="keyword">return</span> self.children[choices_weights.index(<span class="built_in">max</span>(choices_weights))]</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">mcts_search</span>(<span class="params">root_state: TicTacToe, iterations: <span class="built_in">int</span> = <span class="number">2000</span></span>):</span></span><br><span class="line">    root_node = MCTSNode(state=root_state)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> _ <span class="keyword">in</span> <span class="built_in">range</span>(iterations):</span><br><span class="line">        node = root_node</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 第一步：选择 (Selection)</span></span><br><span class="line">        <span class="keyword">while</span> node.is_fully_expanded() <span class="keyword">and</span> <span class="keyword">not</span> node.state.is_terminal():</span><br><span class="line">            node = node.best_child()</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 第二步：扩展 (Expansion)</span></span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">not</span> node.state.is_terminal():</span><br><span class="line">            action = random.choice(node.untried_actions)</span><br><span class="line">            node.untried_actions.remove(action)</span><br><span class="line">            next_state = node.state.apply_action(action)</span><br><span class="line">            </span><br><span class="line">            child_node = MCTSNode(state=next_state, parent=node, action=action)</span><br><span class="line">            node.children.append(child_node)</span><br><span class="line">            node = child_node</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 第三步：模拟 (Rollout) - 纯随机下棋直到结束</span></span><br><span class="line">        current_rollout_state = node.state</span><br><span class="line">        <span class="keyword">while</span> <span class="keyword">not</span> current_rollout_state.is_terminal():</span><br><span class="line">            possible_actions = current_rollout_state.get_legal_actions()</span><br><span class="line">            action = random.choice(possible_actions)</span><br><span class="line">            current_rollout_state = current_rollout_state.apply_action(action)</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 第四步：反向传播 (Backpropagation)</span></span><br><span class="line">        <span class="keyword">while</span> node <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span>:</span><br><span class="line">            node.visits += <span class="number">1</span></span><br><span class="line">            <span class="comment"># 如果 node 有父节点，说明 node 是由父节点的玩家执行 action 得到的</span></span><br><span class="line">            <span class="keyword">if</span> node.parent <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span>:</span><br><span class="line">                <span class="comment"># 获取做出该动作的玩家</span></span><br><span class="line">                player_who_made_the_move = node.parent.state.current_player</span><br><span class="line">                <span class="comment"># 将终局结果站在该玩家的视角累加到该节点</span></span><br><span class="line">                node.wins += current_rollout_state.get_result(player_who_made_the_move)</span><br><span class="line">            node = node.parent</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 搜索结束，选择访问量最大（最稳健）的子节点动作</span></span><br><span class="line">    best_final_node = <span class="built_in">max</span>(root_node.children, key=<span class="keyword">lambda</span> c: c.visits)</span><br><span class="line">    <span class="keyword">return</span> best_final_node.action</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">play_game</span>():</span></span><br><span class="line">    game = TicTacToe()</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot;=====================================&quot;</span>)</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot;欢迎来到 MCTS 井字棋对战！&quot;</span>)</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot;AI 执 X (先手)，你执 O (后手)。&quot;</span>)</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot;棋盘的位置索引 (0-8) 如下所示：&quot;</span>)</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot; 0 | 1 | 2 &quot;</span>)</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot;---+---+---&quot;</span>)</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot; 3 | 4 | 5 &quot;</span>)</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot;---+---+---&quot;</span>)</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot; 6 | 7 | 8 &quot;</span>)</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot;=====================================\n&quot;</span>)</span><br><span class="line">    </span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot;初始棋盘:&quot;</span>)</span><br><span class="line">    <span class="built_in">print</span>(game)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">while</span> <span class="keyword">not</span> game.is_terminal():</span><br><span class="line">        <span class="keyword">if</span> game.current_player == <span class="number">1</span>:</span><br><span class="line">            <span class="comment"># AI 的回合</span></span><br><span class="line">            <span class="built_in">print</span>(<span class="string">&quot;AI (MCTS) 正在思考中... (这可能需要一两秒)&quot;</span>)</span><br><span class="line">            <span class="comment"># 这里的 iterations 控制 AI 的算力（难度）。</span></span><br><span class="line">            <span class="comment"># 对于井字棋，2000 次迭代 AI 已经几乎是“不败”的了。</span></span><br><span class="line">            best_move = mcts_search(game, iterations=<span class="number">2000</span>)</span><br><span class="line">            <span class="built_in">print</span>(<span class="string">f&quot;AI 落子在位置: <span class="subst">&#123;best_move&#125;</span>\n&quot;</span>)</span><br><span class="line">            game = game.apply_action(best_move)</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            <span class="comment"># 玩家的回合</span></span><br><span class="line">            legal_moves = game.get_legal_actions()</span><br><span class="line">            <span class="keyword">while</span> <span class="literal">True</span>:</span><br><span class="line">                <span class="keyword">try</span>:</span><br><span class="line">                    move = <span class="built_in">input</span>(<span class="string">f&quot;轮到你了，请输入你要落子的位置 <span class="subst">&#123;legal_moves&#125;</span>: &quot;</span>)</span><br><span class="line">                    move = <span class="built_in">int</span>(move)</span><br><span class="line">                    <span class="keyword">if</span> move <span class="keyword">in</span> legal_moves:</span><br><span class="line">                        <span class="keyword">break</span></span><br><span class="line">                    <span class="keyword">else</span>:</span><br><span class="line">                        <span class="built_in">print</span>(<span class="string">&quot;⚠ 错误：该位置已有棋子或超出范围，请重新输入。&quot;</span>)</span><br><span class="line">                <span class="keyword">except</span> ValueError:</span><br><span class="line">                    <span class="built_in">print</span>(<span class="string">&quot;⚠ 错误：请输入一个有效的数字。&quot;</span>)</span><br><span class="line">                    </span><br><span class="line">            <span class="built_in">print</span>(<span class="string">f&quot;你落子在位置: <span class="subst">&#123;move&#125;</span>\n&quot;</span>)</span><br><span class="line">            game = game.apply_action(move)</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 打印当前棋盘状态</span></span><br><span class="line">        <span class="built_in">print</span>(game)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 游戏结束，判定胜负</span></span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot;=====================================&quot;</span>)</span><br><span class="line">    winner = game.get_winner()</span><br><span class="line">    <span class="keyword">if</span> winner == <span class="number">1</span>:</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;🤖 游戏结束：AI (X) 获胜！(MCTS 确实很难被击败哦)&quot;</span>)</span><br><span class="line">    <span class="keyword">elif</span> winner == -<span class="number">1</span>:</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;🎉 游戏结束：恭喜你 (O) 获胜！(这说明你找到了算法的盲区！)&quot;</span>)</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;🤝 游戏结束：平局！(面对完美的对手，平局已经是最好的结果了)&quot;</span>)</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot;=====================================&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">&quot;__main__&quot;</span>:</span><br><span class="line">    play_game()</span><br></pre></td></tr></table></figure>
+<h2 id="thoughts"><a class="markdownIt-Anchor" href="#thoughts"></a> Thoughts</h2>
+<ul>
+<li>对于这种简单的游戏，只经过简单的蒙特卡洛树搜索，<code>AI</code> 先手基本可以做到完全不败，但对于像围棋这种搜索空间的游戏，单用 <code>MCTS</code> 实际上无法做到穷举例</li>
+<li><code>MCTS</code> 在论文中是每个回合都重建一棵新树，在下个回合就抛弃，工程上通常是一局对弈只建立一棵树，随着对弈根节点向下，只有出现之前未搜索到的局面，才会重建新树</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2026/03/19/Attention-Residuals/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -2141,271 +2313,6 @@ V_p^+(x)=\frac{1}{0.194}(0.388, 0.118)\approx (2.0, 0.61)
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://real-zhangzhe.github.io/2025/09/24/IndexTTS2-A-Breakthrough-in-Emotionally-Expressive-and-Duration-Controlled-Auto-Regressive-Zero-Shot-Text-to-Speech/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Zhangzhe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Zhangzhe's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2025/09/24/IndexTTS2-A-Breakthrough-in-Emotionally-Expressive-and-Duration-Controlled-Auto-Regressive-Zero-Shot-Text-to-Speech/" class="post-title-link" itemprop="url">IndexTTS2: A Breakthrough in Emotionally Expressive and Duration-Controlled Auto-Regressive Zero-Shot Text-to-Speech</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2025-09-24 22:46:52" itemprop="dateCreated datePublished" datetime="2025-09-24T22:46:52+08:00">2025-09-24</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-12-11 13:48:26" itemprop="dateModified" datetime="2025-12-11T13:48:26+08:00">2025-12-11</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/TTS/" itemprop="url" rel="index"><span itemprop="name">TTS</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine: </span>
-    
-    <a title="valine" href="/2025/09/24/IndexTTS2-A-Breakthrough-in-Emotionally-Expressive-and-Duration-Controlled-Auto-Regressive-Zero-Shot-Text-to-Speech/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/2025/09/24/IndexTTS2-A-Breakthrough-in-Emotionally-Expressive-and-Duration-Controlled-Auto-Regressive-Zero-Shot-Text-to-Speech/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="url"><a class="markdownIt-Anchor" href="#url"></a> URL</h2>
-<ul>
-<li>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2506.21619">https://arxiv.org/pdf/2506.21619</a></li>
-<li>code: <a target="_blank" rel="noopener" href="https://github.com/index-tts/index-tts">https://github.com/index-tts/index-tts</a></li>
-<li>demo: <a target="_blank" rel="noopener" href="https://index-tts.github.io/index-tts2.github.io">https://index-tts.github.io/index-tts2.github.io</a></li>
-</ul>
-<h2 id="tldr"><a class="markdownIt-Anchor" href="#tldr"></a> TL;DR</h2>
-<ul>
-<li><code>IndexTTS2</code> 是 <code>BiliBili</code> 提出的一种 <code>TTS</code> 模型，有如下几个特点：
-<ul>
-<li><strong>情感表达</strong>：能够生成具有特定情感的语音，如快乐、悲伤、愤怒等。</li>
-<li><strong>时长控制</strong>：可以通过输入一个数字来精确控制生成语音的时长。</li>
-<li><strong>零样本学习</strong>：无需针对特定说话人进行训练，能够适应新的说话人（常见的 <code>TTS</code> 只提供少量的说话人音色供选择，<code>IndexTTS2</code> 可以适配任何给定样本的音色）。</li>
-<li><strong>自回归生成</strong>：通过逐步生成语音帧，提升了语音的自然度和连贯性。</li>
-</ul>
-</li>
-<li><code>IndexTTS2</code> 的输入：
-<ul>
-<li>源文本 (<code>Source Text</code>)：需要转换为语音的文字。</li>
-<li>音色提示 (<code>Timbre Prompt</code>)：一小段目标说话人的音频，用于提取“音色”特征，决定了合成语音“像谁”。</li>
-<li>风格提示 (<code>Style Prompt</code>)：一小段带有特定情感的音频，用于提取“情感”特征，决定了合成语音的“情绪”。</li>
-<li>语音 Token 数量 (<code>Speech Token Num</code>)（可选）：一个数字，用于精确控制生成语音的时长。</li>
-</ul>
-</li>
-<li><code>IndexTTS2</code> 的输出：目标语音 (<code>Target Speech</code>)：最终合成的音频波形文件。</li>
-</ul>
-<h2 id="algorithm"><a class="markdownIt-Anchor" href="#algorithm"></a> Algorithm</h2>
-<h3 id="0-基础知识"><a class="markdownIt-Anchor" href="#0-基础知识"></a> 0. 基础知识</h3>
-<h4 id="01-语音的表示方法"><a class="markdownIt-Anchor" href="#01-语音的表示方法"></a> 0.1 语音的表示方法</h4>
-<ul>
-<li><strong>连续表示：声音的物理基础</strong>
-<ul>
-<li><strong>数字波形</strong>：数字波形（<code>Digital Waveform</code>）是语音最直接、最基础的表示形式。它是通过对连续的模拟声波进行“采样”（<code>Sampling</code>）得到的。采样过程以固定的时间间隔（由采样率决定，如 <code>16000 Hz</code> 或 <code>24000 Hz</code>）测量声波的振幅，从而将连续的信号转换为一个离散的数值序列。这个序列在时间维度上描绘了声音振幅的变化，因此也被称为声音的时域（<code>time domain</code>）表示。</li>
-<li><strong>梅尔频谱图</strong>：为了解决波形表示的难题，研究者们借鉴了人类听觉系统的特性，提出了一种更高效、更符合感知的表示方法——梅尔频谱图（<code>Mel-Spectrogram</code>）。它是一种时频（<code>time-frequency</code>）表示，描绘了语音信号的能量如何随时间和频率变化。其生成过程大致如下：
-<ul>
-<li><strong>分帧与加窗</strong>：将长段的音频波形切分成许多短暂的、有重叠的“帧”（<code>frame</code>），并对每一帧应用一个窗函数。</li>
-<li><strong>傅里叶变换</strong>：对每一帧进行短时傅里叶变换（<code>STFT</code>），得到其频谱，即能量在不同频率上的分布。</li>
-<li><strong>梅尔尺度映射</strong>：将频谱的频率轴从线性的赫兹（<code>Hz</code>）尺度，映射到梅尔（<code>Mel</code>）尺度。梅尔尺度是一种非线性尺度，它模拟了人耳对频率的感知特性——人耳对低频声音的变化比对高频声音的变化更敏感。</li>
-<li><strong>能量取对数</strong>：最后，通常会对能量值取对数，使其更符合人类对音量大小的感知。</li>
-</ul>
-</li>
-</ul>
-</li>
-<li><strong>离散表示：现代语音模型的通用语言</strong>
-<ul>
-<li>随着自监督学习（<code>Self-Supervised Learning, SSL</code>）的兴起，语音表示领域迎来了第二次、也是更深刻的一次抽象革命：将连续的语音特征离散化为一系列符号，即“语音令牌”（<code>Speech Tokens</code>）。</li>
-<li>离散化，或称之为令牌化（<code>Tokenization</code>），是指将连续的高维语音特征向量，映射到一个有限的、离散的符号集合（称为“码本”或“<code>codebook</code>”）中的过程。这个过程通常通过矢量量化（<code>Vector Quantization, VQ</code>）技术实现，例如使用 <code>k-means</code> 聚类算法，将海量语音特征向量聚类成有限个簇，每个簇的中心点就成为了码本中的一个符号（或称为令牌）。</li>
-<li>语义令牌（<code>Semantic Tokens</code>）：这类令牌旨在捕捉语音的语言学内容，即“说了什么”。它们通常是从大规模自监督学习模型（如<code>HuBERT, WavLM</code>）的中间层特征中提取并聚类得到的。这些 <code>SSL</code> 模型在训练时被要求完成与语音内容相关的任务（如掩码预测），因此其学到的特征富含语义信息，并且在很大程度上与说话人的音色、韵律、口音等无关。</li>
-<li>声学令牌（<code>Acoustic Tokens</code>）：这类令牌旨在捕捉语音的声学属性，即“听起来怎么样”，包括音色、韵律、音高等信息。它们通常由神经音频编解码器（<code>Neural Audio Codec</code>，如 <code>EnCodec</code>）学习得到。这类模型的训练目标是能够从令牌中高质量地重建原始音频波形，因此令牌必须编码足够丰富的声学细节。</li>
-</ul>
-</li>
-</ul>
-<h4 id="02-现代-tts-模型的架构"><a class="markdownIt-Anchor" href="#02-现代-tts-模型的架构"></a> 0.2 现代 TTS 模型的架构</h4>
-<ul>
-<li><strong>端到端流派</strong>：输入为文本，输出为波形，中间不做监督。
-<ul>
-<li>代表模型为 <code>Char2Wav</code></li>
-<li>缺点：因为原始音频波形的时间分辨率极高（例如，每秒 <code>24000</code> 个采样点），直接建模非常困难。因此难度高、效果差。</li>
-</ul>
-</li>
-<li><strong>两阶段流派</strong>：
-<ul>
-<li>将模型拆分成两个阶段：
-<ul>
-<li>一个声学模型（如 <code>Tacotron 2</code>），负责将文本转换为梅尔频谱图这种低维度的声学表示。</li>
-<li>一个神经声码器（如 <code>WaveNet, WaveGlow</code>），负责将梅尔频谱图高质量地转换为最终的音频波形。</li>
-</ul>
-</li>
-<li>缺点：如果想在声学模型中加入更多的控制条件（如情感、时长等），会使得声学模型的输入变得非常复杂，难以训练。</li>
-</ul>
-</li>
-<li><strong>三阶段流派</strong>：
-<ul>
-<li>在二阶段的基础上，将声学模型继续拆分成两个子模块：
-<ul>
-<li>如文本到语义（<code>Text-to-Semantic, T2S</code>）</li>
-<li>语义表示到声学表示（如语义令牌到梅尔频谱图，<code>Semantic-to-Mel, S2M</code>）</li>
-</ul>
-</li>
-<li>这种三阶段的设计，方便在语义之外加入更多的控制条件（如音色、情感、时长等），并且每个子模块的任务相对单一，易于训练。</li>
-</ul>
-</li>
-</ul>
-<h3 id="1-indextts2-的架构"><a class="markdownIt-Anchor" href="#1-indextts2-的架构"></a> 1. IndexTTS2 的架构</h3>
-<p><img src="https://s2.loli.net/2025/10/08/IOEtzhljA3BkP4q.png" alt="indextts2_1.png" /></p>
-<ul>
-<li>主要由三部分组成：
-<ul>
-<li><code>Text-to-Semantic</code> (<code>T2S</code>)：
-<ul>
-<li>输入：
-<ul>
-<li>文本（待合成的文字）</li>
-<li><code>Timbre Prompt</code>（说话人参考音频）</li>
-<li><code>Style Prompt</code>（情感参考音频）</li>
-<li>可选的 <code>Duration</code> 控制（语义 <code>token</code> 序列长度）</li>
-</ul>
-</li>
-<li>输出
-<ul>
-<li>语义 <code>token</code>（<code>semantic tokens</code>）</li>
-</ul>
-</li>
-</ul>
-</li>
-<li><code>Semantic-to-Mel</code> (<code>S2M</code>)：一个基于 <code>flow-matching</code> 的非自回归模型
-<ul>
-<li>输入：
-<ul>
-<li>语义 <code>token</code>（<code>semantic tokens</code>）</li>
-<li>说话人提示 (音色，<code>timbre prompt</code>)</li>
-</ul>
-</li>
-<li>输出：<code>Mel</code> 频谱图</li>
-</ul>
-</li>
-<li><code>Vocoder</code> (<code>BigVGANv2</code>)：把 <code>Mel</code> 频谱解码成最终的音频波形</li>
-</ul>
-</li>
-</ul>
-<h3 id="2-text-to-semantic-详解"><a class="markdownIt-Anchor" href="#2-text-to-semantic-详解"></a> 2. <code>Text-to-Semantic</code> 详解</h3>
-<p><img src="https://s2.loli.net/2025/10/08/An4bjB7RWSVxrmw.png" alt="indextts2_2.png" /></p>
-<ul>
-<li>这个模块是模型的核心，采用自回归的 <code>Transformer</code> 架构，负责将文本和其他条件信息转换为中间的语义表征（<code>Semantic Tokens</code>）。</li>
-<li>输入:
-<ul>
-<li>文本序列 (<code>Text</code>): 经过分词器处理后的文本嵌入 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>E</mi><mrow><mi>t</mi><mi>e</mi><mi>x</mi><mi>t</mi></mrow></msub></mrow><annotation encoding="application/x-tex">E_{text}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.05764em;">E</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2805559999999999em;"><span style="top:-2.5500000000000003em;margin-left:-0.05764em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">t</span><span class="mord mathnormal mtight">e</span><span class="mord mathnormal mtight">x</span><span class="mord mathnormal mtight">t</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span></li>
-<li>说话人音色提示 (<code>Timbre Prompt</code>): 一段音频，通过预训练的 Speaker Perceiver Conditioner 提取为说话人特征向量 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>c</mi></mrow><annotation encoding="application/x-tex">c</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathnormal">c</span></span></span></span>。</li>
-<li>情感风格提示 (<code>Style Prompt</code>): 一段音频，通过 <code>Emotion Perceiver Conditioner</code> 提取为情感嵌入 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>e</mi></mrow><annotation encoding="application/x-tex">e</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathnormal">e</span></span></span></span>。</li>
-<li>时长控制信号 (<code>Speech Token Num</code>): 一个可选的数字，指定希望生成的语义令牌数量，被转换为时长嵌入 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi></mrow><annotation encoding="application/x-tex">p</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.625em;vertical-align:-0.19444em;"></span><span class="mord mathnormal">p</span></span></span></span>。如果不指定，则用于自由生成。</li>
-</ul>
-</li>
-<li>输出：
-<ul>
-<li>语义令牌序列 (<code>Semantic Tokens</code>): 模型预测出的语义令牌序列。</li>
-<li><code>GPT</code> 隐层状态 (<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>H</mi><mrow><mi>G</mi><mi>P</mi><mi>T</mi></mrow></msub></mrow><annotation encoding="application/x-tex">H_{GPT}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.08125em;">H</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.32833099999999993em;"><span style="top:-2.5500000000000003em;margin-left:-0.08125em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">G</span><span class="mord mathnormal mtight" style="margin-right:0.13889em;">P</span><span class="mord mathnormal mtight" style="margin-right:0.13889em;">T</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span>): <code>T2S</code> 模块最后一个 <code>Transformer</code> 层的输出，包含了丰富的文本和上下文信息，会作为增强特征送入后续的 <code>S2M</code> 模块。</li>
-</ul>
-</li>
-<li>监督信号：基准语音 (<code>Ground-Truth Speech</code>)。将基准语音通过语义编码器 (<code>Semantic Codec</code>) 转换成真实的语义令牌序列 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>E</mi><mrow><mi>s</mi><mi>e</mi><mi>m</mi></mrow></msub></mrow><annotation encoding="application/x-tex">E_{sem}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.05764em;">E</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:-0.05764em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">s</span><span class="mord mathnormal mtight">e</span><span class="mord mathnormal mtight">m</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span></li>
-<li>损失函数：交叉熵损失</li>
-<li>技巧：使用 <code>GRL + speaker classifier</code>，对抗训练，避免 <code>style</code> 携带 <code>timbre</code> 信息</li>
-</ul>
-<h3 id="3-semantic-to-mel-详解"><a class="markdownIt-Anchor" href="#3-semantic-to-mel-详解"></a> 3. <code>Semantic-to-Mel</code> 详解</h3>
-<p><img src="https://s2.loli.net/2025/10/08/BVyDCqNMn8p6odG.png" alt="indextts2_3.png" /></p>
-<ul>
-<li>该模块基于流匹配 (<code>Flow Matching</code>) 的非自回归框架，负责将 <code>T2S</code> 生成的语义令牌序列合成为梅尔频谱图。</li>
-<li>输入:
-<ul>
-<li>语义令牌 (<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>Q</mi><mrow><mi>s</mi><mi>e</mi><mi>m</mi></mrow></msub></mrow><annotation encoding="application/x-tex">Q_{sem}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8777699999999999em;vertical-align:-0.19444em;"></span><span class="mord"><span class="mord mathnormal">Q</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">s</span><span class="mord mathnormal mtight">e</span><span class="mord mathnormal mtight">m</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span>): 来自 <code>T2S</code> 模块的输出。</li>
-<li><code>GPT</code> 隐层状态 (<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>H</mi><mrow><mi>G</mi><mi>P</mi><mi>T</mi></mrow></msub></mrow><annotation encoding="application/x-tex">H_{GPT}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.08125em;">H</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.32833099999999993em;"><span style="top:-2.5500000000000003em;margin-left:-0.08125em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">G</span><span class="mord mathnormal mtight" style="margin-right:0.13889em;">P</span><span class="mord mathnormal mtight" style="margin-right:0.13889em;">T</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span>): 来自 <code>T2S</code> 模块的输出，用于增强语义信息。这两者会通过一个 <code>MLP</code> 以 <code>50%</code> 的概率进行随机融合，形成最终的语义表征 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>Q</mi><mrow><mi>f</mi><mi>i</mi><mi>n</mi></mrow></msub></mrow><annotation encoding="application/x-tex">Q_{fin}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.969438em;vertical-align:-0.286108em;"></span><span class="mord"><span class="mord mathnormal">Q</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361079999999999em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.10764em;">f</span><span class="mord mathnormal mtight">i</span><span class="mord mathnormal mtight">n</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span></span></span></span>。</li>
-<li>说话人嵌入 (<code>Speaker Embedding</code>): 从音色提示音频中提取的说话人特征，以保证音色的一致性。</li>
-<li>提示梅尔频谱 (<code>Prompt Mel-spectrograms</code>): 训练时，输入音频会被随机切分为提示段和目标段，提示段的梅尔频谱作为参考。</li>
-</ul>
-</li>
-<li>输出：目标梅尔频谱图 (<code>Target Mel Spectrogram</code>)</li>
-<li>训练方式：模型学习一个常微分方程 (<code>ODE</code>)，将高斯噪声映射到目标梅尔频谱。训练时，目标段的真实梅尔频谱被完全加噪，模型需要学习去噪并重建它。</li>
-<li>监督信号：目标段的真实梅尔频谱图 (<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mrow><mi>t</mi><mi>a</mi><mi>r</mi></mrow></msub></mrow><annotation encoding="application/x-tex">y_{tar}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.625em;vertical-align:-0.19444em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.03588em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2805559999999999em;"><span style="top:-2.5500000000000003em;margin-left:-0.03588em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">t</span><span class="mord mathnormal mtight">a</span><span class="mord mathnormal mtight" style="margin-right:0.02778em;">r</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span>)</li>
-<li>损失函数：<code>L1 loss</code></li>
-</ul>
-<h3 id="4-vocoder-详解"><a class="markdownIt-Anchor" href="#4-vocoder-详解"></a> 4. <code>Vocoder</code> 详解</h3>
-<ul>
-<li>输入：
-<ul>
-<li>由 <code>S2M</code> 模块生成的梅尔频谱图 (<code>Mel Spectrogram</code>)。</li>
-</ul>
-</li>
-<li>输出:
-<ul>
-<li>最终的音频波形 (<code>Audio Waveform</code>)。</li>
-</ul>
-</li>
-<li>直接使用了训练好的 <code>BigVGANv2</code> 模型</li>
-</ul>
-<h2 id="thoughts"><a class="markdownIt-Anchor" href="#thoughts"></a> Thoughts</h2>
-<ul>
-<li><code>TTS</code> 是个很有趣的领域，直觉上看流媒体平台上有大量的语音数据，应该很容易训练一个 <code>TTS</code> 模型，但实际上似乎并不是很容易。</li>
-<li>用 <code>GRL</code> 来去除 <code>style</code> 中的 <code>timbre</code> 信息是个不错的想法。</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -2474,20 +2381,20 @@ V_p^+(x)=\frac{1}{0.194}(0.388, 0.118)\approx (2.0, 0.61)
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">177</span>
+          <span class="site-state-item-count">178</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">52</span>
+        <span class="site-state-item-count">53</span>
         <span class="site-state-item-name">categories</span></a>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">105</span>
+        <span class="site-state-item-count">106</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
